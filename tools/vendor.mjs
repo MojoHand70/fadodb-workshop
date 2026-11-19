@@ -13,6 +13,6 @@ const to = new URL('../pages/vendor/', import.meta.url);
 
 await mkdir(to, { recursive: true });
 for (const file of ['fadodb-vm.js', 'fadodb-vm.d.ts', 'LICENSE']) {
-  await copyFile(new URL(file, from), new URL(file === 'LICENSE' ? 'fadodb-vm.LICENSE' : file, to));
+  await copyFile(new URL(file, from), new URL(file === 'LICENSE' ? 'fadodb-vm.LICENSE.txt' : file, to));
 }
 console.log(`fadodb-vm is in ${fileURLToPath(to)}`);

@@ -4,15 +4,14 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { serve } from '../tools/serve.mjs';
 import { acme, signIn } from './acme.mjs';
 import { fits, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
-/** @type {{ url: string, close: () => Promise<void> }} */
+/** Where Workshop's pages answer: the server's own address. */
+/** @type {{ url: string }} */
 let site;
 /** @type {import('playwright').Browser} */
 let browser;
@@ -21,13 +20,12 @@ before(async () => {
   server = await acme();
   const expense = JSON.parse(await readFile(new URL('./fixtures/expense.json', import.meta.url), 'utf8'));
   await server.exec('define_class', { definition: expense });
-  site = await serve({ dir: fileURLToPath(new URL('../pages/', import.meta.url)), server: server.url });
+  site = server.site;
   browser = await chromium.launch();
 });
 
 after(async () => {
   await browser?.close();
-  await site?.close();
   await server?.close();
 });
 

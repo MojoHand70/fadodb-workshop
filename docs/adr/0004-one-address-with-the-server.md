@@ -24,7 +24,10 @@ Ann set her password on the server's page, signed in, came back to
 Workshop's page, and the page's commands `whoami`, `list_classes` and
 `get_class` were answered as Ann. Nothing in the engine was changed.
 
-The engine does not hand out a folder of pages yet.
+When this record was written the engine did not hand out a folder of
+pages, and a helper of Workshop's own stood in front of the server. It
+does since the engine's ADR-0073, of the same day: `fadodb serve
+--pages`.
 
 ## Decision
 
@@ -37,10 +40,11 @@ The engine does not hand out a folder of pages yet.
    script of Workshop reads it, keeps it or sends it by hand.
 4. **Signing out ends the session on the server**, and the person
    stays in Workshop, signed out.
-5. **Until a server hands out the folder itself, a helper stands in
-   front of the server**, `tools/serve.mjs`: it hands out `pages/` and
-   passes `/v1/`, `/auth/` and `/.well-known/` through. It is for
-   development and for the tests, on one's own machine.
+5. **A FadoDB server hands out Workshop's folder itself**, started
+   with `fadodb serve --pages` (the engine's ADR-0073): at the root of
+   its address, its own addresses first, with one header that is not
+   the operator's to change. Workshop's pages are written for that
+   header, and a test holds them to what a real server sends.
 
 ## The owner's ruling
 
@@ -57,7 +61,9 @@ allows it today for a program; for a page in a browser it waits for
 the engine to answer a page of another site.
 
 Settled by me, his to veto: that the first way built is the one
-address; items 3 and 4; and the helper of item 5.
+address; and items 3 and 4. Item 5 follows his two rulings on the
+engine's ADR-0073: the pages answer at the root, under one fixed
+header.
 
 ## Consequences
 
@@ -67,9 +73,11 @@ address; items 3 and 4; and the helper of item 5.
   person may send. Workshop's own scripts are held to the security
   header; a face that carries code somebody else wrote needs a room of
   its own, which a later record settles.
-- Until the engine hands out a folder, nobody can install Workshop for
-  people to use. That step is the engine's and needs its own record
-  there.
+- Workshop runs wherever a FadoDB server that hands out a folder
+  runs, and needs nothing else installed.
+- Whoever can write to the folder acts as everybody who signs in,
+  within what each may do. The engine's record says so to the
+  operator.
 
 ## Not tested
 

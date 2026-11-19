@@ -1,49 +1,40 @@
-// Hands out the folder pages/ on this machine, for development and for
-// the checks, with the security header Workshop's pages are held to.
-// Told where a FadoDB server is, it stands in front of it: the commands
-// and the server's own pages pass through, so that Workshop's pages and
-// the server answer at one address, as they will when a server hands
-// out the folder itself.
-// It is a helper. It is not a server to put in front of people.
+// Hands out the folder pages/ on this machine with no FadoDB server
+// behind it: to look at a page as it is drawn, and for the check of what
+// a page says when no server answers.
 //
-//   node tools/serve.mjs                                  pages/ alone
-//   node tools/serve.mjs --server http://127.0.0.1:8080   in front of a server
+// To use Workshop, a FadoDB server hands out the folder itself:
+//
+//   fadodb serve acme.db --pages pages
+//
+// This helper sends the header such a server sends with every page, so
+// that a page that loads here loads there.
+//
+//   node tools/serve.mjs            pages/ at http://127.0.0.1:8717/
 //   node tools/serve.mjs --port 9000
 
-import { createServer, request } from 'node:http';
+import { createServer } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * The headers every answer of the helper's own carries. A page may load
- * script, style, pictures and fonts from its own address only, may call
- * its own address only, and may not be shown inside another page.
+ * The header a FadoDB server sends with every page of a face (the
+ * engine's ADR-0073, item 7). A page loads script, style, pictures and
+ * fonts from the server alone, calls the server alone, and is shown
+ * inside no other page. A test holds this text to what a real server
+ * sends.
  */
+export const POLICY = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+
+/** The headers every answer carries. */
 export const HEADERS = {
-  'Content-Security-Policy': [
-    "default-src 'none'",
-    "script-src 'self'",
-    "style-src 'self'",
-    "img-src 'self' data:",
-    "font-src 'self'",
-    "connect-src 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "base-uri 'none'",
-  ].join('; '),
+  'Content-Security-Policy': POLICY,
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'same-origin',
   'Cache-Control': 'no-cache',
 };
-
-/**
- * What belongs to the FadoDB server: its commands, its own pages for
- * signing in, and what it publishes about itself.
- */
-export const PASSED = ['/v1/', '/auth/', '/.well-known/'];
 
 /** @type {Record<string, string>} */
 const TYPES = {
@@ -61,13 +52,11 @@ const TYPES = {
 /**
  * Starts the helper.
  *
- * @param {{ dir: string, port?: number, host?: string, server?: string }} options
- *   dir is the folder to hand out; port 0 asks the system for a free one;
- *   server is the address of a FadoDB server on this machine to stand in
- *   front of.
+ * @param {{ dir: string, port?: number, host?: string }} options
+ *   dir is the folder to hand out; port 0 asks the system for a free one.
  * @returns {Promise<{ url: string, close: () => Promise<void> }>}
  */
-export async function serve({ dir, port = 0, host = '127.0.0.1', server }) {
+export async function serve({ dir, port = 0, host = '127.0.0.1' }) {
   const root = resolve(dir);
 
   const listener = createServer(async (req, res) => {
@@ -76,6 +65,7 @@ export async function serve({ dir, port = 0, host = '127.0.0.1', server }) {
       res.writeHead(status, { ...HEADERS, 'Content-Type': 'text/plain; charset=utf-8' });
       res.end(req.method === 'HEAD' ? undefined : text + '\n');
     };
+    if (req.method !== 'GET' && req.method !== 'HEAD') return plain(405, 'Only GET and HEAD.');
 
     /** @type {string} */
     let path;
@@ -84,42 +74,15 @@ export async function serve({ dir, port = 0, host = '127.0.0.1', server }) {
     } catch {
       return plain(400, 'The address cannot be read.');
     }
-
-    if (PASSED.some((prefix) => path.startsWith(prefix))) {
-      if (!server) return plain(502, 'This helper was not told where a FadoDB server is.');
-      // The request goes on as it came, with the address the browser
-      // used: the server takes that address for its own, so a session's
-      // command from Workshop's page is a command from the server's own
-      // page. The answer comes back as the server gave it, its headers
-      // too.
-      const headers = { ...req.headers };
-      delete headers.connection;
-      const onward = request(new URL(req.url ?? '/', server), { method: req.method, headers }, (answer) => {
-        res.writeHead(answer.statusCode ?? 502, answer.headers);
-        answer.pipe(res);
-      });
-      onward.on('error', () => {
-        if (!res.headersSent) plain(502, 'The FadoDB server does not answer.');
-        else res.destroy();
-      });
-      res.on('close', () => onward.destroy());
-      req.pipe(onward);
-      return;
-    }
-
-    if (req.method !== 'GET' && req.method !== 'HEAD') return plain(405, 'Only GET and HEAD.');
     if (path.endsWith('/')) path += 'index.html';
     const file = resolve(root, '.' + path);
     if (file !== root && !file.startsWith(root + sep)) return plain(404, 'Nothing here.');
 
     try {
       const info = await stat(file);
-      if (!info.isFile()) return plain(404, 'Nothing here.');
-      res.writeHead(200, {
-        ...HEADERS,
-        'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream',
-        'Content-Length': info.size,
-      });
+      const type = TYPES[extname(file)];
+      if (!info.isFile() || !type) return plain(404, 'Nothing here.');
+      res.writeHead(200, { ...HEADERS, 'Content-Type': type, 'Content-Length': info.size });
       if (req.method === 'HEAD') return res.end();
       createReadStream(file).pipe(res);
     } catch {
@@ -144,18 +107,13 @@ export async function serve({ dir, port = 0, host = '127.0.0.1', server }) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  /** @param {string} name */
-  const flag = (name) => {
-    const at = process.argv.indexOf(name);
-    return at > 0 ? process.argv[at + 1] : undefined;
-  };
+  const at = process.argv.indexOf('--port');
+  const port = at > 0 ? Number(process.argv[at + 1]) : 8717;
   const pages = fileURLToPath(new URL('../pages/', import.meta.url));
-  const server = flag('--server');
-  const port = Number(flag('--port') ?? 8717);
   try {
-    const site = await serve({ dir: pages, port, server });
-    console.log(`Workshop's pages are at ${site.url}`);
-    console.log(server ? `in front of the FadoDB server at ${server}` : 'with no FadoDB server behind them');
+    const site = await serve({ dir: pages, port });
+    console.log(`Workshop's pages are at ${site.url}, with no FadoDB server behind them.`);
+    console.log('To use Workshop:  fadodb serve acme.db --pages pages');
   } catch (error) {
     const busy = error instanceof Error && 'code' in error && error.code === 'EADDRINUSE';
     console.error(busy ? `Something already listens at port ${port}. Give another with --port.` : String(error));

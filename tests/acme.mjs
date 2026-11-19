@@ -6,6 +6,9 @@
 // screen as a person does. The tests send commands with the keys of
 // Olga and of Jan.
 //
+// The server hands out Workshop's pages itself, from the folder pages/,
+// as it does for whoever installs Workshop: fadodb serve --pages.
+//
 // The program is the one FADODB_BIN names, built from the commit of the
 // engine that package.json says this Workshop needs (config.engine).
 
@@ -14,6 +17,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** The folder of Workshop's pages. */
+export const PAGES = fileURLToPath(new URL('../pages/', import.meta.url));
 
 /**
  * @param {string} program
@@ -63,7 +70,7 @@ export async function acme() {
 
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
-  const server = spawn(program, ['serve', database, '--listen', `127.0.0.1:${port}`], { stdio: 'ignore' });
+  const server = spawn(program, ['serve', database, '--listen', `127.0.0.1:${port}`, '--pages', PAGES], { stdio: 'ignore' });
   /** @type {Promise<void>} */
   const ended = new Promise((done) => server.once('exit', () => done()));
 
@@ -83,6 +90,8 @@ export async function acme() {
   return {
     /** The address the server listens at. */
     url,
+    /** Where Workshop's pages answer: the same address. */
+    site: { url: `${url}/` },
     /**
      * Sends a command with a key: Olga's, or Jan's when asked.
      *
