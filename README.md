@@ -4,10 +4,12 @@ The open face of [FadoDB](https://github.com/MojoHand70/fadodb): a web
 application for people to use, and to design, what runs on a FadoDB
 server.
 
-**Status: a first page works, in development only.** A person signs in
-on the FadoDB server's own page and sees their name and the classes on
-the server. There are no lists, no documents and no design mode yet,
-and Workshop cannot be installed for people to use: that waits for the
+**Status: the first pages work, in development only.** A person signs
+in on the FadoDB server's own page, sees the classes on the server, and
+opens the list of a class: its documents, with the columns, the labels
+and the formats the class gives them, in the language of the browser.
+There are no pages for one document yet, and no design mode, and
+Workshop cannot be installed for people to use: that waits for the
 server to hand out Workshop's folder. This page will say so until it
 can.
 
@@ -29,7 +31,7 @@ The decisions and the reasons for them are in
 
 | | |
 |---|---|
-| `pages/` | The files a server hands out. Today: the first page and Workshop's door to the server, `fado.js`. |
+| `pages/` | The files a server hands out. Today: the first page, the list of a class, Workshop's door to the server (`fado.js`) and how a value is shown to a person (`format.js`). |
 | `tools/serve.mjs` | A helper for development: it hands out `pages/` on your own machine and stands in front of a FadoDB server, so that both answer at one address. |
 | `tests/` | The checks: each page is opened in a real browser, in front of a real FadoDB server. |
 | `docs/adr/` | The decision records. |
@@ -45,12 +47,15 @@ the commit of the engine this Workshop is checked against, under
 go install github.com/MojoHand70/fadodb/cmd/fadodb@924871edfb22471153d0929103187b3cbd445f32
 ```
 
-Make a database with one person, and a link that lets her set her
-password:
+Make a database with two people: Olga, who designs, and Ann, who
+approves expenses. Olga gets a key, and Ann a link that lets her set
+her password:
 
 ```
 fadodb init acme.db
-fadodb user add ann --kind person --name "Ann Kowalska" --db acme.db
+fadodb user add olga --kind person --name "Olga Nowak" --system designers --db acme.db
+fadodb user add ann --kind person --name "Ann Kowalska" --group expense_approvers --db acme.db
+fadodb key new olga --db acme.db
 fadodb user password ann --db acme.db --url http://127.0.0.1:8717
 ```
 
@@ -61,12 +66,21 @@ fadodb serve acme.db
 npm run serve -- --server http://127.0.0.1:8080
 ```
 
-Open the link the third command printed and set a password. Then open
-`http://127.0.0.1:8717/` and sign in as `ann`.
+Give the database a class and a document, with Olga's key:
+
+```
+export FADODB_KEY=<the key the fourth command printed>
+fadodb exec define_class --from definition=tests/fixtures/expense.json
+fadodb exec create '{"class": "Expense", "values": {"what": "Train tickets to Gdańsk", "net": "4200.00 PLN"}}'
+```
+
+Open the link the fifth command printed and set a password. Then open
+`http://127.0.0.1:8717/`, sign in as `ann`, and choose Expense.
 
 If something else on your machine already listens at 8080, the server
 says so. Give it another address, `fadodb serve acme.db --listen
-127.0.0.1:8791`, and name that address to the helper.
+127.0.0.1:8791`, and name that address to the helper and, as
+`FADODB_URL`, to `fadodb exec`.
 
 ## Run the checks
 

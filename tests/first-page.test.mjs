@@ -7,10 +7,8 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { serve } from '../tools/serve.mjs';
-import { acme } from './acme.mjs';
-import { fits, open, ready, watch } from './browser.mjs';
-
-const PASSWORD = 'a long password 42';
+import { acme, signIn } from './acme.mjs';
+import { fits, open, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -34,26 +32,9 @@ after(async () => {
 });
 
 /**
- * Ann sets her password with a link Olga made, as a person does the
- * first time, and signs in from Workshop's page.
- *
  * @param {import('playwright').Page} page
  */
-async function annSignsIn(page) {
-  const { link } = await server.exec('create_password_link', { user: 'ann' });
-  await page.goto(`${site.url}auth/password?link=${link.token}`);
-  await page.fill('#password', PASSWORD);
-  await page.fill('#again', PASSWORD);
-  await page.click('button[type=submit]');
-  await page.goto(site.url);
-  await ready(page);
-  await page.click('#sign-in');
-  await page.fill('#user', 'ann');
-  await page.fill('#password', PASSWORD);
-  await page.click('button[type=submit]');
-  await page.waitForURL(site.url);
-  await ready(page);
-}
+const annSignsIn = (page) => signIn(page, site, server);
 
 test('a person who is not signed in is offered to sign in', async () => {
   const { context, page, wrong, answers } = await open(browser, site.url);
