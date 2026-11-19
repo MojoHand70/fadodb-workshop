@@ -14,6 +14,9 @@ jobs:
   checks:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    # A job that hangs is stopped and shows red. With no limit it would
+    # hold a pull request for six hours.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -28,8 +31,22 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The system libraries of a browser come from the machine's package
+      # mirror, which now and then stops answering in the middle. The
+      # first try gets six minutes; where it does not finish, the package
+      # manager is put right and there is one more.
       - name: Install the browser the pages are checked in
+        id: browser
+        timeout-minutes: 6
+        continue-on-error: true
         run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Install it again, where the first try did not finish
+        if: steps.browser.outcome != 'success'
+        timeout-minutes: 8
+        run: |
+          sudo killall -q apt-get dpkg || true
+          sudo dpkg --configure -a || true
+          npx playwright install --with-deps ${{ matrix.browser }}
       - name: Check the types
         if: matrix.browser == 'chromium'
         run: npm run typecheck
