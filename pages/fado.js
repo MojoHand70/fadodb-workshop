@@ -12,12 +12,13 @@ export const SIGN_IN = '/auth/signin';
 export const ACCOUNT = '/auth/account';
 
 /**
- * One thing the server finds wrong in a definition: a code that never
+ * One thing the server finds in a definition: a code that never
  * changes, where it is (a JSON pointer into the definition and, inside
- * a formula, how many bytes in, or -1), what is wrong, and sometimes
- * what to do.
+ * a formula, how many bytes in, or -1), what it is, and sometimes what
+ * to do. A finding refuses the definition unless it is a note: a note
+ * holds nothing back, the definition is taken with it.
  *
- * @typedef {{ code: string, path: string, pos: number, message: string, hint?: string }} Finding
+ * @typedef {{ code: string, path: string, pos: number, message: string, hint?: string, note?: boolean }} Finding
  */
 
 /**

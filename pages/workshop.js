@@ -47,7 +47,9 @@ async function showClasses(designer) {
 
 const user = await enter();
 if (user) {
-  await showClasses((user.system_groups ?? []).includes('designers'));
+  const designer = (user.system_groups ?? []).includes('designers');
+  part('new-class').hidden = !designer;
+  await showClasses(designer);
   show('home');
   ready();
 }

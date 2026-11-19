@@ -21,12 +21,16 @@ there. Every formula is shown whole. The same class is there as text,
 as an agent writes it. A designer changes the text, asks the server to
 check it, and saves it as the next version. What the server finds is
 listed, each finding leading to its place in the text, and the lists
-follow the text as it stands.
+follow the text as it stands. What the server only notes, such as a
+variable that says nothing of what it is for, is told apart from what
+refuses a class. A designer makes a new class too: it gets a name,
+begins as a small class that works, and is the server's once the
+designer makes it.
 
 What is not there yet: a value that is a list, rows or an object is
 shown and cannot be set; in the design mode a class cannot be changed
-through the lists, a new class cannot be made, and there is no formula
-editor; and Workshop has no packaged release, so it is run from this
+through the lists and there is no formula editor; and Workshop has no
+packaged release, so it is run from this
 repository, with a FadoDB server built from the engine's source, newer
 than its release 0.6.0. This page will say so until that changes.
 
