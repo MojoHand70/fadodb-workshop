@@ -158,7 +158,7 @@ test('Dan opens the design of Expense from the first page: its name, its version
   assert.equal(await page.locator('#class-about').innerText(), expense.description);
   assert.match(await page.locator('#class-defined').innerText(), /^Defined by Olga Nowak, \d{1,2} \w{3} \d{4}, \d{2}:\d{2}$/);
   assert.equal(await page.locator('#to-list').getAttribute('href'), 'list.html?class=Expense');
-  assert.match(await page.locator('.status').innerText(), /Changing a class here comes next/);
+  assert.match(await page.locator('.status').innerText(), /a designer changes a class as text/);
   assert.deepEqual(commands, ['whoami', 'get_class', 'get_user'], 'the page asks the server for the class and for nothing else');
   assert.deepEqual(answers, []);
   assert.deepEqual(wrong, []);
@@ -267,7 +267,8 @@ test('the whole class: who may see, make, change and delete a document, each for
 });
 
 test('the same class as text is the definition the server holds, word for word', async () => {
-  const { context, page, wrong } = await at(dan, 'design.html?class=Expense');
+  // A window tall enough for the box to show every line: the box draws only the lines in view.
+  const { context, page, wrong } = await at(dan, 'design.html?class=Expense', { width: 1280, height: 9000 });
   assert.ok(await page.locator('#lists').isVisible());
   assert.ok(await page.locator('#text').isHidden());
   await page.click('#as-text');
@@ -275,7 +276,17 @@ test('the same class as text is the definition the server holds, word for word',
   assert.ok(await page.locator('#lists').isHidden());
   assert.equal(await page.locator('#as-text').getAttribute('aria-pressed'), 'true');
   const { class: held } = await server.exec('get_class', { name: 'Expense' });
-  assert.deepEqual(JSON.parse(await page.locator('#class-text').innerText()), held.definition);
+  // The box draws its lines a moment after it comes into view.
+  await page.waitForFunction(() => {
+    try {
+      return Boolean(JSON.parse(/** @type {HTMLElement} */ (document.querySelector('#class-text .cm-content')).innerText));
+    } catch {
+      return false;
+    }
+  });
+  assert.deepEqual(JSON.parse(await page.locator('#class-text .cm-content').innerText()), held.definition);
+  assert.equal(await page.locator('#class-text .cm-content').getAttribute('aria-label'), 'The definition of the class');
+  assert.ok(await page.locator('#class-changed').isHidden(), 'the text is what the server holds: nothing is changed');
   assert.equal(new URL(page.url()).searchParams.get('as'), 'text');
   await page.reload();
   await ready(page);
@@ -350,9 +361,9 @@ test('what a class says is shown as text, never run as markup', async () => {
   assert.equal(await page.locator('.way[data-transition="shut"] .way-label').innerText(), trap);
   await page.click('.pick[data-state=""]');
   await page.click('#as-text');
-  assert.match(await page.locator('#class-text').innerText(), /<script>document\.title = \\"run\\"<\/script>/);
+  assert.match(await page.locator('#class-text .cm-content').innerText(), /<script>document\.title = \\"run\\"<\/script>/);
   assert.equal(await page.title(), `Design: ${trap} · FadoDB Workshop`, 'the title of the tab is the label as text, and no script changed it');
-  assert.equal(await page.locator('#design img, #design script, #design b, #design i, #design u').count(), 0);
+  assert.equal(await page.locator('#design img:not(.cm-widgetBuffer), #design script, #design b, #design i, #design u').count(), 0);
   assert.deepEqual(wrong, []);
   await context.close();
 });
@@ -404,10 +415,16 @@ test('a person who is not signed in is offered to sign in, and comes back to the
   await context.close();
 });
 
-test('Jan, who is no designer, may read a design he opens by its address: the server lets every user read a class', async () => {
+test('Jan, who is no designer, may read a design he opens by its address, and can change nothing in it', async () => {
   const { context, page, wrong, answers } = await at(jan, 'design.html?class=Expense');
   assert.equal(await page.locator('#class-title').innerText(), 'Expense');
   assert.equal(await page.locator('#variables .var').count(), 9);
+  assert.ok(await page.locator('#design-do').isHidden(), 'no Check, no Discard, no Save');
+  await page.click('#as-text');
+  assert.match(await page.locator('#text-about').innerText(), /Changing a class is for a designer/);
+  await page.locator('#class-text .cm-content').click();
+  await page.keyboard.type('x');
+  assert.ok(await page.locator('#class-changed').isHidden(), 'typing changes nothing');
   assert.deepEqual(answers, []);
   assert.deepEqual(wrong, []);
   await context.close();

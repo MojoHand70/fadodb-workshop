@@ -619,6 +619,30 @@ h1 {
 
 .code:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
+/* The bar of the designer: how the class is shown, and what to do with the text. */
+
+.design-bar { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
+.design-do { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; }
+.state-changed { background: var(--wip-bg); color: var(--wip); }
+
+.findings { margin: 8px 0 0; padding-left: 22px; }
+.finding { margin: 6px 0; overflow-wrap: anywhere; }
+
+.finding-go {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #7A2318;
+  font: 600 15px/1.5 var(--sans);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.finding-go:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+.finding-where { color: var(--ink-2); font: 500 12px/1.5 var(--mono); }
+.finding-hint { margin: 2px 0 0; color: var(--ink); font-size: 14px; }
+
 /* The way to the designer, for a designer. */
 
 .class { display: flex; align-items: stretch; }
