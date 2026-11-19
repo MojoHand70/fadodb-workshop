@@ -150,8 +150,12 @@ async function load(fromTheStart) {
 
   for (const document of documents ?? []) {
     const row = make('tr', '');
+    const way = make('a', '', String(document.title || document.id));
+    way.setAttribute('href', `document.html?class=${encodeURIComponent(className)}&id=${encodeURIComponent(document.id)}`);
+    const titleCell = make('td', 'title');
+    titleCell.append(way);
     /** @type {HTMLElement[]} */
-    const cells = [make('td', 'title', String(document.title || document.id))];
+    const cells = [titleCell];
     for (const column of columns) {
       cells.push(make('td', isNumber(column) ? 'num' : isShort(column) ? 'short' : '', showValue(document.values?.[column.name], column, person)));
     }

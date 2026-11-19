@@ -28,6 +28,7 @@ export async function open(browser, url, viewport = { width: 1280, height: 800 }
  * @param {import('playwright').Page} page
  */
 export function watch(page) {
+  slow(page);
   /** @type {string[]} */
   const wrong = [];
   /** @type {{ status: number, path: string }[]} */
@@ -48,6 +49,21 @@ export function watch(page) {
     if (r.status() >= 400) answers.push({ status: r.status(), path: new URL(r.url()).pathname });
   });
   return { wrong, answers };
+}
+
+/**
+ * Makes the page's own work slower, when SLOW names by how much: SLOW=6
+ * gives the page a sixth of the machine. A test that reads something
+ * before the page has drawn it passes on a fast machine and fails on a
+ * slow one; this finds it here, before the run on GitHub does.
+ *
+ * @param {import('playwright').Page} page
+ */
+function slow(page) {
+  const rate = Number(process.env.SLOW ?? 0);
+  if (rate > 1) {
+    page.context().newCDPSession(page).then((session) => session.send('Emulation.setCPUThrottlingRate', { rate }));
+  }
 }
 
 /**

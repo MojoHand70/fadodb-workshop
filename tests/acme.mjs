@@ -128,6 +128,9 @@ export async function signIn(page, site, server, user = 'ann') {
   await page.fill('#password', PASSWORD);
   await page.fill('#again', PASSWORD);
   await page.click('button[type=submit]');
+  // The server answers with a page that no longer carries the link. Only
+  // then is the password set, and only then may the browser go on.
+  await page.waitForURL((address) => !address.search.includes('link='));
   await page.goto(site.url);
   await page.waitForFunction(() => document.documentElement.dataset.ready === 'yes');
   await page.click('#sign-in');

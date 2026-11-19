@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A document · FadoDB Workshop</title>
+<link rel="stylesheet" href="workshop.css">
+<script type="module" src="document.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="./">
+    <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="1" y="1" width="26" height="26" rx="7" fill="#3F74A3"></rect><path d="M9 20V8h10M9 14h8" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <span class="brand-name">FadoDB</span>
+    <span class="brand-tag">workshop</span>
+  </a>
+  <div class="who" id="who" hidden>
+    <a class="who-name" id="who-name" href="/auth/account"></a>
+    <button class="button button-plain" id="sign-out" type="button">Sign out</button>
+  </div>
+</header>
+
+<main class="page page-wide">
+  <section data-view="document" id="document" hidden>
+    <p class="crumbs"><a href="./">Classes</a> <span aria-hidden="true">/</span> <a id="to-list" href="./"></a></p>
+
+    <div class="doc-head">
+      <h1 id="doc-title"></h1>
+      <span class="state state-big" id="doc-state"></span>
+    </div>
+    <p class="lead" id="doc-state-about"></p>
+
+    <div class="alert" id="refused" role="alert" hidden>
+      <p class="alert-lead">It was not done. The server said:</p>
+      <p class="alert-what" id="refused-what"></p>
+      <p class="alert-hint" id="refused-hint"></p>
+    </div>
+
+    <div class="moves" id="moves" role="group" aria-label="What you may do with this document"></div>
+    <p class="moves-none" id="moves-none" hidden>There is nothing for you to do with it in this state.</p>
+    <p class="said" id="said" aria-live="polite"></p>
+
+    <div id="sections"></div>
+
+    <section class="card about" aria-labelledby="about-title">
+      <h2 id="about-title">About this document</h2>
+      <dl class="facts" id="facts"></dl>
+    </section>
+
+    <section class="card" aria-labelledby="history-title">
+      <h2 id="history-title">History</h2>
+      <ol class="history" id="history"></ol>
+    </section>
+  </section>
+
+  <section data-view="trouble" id="trouble" hidden>
+    <p class="crumbs"><a href="./">Classes</a></p>
+    <h1>This document cannot be shown</h1>
+    <div class="card">
+      <h2>What the server said</h2>
+      <p id="trouble-why"></p>
+    </div>
+  </section>
+</main>
+
+</body>
+</html>

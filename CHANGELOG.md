@@ -4,6 +4,13 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- One document: a row of a list opens it. The page shows its values by
+  the sections of its class, each with its label, its format and what
+  the class says it is for; the state and what the class says of it;
+  who made it and when; and its history, newest first. The transitions
+  the person may take are buttons that work; one whose condition does
+  not hold yet is shown and says so; one that is somebody else's is not
+  shown. A refusal is shown in the server's words.
 - The List of a class: its documents, newest first, fifty at a time,
   with the title, the columns the class marks for its list, the state,
   who made each and when it last changed. A number, a money, a day and
