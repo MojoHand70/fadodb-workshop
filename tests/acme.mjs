@@ -159,6 +159,12 @@ export async function signIn(page, site, server, user = 'ann') {
   await page.fill('#user', user);
   await page.fill('#password', PASSWORD);
   await page.click('button[type=submit]');
-  await page.waitForURL(site.url);
+  try {
+    await page.waitForURL(site.url);
+  } catch (error) {
+    // Say where the person was left, and what that page told them.
+    const says = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
+    throw new Error(`${user} signed in and did not arrive at ${site.url}: the page is at ${page.url()} and says "${says}"`, { cause: error });
+  }
   await page.waitForFunction(() => document.documentElement.dataset.ready === 'yes');
 }

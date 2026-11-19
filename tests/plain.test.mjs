@@ -37,7 +37,11 @@ test('over plain http, by a name, Jan signs in, files an expense and submits it'
   const { wrong } = watch(page);
   assert.equal(new URL(server.site.url).hostname, NAME);
 
-  await signIn(page, server.site, server, 'jan');
+  try {
+    await signIn(page, server.site, server, 'jan');
+  } catch (error) {
+    throw new Error(`${error instanceof Error ? error.message : error}\nWhat went through the passage:\n  ${way.seen.join('\n  ')}`, { cause: error });
+  }
   assert.equal(await page.evaluate(() => isSecureContext), false, 'the browser does not hold this address for secure');
   assert.match(await page.locator('#who').innerText(), /Jan Kowalski/);
 
