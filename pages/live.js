@@ -409,6 +409,33 @@ export class Live {
   }
 
   /**
+   * The transitions leaving the document's state, as the page works
+   * them out for the document as it now reads, with what the person has
+   * typed and not saved: the rule that says who may take each, and its
+   * guard (the engine's ADR-0070, item 5). `enabled` is null where the
+   * page cannot tell, because the rule or the guard is the server's;
+   * the page then asks the server.
+   *
+   * @returns {{ name: string, to: string, enabled: boolean | null, code?: string }[]}
+   */
+  moves() {
+    const state = this.saved.state;
+    const access = this.compiled.access ?? {};
+    const all = [];
+    for (const one of this.definition.transitions ?? []) {
+      const from = Array.isArray(one.from) ? one.from : [one.from];
+      if (!one.name || !(from.includes(state) || from.includes('*'))) continue;
+      const may = this.holds(access.transition?.[one.name] ?? access.update, this.values);
+      const guard = this.compiled.guards?.[one.name];
+      const open = guard === undefined ? true : this.holds(guard, this.values);
+      if (may === false) all.push({ name: one.name, to: one.to, enabled: false, code: 'forbidden' });
+      else if (open === false) all.push({ name: one.name, to: one.to, enabled: false, code: 'guard_false' });
+      else all.push({ name: one.name, to: one.to, enabled: may === null || open === null ? null : true });
+    }
+    return all;
+  }
+
+  /**
    * Whether the person may read a variable in this state. The server
    * sends no value the person may not read; this tells a value that is
    * hidden from one that is empty.

@@ -127,8 +127,7 @@ test('Jan changes his draft, and what the class works out follows as he types', 
   assert.equal(await page.locator('#doc-title').innerText(), 'Train tickets to Gdańsk', 'the title follows too');
 
   assert.equal(await page.locator('#changes-what').innerText(), 'Not saved yet: Net amount, VAT rate, What was bought.');
-  assert.ok(await page.locator('#moves button').isDisabled(), 'it cannot be moved while something is not saved');
-  assert.ok(await page.locator('#moves-wait').isVisible());
+  assert.ok(await page.locator('#changes-hint').isVisible());
 
   const { document } = await server.exec('get', { class: 'Expense', id }, 'jan');
   assert.equal(document.values.net, '86.50 PLN', 'nothing is the server\'s until he saves');
@@ -193,6 +192,7 @@ test('Discard puts everything back as the server has it', async () => {
   await page.fill('#f-net', '4200');
   await page.fill('#f-what', 'Something else');
   await page.click('#discard');
+  await page.waitForFunction(() => document.getElementById('said')?.textContent === 'Put back as the server has it.');
   assert.equal(await page.inputValue('#f-net'), '86.50');
   assert.equal(await page.inputValue('#f-what'), 'Taxi from the airport');
   assert.equal(await page.locator('#doc-title').innerText(), 'Taxi from the airport');

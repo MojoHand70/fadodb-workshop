@@ -13,9 +13,13 @@
 // The server decides: a change it refuses is shown at its field, in its
 // own words.
 //
-// Which transitions the person may take is the server's answer, not the
-// page's guess. A transition that is not this person's to take is left
-// out; one whose condition does not hold yet is shown, and says so.
+// Which transitions the person may take is the server's answer for the
+// document as it has it. Once the person has typed something, the page
+// works them out for the document as it now reads, by the class's own
+// rules and guards, and asks the server where it cannot tell; taking one
+// then sends the changes with it, in one step. A transition that is not
+// this person's to take is left out; one whose condition does not hold
+// yet is shown, and says so.
 //
 // The same page makes a new document, at document.html?class=…&new: it
 // begins with what the class gives a new document, its defaults, and is
@@ -48,10 +52,15 @@ const cells = new Map();
 /** The fields whose typing cannot be read, each with why. */
 /** @type {Map<string, string>} */
 const unread = new Map();
-/** The transitions as the server last answered them. */
+/** The transitions as the server last answered them, for the document as it has it. */
 /** @type {any[]} */
 let moves = [];
+/** The transitions the server would open for the changes it was last asked about. */
+/** @type {{ changes: string, transitions: any[] } | null} */
+let answered = null;
 let asking = 0;
+/** The buttons as they were last drawn, so that they are drawn again only when they change. */
+let drawnMoves = '';
 /** Each field as it was drawn: its box, and the value it was drawn with. */
 /** @type {Map<string, { box: HTMLElement, drawn: string }>} */
 const fields = new Map();
@@ -331,16 +340,21 @@ function follow() {
     ? 'Not made yet. Nothing is the server\'s until you create it.'
     : `Not saved yet: ${changed.map(labelOf).join(', ')}.`;
   part('changes-wrong').hidden = unread.size === 0;
+  part('changes-hint').hidden = making || unread.size > 0;
   /** @type {HTMLButtonElement} */ (part('save')).disabled = unread.size > 0 || (!making && live.changed.size === 0);
-  drawMoves(dirty);
+  const unknown = drawMoves(dirty);
 
-  if (live.asks.size > 0) {
+  // What the page cannot work out, a value or whether a transition is
+  // open, it asks of the server, once the person stops typing.
+  if (live.asks.size > 0 || unknown) {
     const mine = ++asking;
+    const changes = live.changes();
     setTimeout(async () => {
       if (mine !== asking) return;
       try {
-        const { preview } = await call('preview', making ? { class: className, values: live.changes() } : { class: className, id, values: live.changes() });
+        const { preview } = await call('preview', making ? { class: className, values: changes } : { class: className, id, values: changes });
         if (mine !== asking) return;
+        if (!making) answered = { changes: JSON.stringify(changes), transitions: preview?.transitions ?? [] };
         live.settle(preview?.document?.values ?? {});
         follow();
       } catch {
@@ -447,37 +461,70 @@ function drawHistory(versions) {
 }
 
 /**
- * The transitions leaving the state, as the server last answered them.
- * While something is not saved they wait: the server would move the
- * document as it has it, not as the page shows it.
+ * The transitions leaving the state. With nothing typed they are the
+ * server's answer. With something typed they are worked out by the page
+ * for the document as it now reads, and where the page cannot tell, they
+ * are what the server answered when it was asked about these changes.
  *
- * @param {boolean} waiting
+ * @param {boolean} dirty whether something is typed and not saved
+ * @returns {boolean} whether the server has to be asked about a transition
  */
-function drawMoves(waiting) {
+function drawMoves(dirty) {
   const box = part('moves');
+  if (making) {
+    box.replaceChildren();
+    part('moves-none').hidden = true;
+    part('moves-wait').hidden = true;
+    return false;
+  }
+
+  let unknown = false;
+  /** @type {any[]} */
+  let offered = moves;
+  if (dirty) {
+    const asked = answered && answered.changes === JSON.stringify(live.changes()) ? answered.transitions : null;
+    offered = live.moves().map((move) => {
+      if (move.enabled !== null) return move;
+      const said = asked?.find((one) => one.name === move.name);
+      if (said) return said;
+      unknown = true;
+      return { ...move, enabled: false, code: 'asking' };
+    });
+  }
+
+  // The buttons are drawn again only when they change. A field that is
+  // left tells the page so, and a button drawn again at that moment
+  // would be gone from under the click that left the field.
+  const now = JSON.stringify([offered.map((move) => [move.name, move.enabled, move.code]), unread.size > 0]);
+  if (now === drawnMoves) return unknown;
+  drawnMoves = now;
   box.replaceChildren();
-  let offered = 0;
-  for (const move of moves) {
+
+  let shown = 0;
+  for (const move of offered) {
     // Not this person's to take: it is not their business to see it.
-    if (!move.enabled && move.code !== 'guard_false') continue;
+    if (!move.enabled && move.code !== 'guard_false' && move.code !== 'asking') continue;
     const told = (definition.transitions ?? []).find((/** @type {any} */ t) => t.name === move.name) ?? {};
     const item = make('div', 'move');
     const button = make('button', 'button', String(told.label || move.name));
     button.setAttribute('type', 'button');
     button.dataset.transition = move.name;
     item.append(button);
-    if (move.enabled && !waiting) {
+    if (move.enabled && unread.size === 0) {
       if (told.description) button.setAttribute('title', String(told.description));
       button.addEventListener('click', () => take(move.name, String(told.label || move.name)));
     } else {
       button.setAttribute('disabled', '');
-      if (!move.enabled) item.append(make('p', 'move-why', `Not yet. ${String(told.description || 'Its condition does not hold.')}`));
+      if (move.code === 'guard_false') item.append(make('p', 'move-why', `Not yet. ${String(told.description || 'Its condition does not hold.')}`));
+      if (move.code === 'asking') item.append(make('p', 'move-why', 'Asking the server.'));
     }
     box.append(item);
-    offered++;
+    shown++;
   }
-  part('moves-none').hidden = offered > 0 || making;
-  part('moves-wait').hidden = !(waiting && offered > 0);
+  part('moves-none').hidden = shown > 0;
+  // A move takes what is typed with it; what cannot be read cannot go.
+  part('moves-wait').hidden = !(unread.size > 0 && shown > 0);
+  return unknown;
 }
 
 /**
@@ -492,9 +539,14 @@ function refused(refusal) {
 }
 
 /**
- * Takes a transition, and shows the document as it is afterwards. A
- * refusal is shown in the server's own words, and the document is read
- * again: somebody else may have moved it meanwhile.
+ * Takes a transition, and shows the document as it is afterwards. What
+ * the person typed and did not save goes with it, in the same step: the
+ * server takes both or neither.
+ *
+ * A refusal is shown in the server's own words. With nothing typed the
+ * document is read again, since somebody else may have moved it. With
+ * something typed it stays as the person left it, so that nothing they
+ * typed is lost.
  *
  * @param {string} name
  * @param {string} label
@@ -503,13 +555,38 @@ async function take(name, label) {
   for (const button of part('moves').querySelectorAll('button')) button.setAttribute('disabled', '');
   part('refused').hidden = true;
   part('said').textContent = '';
+  const changes = live.changes();
+  const typed = Object.keys(changes).length > 0;
   try {
-    await call('transition', { class: className, id, transition: name });
+    await call('transition', typed ? { class: className, id, transition: name, values: changes } : { class: className, id, transition: name });
     await load();
     part('said').textContent = `Done: ${label}. It is now in ${part('doc-state').textContent}.`;
   } catch (refusal) {
-    await load().catch(() => {});
+    // The buttons were greyed while the server was asked: draw them anew.
+    drawnMoves = '';
+    if (typed) {
+      atItsField(refusal);
+      follow();
+    } else {
+      await load().catch(() => {});
+    }
     refused(refusal);
+  }
+}
+
+/**
+ * Marks the field a refusal is about, when it is about one.
+ *
+ * @param {unknown} refusal
+ */
+function atItsField(refusal) {
+  if (!(refusal instanceof Refused) || !refusal.variable) return;
+  const box = part('sections').querySelector(`[data-variable="${CSS.escape(refusal.variable)}"]`);
+  const why = document.getElementById(`f-${refusal.variable}-why`);
+  if (box && why) {
+    why.textContent = refusal.message;
+    why.hidden = false;
+    box.classList.add('field-wrong');
   }
 }
 
@@ -536,15 +613,7 @@ async function save() {
     part('said').textContent = 'Saved.';
   } catch (refusal) {
     refused(refusal);
-    if (refusal instanceof Refused && refusal.variable) {
-      const box = part('sections').querySelector(`[data-variable="${CSS.escape(refusal.variable)}"]`);
-      const why = document.getElementById(`f-${refusal.variable}-why`);
-      if (box && why) {
-        why.textContent = refusal.message;
-        why.hidden = false;
-        box.classList.add('field-wrong');
-      }
-    }
+    atItsField(refusal);
     follow();
   }
 }
@@ -558,6 +627,8 @@ async function load() {
   ]);
   live.take(sent);
   moves = transitions ?? [];
+  answered = null;
+  drawnMoves = '';
   document.title = `${live.title} · FadoDB Workshop`;
   part('doc-state').textContent = stateLabel(sent.state);
   part('doc-state-about').textContent = String(definition.states?.descriptions?.[sent.state] || '');
@@ -586,10 +657,17 @@ if (user) {
         location.assign(list);
         return;
       }
-      live.discard();
+      // The document is read again: somebody else may have changed it
+      // since the person began to type.
       part('refused').hidden = true;
-      drawSections();
-      follow();
+      part('said').textContent = '';
+      load()
+        .catch(() => {
+          live.discard();
+          drawSections();
+          follow();
+        })
+        .then(() => (part('said').textContent = 'Put back as the server has it.'));
     });
     window.addEventListener('beforeunload', (leaving) => {
       if (!done && live.changed.size > 0) leaving.preventDefault();
