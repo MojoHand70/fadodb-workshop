@@ -1,0 +1,10 @@
+# What npm installs
+node_modules/
+
+# Built files: made at a release, never kept here (ADR-0003, item 5)
+pages/vendor/
+dist/
+
+# What a test run leaves behind
+test-results/
+*.log
