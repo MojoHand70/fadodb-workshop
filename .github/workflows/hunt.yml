@@ -34,6 +34,20 @@ jobs:
           engine="$(node -p "require('./package.json').config.engine")"
           go install "github.com/MojoHand70/fadodb/cmd/fadodb@${engine}"
           echo "FADODB_BIN=$(go env GOPATH)/bin/fadodb" >> "$GITHUB_ENV"
+      - name: The passage as it was when the failure was seen, and a record of what asks for a tunnel
+        run: |
+          python3 - <<'EOF'
+          p = 'tests/passage.mjs'; s = open(p, encoding='utf8').read()
+          old = "socket.end('HTTP/1.1 502 Bad Gateway\\r\\n\\r\\n');"
+          assert s.count(old) == 1
+          open(p, 'w', encoding='utf8').write(s.replace(old, 'socket.destroy();'))
+          p = 'tests/plain.test.mjs'; s = open(p, encoding='utf8').read()
+          old = "after(async () => {\n"
+          assert s.count(old) == 1
+          new = old + "  (await import('node:fs')).appendFileSync(process.env.RUNNER_TEMP + '/passage.txt', JSON.stringify(way?.seen.filter((line) => !line.endsWith(': 200') && !line.endsWith(': 304'))) + '\\n');\n"
+          open(p, 'w', encoding='utf8').write(s.replace(old, new))
+          EOF
+          git diff --stat
       - name: The suite in Firefox, six times
         env:
           TEST_BROWSER: firefox
@@ -47,5 +61,7 @@ jobs:
             fi
             grep -E "^ℹ (pass|fail|duration_ms)" run.txt | tr '\n' ' '; echo
           done
+          echo "=== what went through the passage that was not a plain yes"
+          cat "$RUNNER_TEMP/passage.txt" || true
           echo "failed runs: $failed of 6"
           exit "$failed"
