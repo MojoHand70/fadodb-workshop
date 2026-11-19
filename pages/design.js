@@ -18,7 +18,27 @@
 
 import { Refused, call } from './fado.js';
 import { show as showValue } from './format.js';
-import { kindLine, linesOf, marksOf, outline, rightsIn, rulesAbout, starter, statesOf, waysIn, waysOut } from './class.js';
+import {
+  TYPES,
+  addVariable,
+  asRangeEnd,
+  kindLine,
+  linesOf,
+  marksOf,
+  moveVariable,
+  outline,
+  removeVariable,
+  rightsIn,
+  rulesAbout,
+  sectionOfVariable,
+  sectionsOf,
+  setComputed,
+  setWord,
+  starter,
+  statesOf,
+  waysIn,
+  waysOut,
+} from './class.js';
 import { enter, make, part, ready, show } from './shell.js';
 import { codeView } from './text.js';
 
@@ -37,6 +57,26 @@ let saved = {};
 let definition = {};
 /** The state whose ways and rights are shown; '' is the whole class. */
 let chosen = '';
+/** The variable whose properties the side of the page shows, or '' when it shows a state or the whole class. */
+let variable = '';
+/** Whether the person may change a class: a designer. */
+let designer = false;
+/**
+ * What was typed into a field at the side and is not in the class yet:
+ * a field gives its text when the cursor leaves it. Before the page
+ * draws the side again or reads the text, it takes this first, so that
+ * nothing typed is lost whatever is pressed next.
+ *
+ * @type {(() => void) | null}
+ */
+let pending = null;
+
+/** Takes into the class what was typed and not given yet. */
+function flush() {
+  const take = pending;
+  pending = null;
+  if (take) take();
+}
 /** 'lists' or 'text'. */
 let shownAs = asked.get('as') === 'text' ? 'text' : 'lists';
 /** The text box. */
@@ -83,8 +123,10 @@ function remember() {
     address.searchParams.delete('new');
     address.searchParams.set('class', held.name);
   }
-  if (chosen) address.searchParams.set('state', chosen);
+  if (chosen && !variable) address.searchParams.set('state', chosen);
   else address.searchParams.delete('state');
+  if (variable) address.searchParams.set('variable', variable);
+  else address.searchParams.delete('variable');
   if (shownAs === 'text') address.searchParams.set('as', 'text');
   else address.searchParams.delete('as');
   history.replaceState(null, '', address);
@@ -97,22 +139,28 @@ function remember() {
  * @param {string} name
  */
 function variableRow(name) {
-  const variable = definition.variables?.[name];
+  const it = definition.variables?.[name];
   const row = make('li', 'var');
   row.dataset.variable = name;
-  const head = make('div', 'var-head');
+  // A designer chooses a variable by its head, to change it at the side.
+  const head = make(designer && it ? 'button' : 'div', designer && it ? 'var-head var-pick' : 'var-head');
+  if (designer && it) {
+    head.setAttribute('type', 'button');
+    head.setAttribute('aria-pressed', String(name === variable));
+    head.addEventListener('click', () => choose(name));
+  }
   head.append(make('code', 'var-name', name));
-  if (!variable) {
+  if (!it) {
     // A section may name a variable the class does not have; the
     // server says so when the class is checked.
     head.append(make('span', 'var-kind', 'not a variable of this class'));
     row.append(head);
     return row;
   }
-  if (variable.label) head.append(make('span', 'var-label', String(variable.label)));
-  row.append(head, make('p', 'var-kind', kindLine(variable)));
-  if (variable.description) row.append(make('p', 'var-about', String(variable.description)));
-  const marks = marksOf(variable);
+  if (it.label) head.append(make('span', 'var-label', String(it.label)));
+  row.append(head, make('p', 'var-kind', kindLine(it)));
+  if (it.description) row.append(make('p', 'var-about', String(it.description)));
+  const marks = marksOf(it);
   if (marks.length > 0) {
     const tags = make('p', 'tags');
     for (const mark of marks) tags.append(make('span', 'tag', mark));
@@ -145,8 +193,138 @@ function sectionOf(section, level, sectioned) {
     for (const name of section.variables) list.append(variableRow(name));
     box.append(list);
   }
+  if (designer && editable()) box.append(adder(section.name, section.name ? `Add a variable to ${section.label}` : 'Add a variable'));
   for (const inner of section.parts) box.append(sectionOf(inner, level + 1, sectioned));
   return box;
+}
+
+/** Whether the lists may change the class: the text has to be one they can read. */
+const editable = () => Boolean(editor) && read() !== null;
+
+/**
+ * A way to add a variable to a part of the outline: a button that
+ * becomes a small form asking for its name.
+ *
+ * @param {string} section '' for no section
+ * @param {string} words what the button says
+ */
+function adder(section, words) {
+  const box = make('div', 'adder');
+  box.dataset.adds = section;
+  const open = make('button', 'button button-plain button-small', words);
+  open.setAttribute('type', 'button');
+  open.addEventListener('click', () => {
+    const form = make('form', 'adder-form');
+    form.setAttribute('novalidate', '');
+    const name = /** @type {HTMLInputElement} */ (make('input', 'input'));
+    name.setAttribute('aria-label', 'The name of the new variable');
+    name.setAttribute('placeholder', 'its name, such as paid_on');
+    name.setAttribute('autocomplete', 'off');
+    name.setAttribute('autocapitalize', 'off');
+    name.setAttribute('spellcheck', 'false');
+    const add = make('button', 'button button-small', 'Add');
+    add.setAttribute('type', 'submit');
+    const cancel = make('button', 'button button-plain button-small', 'Cancel');
+    cancel.setAttribute('type', 'button');
+    const why = make('p', 'field-why');
+    why.setAttribute('role', 'alert');
+    cancel.addEventListener('click', () => box.replaceChildren(open));
+    form.addEventListener('submit', async (sent) => {
+      sent.preventDefault();
+      why.textContent = await addNamed(name.value.trim(), section);
+    });
+    form.append(name, add, cancel);
+    box.replaceChildren(form, why);
+    name.focus();
+  });
+  box.append(open);
+  return box;
+}
+
+/**
+ * Adds a variable of a name, where the name may be one, and opens it
+ * at the side.
+ *
+ * @param {string} name
+ * @param {string} section
+ * @returns {Promise<string>} why not, or '' when it was added
+ */
+async function addNamed(name, section) {
+  flush();
+  if (!name) return 'Give the variable a name.';
+  const draft = read();
+  if (!draft) return 'The text cannot be read as a class just now. Put it right first.';
+  const taken = Object.keys(draft.variables ?? {}).find((one) => one.toLowerCase() === name.toLowerCase());
+  if (taken) return `${taken} is a variable of this class already.`;
+  // Whether a name may be a name is the server's to say, in its words.
+  addVariable(draft, name, section);
+  try {
+    const { diagnostics } = await call('validate_class', { definition: draft });
+    /** @type {import('./fado.js').Finding[]} */
+    const findings = Array.isArray(diagnostics) ? diagnostics : [];
+    const about = findings.find((f) => f.note !== true && (f.path === `/variables/${name}` || f.path.startsWith(`/variables/${name}/`)));
+    if (about) return `The server would not take it: ${about.message}.`;
+  } catch (refusal) {
+    return `The server said: ${refusal instanceof Error ? refusal.message : String(refusal)}`;
+  }
+  change((it) => addVariable(it, name, section));
+  variable = name;
+  remember();
+  drawVariables();
+  drawStates();
+  drawAbout();
+  part('v-label').focus();
+  return '';
+}
+
+/**
+ * Chooses a variable: the side of the page shows its properties.
+ *
+ * @param {string} name
+ */
+function choose(name) {
+  flush();
+  variable = name;
+  remember();
+  for (const head of document.querySelectorAll('#variables .var-pick')) {
+    head.setAttribute('aria-pressed', String(head.closest('.var')?.getAttribute('data-variable') === name));
+  }
+  drawStates();
+  drawAbout();
+  // On a narrow window the side is below the lists: bring it into view.
+  part('about-card').scrollIntoView({ block: 'nearest' });
+}
+
+/**
+ * Changes the class through the lists: the text is read, changed and
+ * written again, as one step that Undo takes back. Nothing is the
+ * server's until the designer saves.
+ *
+ * @param {(draft: Record<string, any>) => void} how
+ * @returns {boolean} false when the text cannot be read as a class
+ */
+function change(how) {
+  const draft = read();
+  if (!draft) return false;
+  const before = JSON.stringify(draft);
+  how(draft);
+  definition = draft;
+  // What changes nothing is no step for Undo to take back.
+  if (JSON.stringify(draft) !== before) editor.set(written(draft));
+  return true;
+}
+
+/**
+ * Draws one row of the list of variables again, in its place: the rows
+ * beside it stay as they are, so that a press on one of them, made
+ * while a field at the side still held the cursor, is not lost.
+ *
+ * @param {string} name
+ */
+function redrawRow(name) {
+  for (const row of document.querySelectorAll('#variables .var')) {
+    if (row.getAttribute('data-variable') === name) row.replaceWith(variableRow(name));
+  }
 }
 
 function drawVariables() {
@@ -156,7 +334,10 @@ function drawVariables() {
   const sectioned = parts.some((p) => p.name !== '');
   const none = Object.keys(definition.variables ?? {}).length === 0;
   if (none) box.append(make('p', 'card-about', 'This class has no variable.'));
-  else for (const section of parts) box.append(sectionOf(section, 3, sectioned));
+  for (const section of parts) box.append(sectionOf(section, 3, sectioned));
+  part('variables-about').textContent = designer
+    ? 'What each document holds, by the sections of the class. Choose a variable to change it at the side. fx marks what the class works out.'
+    : 'What each document holds, by the sections of the class. fx marks what the class works out.';
 }
 
 /**
@@ -171,13 +352,15 @@ function pick(state, label, name, marks) {
   const button = make('button', 'pick');
   button.setAttribute('type', 'button');
   button.dataset.state = state;
-  button.setAttribute('aria-pressed', String(state === chosen));
+  button.setAttribute('aria-pressed', String(!variable && state === chosen));
   button.append(make('span', 'pick-label', label));
   if (name) button.append(make('code', 'pick-name', name));
   for (const mark of marks) button.append(make('span', 'tag', mark));
   button.addEventListener('click', () => {
     chosen = state;
+    variable = '';
     remember();
+    for (const head of document.querySelectorAll('#variables .var-pick')) head.setAttribute('aria-pressed', 'false');
     drawStates();
     drawAbout();
   });
@@ -350,8 +533,233 @@ function drawState(state) {
   if (rules) box.append(rules);
 }
 
+/**
+ * A field of the side: a label, the control, and a line of help.
+ *
+ * @param {string} id the id of the control
+ * @param {string} label
+ * @param {HTMLElement} control
+ * @param {string} [help]
+ */
+function field(id, label, control, help = '') {
+  const box = make('div', 'field');
+  control.id = id;
+  const head = make('p', 'field-label');
+  const words = make('label', '', label);
+  words.setAttribute('for', id);
+  head.append(words);
+  box.append(head, control);
+  if (help) {
+    const about = make('p', 'field-about', help);
+    about.id = `${id}-about`;
+    control.setAttribute('aria-describedby', about.id);
+    box.append(about);
+  }
+  return box;
+}
+
+/**
+ * A box to tick, with its words beside it.
+ *
+ * @param {string} id
+ * @param {string} label
+ * @param {boolean} ticked
+ * @param {(ticked: boolean) => void} then
+ * @param {string} [help]
+ */
+function tick(id, label, ticked, then, help = '') {
+  const box = make('div', 'field tick');
+  const control = /** @type {HTMLInputElement} */ (make('input', 'check'));
+  control.type = 'checkbox';
+  control.id = id;
+  control.checked = ticked;
+  control.addEventListener('change', () => then(control.checked));
+  const words = make('label', 'tick-label', label);
+  words.setAttribute('for', id);
+  box.append(control, words);
+  if (help) box.append(make('p', 'field-about', help));
+  return box;
+}
+
+/**
+ * A line of text to type in. What is typed goes into the class when
+ * the field is left or Enter is pressed, as one step.
+ *
+ * @param {unknown} value
+ * @param {(typed: string) => void} then
+ * @param {{ mono?: boolean, lines?: number }} [how]
+ */
+function typed(value, then, { mono = false, lines = 1 } = {}) {
+  const control = /** @type {HTMLInputElement | HTMLTextAreaElement} */ (make(lines > 1 ? 'textarea' : 'input', mono ? 'input input-mono' : 'input'));
+  if (lines > 1) control.setAttribute('rows', String(lines));
+  control.value = value === undefined || value === null ? '' : String(value);
+  control.setAttribute('autocomplete', 'off');
+  control.setAttribute('spellcheck', mono ? 'false' : 'true');
+  control.addEventListener('input', () => {
+    pending = () => then(control.value);
+  });
+  control.addEventListener('change', () => {
+    pending = null;
+    then(control.value);
+  });
+  return control;
+}
+
+/**
+ * The properties of a variable, as fields. What a designer changes
+ * here goes into the text of the class at once.
+ *
+ * @param {string} name
+ */
+function drawVariable(name) {
+  const it = definition.variables[name];
+  const box = part('about');
+  part('about-title').textContent = String(it.label || name);
+  part('about-what').textContent = 'A variable of the class. What you change here goes into the text at once. Nothing is the server\'s until you save.';
+
+  /**
+   * Sets one word of this variable and draws its row again.
+   *
+   * @param {string} word
+   * @param {unknown} value
+   * @param {boolean} [again] whether the fields at the side change with it
+   */
+  const set = (word, value, again = false) => {
+    change((draft) => setWord(draft, name, word, value));
+    redrawRow(name);
+    if (word === 'label') part('about-title').textContent = String(definition.variables[name]?.label || name);
+    if (again) drawAbout();
+  };
+
+  const props = make('div', 'props');
+  const named = make('div', 'field');
+  named.append(make('p', 'field-label', 'Name'), make('code', 'var-name', name), make('p', 'field-about', 'A variable keeps its name: documents hold their values by it, and formulas read it by it.'));
+  props.append(named);
+  props.append(field('v-label', 'Label', typed(it.label, (t) => set('label', t.trim())), 'What a person reads in place of the name.'));
+  props.append(field('v-description', 'What it is for', typed(it.description, (t) => set('description', t.trim()), { lines: 2 }), 'For the person who fills it in, and for an agent that reads the class.'));
+
+  // How it gets its value: people give it, or the class works it out.
+  const computed = it.formula !== undefined;
+  const how = make('fieldset', 'field how');
+  how.append(make('legend', 'field-label', 'How it gets its value'));
+  for (const [id, words, value] of /** @type {[string, string, boolean][]} */ ([
+    ['v-given', 'People give it', false],
+    ['v-computed', 'The class works it out, by a formula', true],
+  ])) {
+    const one = make('div', 'tick');
+    const radio = /** @type {HTMLInputElement} */ (make('input', 'check'));
+    radio.type = 'radio';
+    radio.name = 'v-how';
+    radio.id = id;
+    radio.checked = computed === value;
+    radio.addEventListener('change', () => {
+      change((draft) => setComputed(draft, name, value));
+      redrawRow(name);
+      drawAbout();
+    });
+    const label = make('label', 'tick-label', words);
+    label.setAttribute('for', id);
+    one.append(radio, label);
+    how.append(one);
+  }
+  props.append(how);
+
+  const type = String(it.type ?? '');
+  if (computed) {
+    props.append(field('v-formula', 'Formula', typed(it.formula, (t) => set('formula', t), { mono: true }), 'As in a spreadsheet: net + vat, ROUND(net * vat_rate, 2). Check says where a formula is wrong. The formula editor comes next.'));
+  } else {
+    if (TYPES.includes(type) || type === '') {
+      const select = /** @type {HTMLSelectElement} */ (make('select', 'input'));
+      for (const one of TYPES) {
+        const option = /** @type {HTMLOptionElement} */ (make('option', '', one));
+        option.value = one;
+        option.selected = one === type;
+        select.append(option);
+      }
+      select.addEventListener('change', () => set('type', select.value, true));
+      props.append(field('v-type', 'Type', select, 'What kind of value it holds.'));
+    } else {
+      const other = make('div', 'field');
+      other.id = 'v-type-other';
+      other.append(make('p', 'field-label', 'Type'), make('code', 'var-name', kindLine({ type: it.type, class: it.class, schema: it.schema })), make('p', 'field-about', 'A type of this kind is changed in the text.'));
+      props.append(other);
+    }
+    props.append(tick('v-required', 'Required', it.required === true, (on) => set('required', on), 'A document without a value for it is refused.'));
+    props.append(field('v-default', 'First value', typed(it.default, (t) => set('default', t), { mono: true }), 'A formula for what a new document gets when nobody gives a value: TODAY(), 0.23, "PLN".'));
+    if (type === 'text') {
+      props.append(
+        field(
+          'v-values',
+          'One of',
+          typed(Array.isArray(it.values) ? it.values.join(', ') : '', (t) =>
+            set(
+              'values',
+              t
+                .split(',')
+                .map((one) => one.trim())
+                .filter(Boolean),
+            ),
+          ),
+          'The values it may take, with commas between: low, normal, high. Empty for any text.',
+        ),
+      );
+    }
+    if (['number', 'int', 'decimal', 'money'].includes(type)) {
+      const range = make('div', 'pair');
+      range.append(
+        field('v-min', 'At least', typed(it.min, (t) => set('min', asRangeEnd(t, type)), { mono: true })),
+        field('v-max', 'At most', typed(it.max, (t) => set('max', asRangeEnd(t, type)), { mono: true })),
+      );
+      props.append(range);
+    }
+    if (type === 'decimal' || type === 'money') {
+      props.append(field('v-scale', 'Decimal places', typed(it.scale, (t) => set('scale', /^\d+$/.test(t.trim()) ? Number(t.trim()) : t.trim()), { mono: true }), 'Two when left empty.'));
+    }
+  }
+  props.append(tick('v-list', 'Shown in The List', it.list === true, (on) => set('list', on), 'The List of the class may show it as a column.'));
+  if (computed || ['number', 'int', 'decimal', 'money', 'date', 'datetime'].includes(type)) {
+    props.append(field('v-format', 'Shown as', typed(it.format, (t) => set('format', t.trim()), { mono: true }), 'An Excel pattern: #,##0.00 for an amount, 0% for a rate, d mmm yyyy for a day.'));
+  }
+
+  const sections = sectionsOf(definition);
+  if (sections.length > 0) {
+    const select = /** @type {HTMLSelectElement} */ (make('select', 'input'));
+    const at = sectionOfVariable(definition, name);
+    for (const one of [{ name: '', label: 'In no section', depth: 0 }, ...sections]) {
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', `${'  '.repeat(one.depth)}${one.label}`));
+      option.value = one.name;
+      option.selected = one.name === at;
+      select.append(option);
+    }
+    select.addEventListener('change', () => {
+      change((draft) => moveVariable(draft, name, select.value));
+      drawVariables();
+    });
+    props.append(field('v-section', 'Section', select, 'Which part of the document it belongs to. It goes to the end of that part.'));
+  }
+
+  const remove = make('button', 'button button-plain', 'Remove this variable');
+  remove.id = 'v-remove';
+  remove.setAttribute('type', 'button');
+  remove.addEventListener('click', () => {
+    change((draft) => removeVariable(draft, name));
+    variable = '';
+    remember();
+    drawVariables();
+    drawStates();
+    drawAbout();
+    part('said').textContent = `Removed ${name} from the text. Check says what still reads it; Undo puts it back.`;
+  });
+  const last = make('div', 'field');
+  last.append(remove, make('p', 'field-about', 'It leaves the class at the next save. A formula or a right that still reads it is for the check to find.'));
+  props.append(last);
+  box.append(props);
+}
+
 function drawAbout() {
+  flush();
   part('about').replaceChildren();
+  if (variable && designer && editable() && definition.variables?.[variable]) return drawVariable(variable);
   const state = statesOf(definition).find((s) => s.name === chosen);
   if (state) drawState(state);
   else drawWholeClass();
@@ -423,12 +831,14 @@ function drawLists() {
   if (draft) definition = draft;
   part('lists-stale').hidden = draft !== null;
   if (chosen !== '' && !statesOf(definition).some((s) => s.name === chosen)) chosen = '';
+  if (variable && !definition.variables?.[variable]) variable = '';
   drawVariables();
   drawStates();
   drawAbout();
 }
 
 function drawShownAs() {
+  flush();
   part('as-lists').setAttribute('aria-pressed', String(shownAs === 'lists'));
   part('as-text').setAttribute('aria-pressed', String(shownAs === 'text'));
   if (shownAs === 'lists') drawLists();
@@ -558,6 +968,7 @@ function draftOrSay() {
 
 /** Asks the server to check the text. It writes nothing. */
 async function check() {
+  flush();
   part('said').textContent = '';
   clearFindings();
   const draft = draftOrSay();
@@ -625,6 +1036,7 @@ async function classNamed(name) {
 
 /** Saves the text as the next version of the class, or makes a class that is not made yet. */
 async function save() {
+  flush();
   part('said').textContent = '';
   clearFindings();
   const draft = draftOrSay();
@@ -676,9 +1088,10 @@ function trouble(/** @type {unknown} */ refusal) {
  * Opens the designer on the class the page holds: `held`, `saved` and
  * `making` say which.
  *
- * @param {boolean} designer whether the person may change a class
+ * @param {boolean} mayChange whether the person may change a class
  */
-async function open(designer) {
+async function open(mayChange) {
+  designer = mayChange;
   definition = saved;
   await drawHeld();
 
@@ -687,6 +1100,8 @@ async function open(designer) {
   // The page opens on the state a new document starts in, where the
   // flow begins; a class with no states opens on the whole class.
   chosen = wanted !== null && (wanted === '' || states.some((s) => s.name === wanted)) ? wanted : (states.find((s) => s.initial)?.name ?? '');
+  const wantedVariable = asked.get('variable') ?? '';
+  variable = designer && definition.variables?.[wantedVariable] ? wantedVariable : '';
 
   // Changing a class is for a designer: the server refuses anybody else.
   editor = codeView(part('class-text'), { text: written(saved), label: 'The definition of the class', readOnly: !designer, onChange: follow });
@@ -694,7 +1109,13 @@ async function open(designer) {
   if (!designer) part('text-about').textContent = 'What an agent writes, and what the server keeps. Changing a class is for a designer.';
   part('check').addEventListener('click', check);
   part('save').addEventListener('click', save);
+  part('undo').addEventListener('click', () => {
+    flush();
+    part('said').textContent = editor.undo() ? 'Taken back.' : 'There is nothing to take back.';
+    if (shownAs === 'lists') drawLists();
+  });
   part('discard').addEventListener('click', () => {
+    pending = null;
     clearFindings();
     editor.set(written(saved));
     if (shownAs === 'lists') drawLists();
@@ -762,9 +1183,9 @@ function begin() {
 const user = await enter();
 if (user) {
   try {
-    const designer = (user.system_groups ?? []).includes('designers');
+    const mayChange = (user.system_groups ?? []).includes('designers');
     if (making) {
-      if (!designer) throw new Refused('forbidden', 'Making a class is for a designer.', 0);
+      if (!mayChange) throw new Refused('forbidden', 'Making a class is for a designer.', 0);
       // The text is what a new class is worked on: the page opens there.
       if (!asked.has('as')) shownAs = 'text';
       begin();
@@ -773,7 +1194,7 @@ if (user) {
       const answer = await call('get_class', { name: className });
       held = answer.class;
       saved = held && /** @type {any} */ (held).definition ? /** @type {any} */ (held).definition : {};
-      await open(designer);
+      await open(mayChange);
     }
   } catch (refusal) {
     trouble(refusal);

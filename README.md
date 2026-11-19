@@ -27,10 +27,18 @@ refuses a class. A designer makes a new class too: it gets a name,
 begins as a small class that works, and is the server's once the
 designer makes it.
 
+**Variables are changed through the list as well.** A designer
+chooses a variable and the card at the side shows its properties as
+fields: its label, what it is for, whether people give it or the class
+works it out, its type, its first value, its range, the section it is
+in. A change goes into the text at once, and Undo takes it back. A
+variable is added to a section and removed there too.
+
 What is not there yet: a value that is a list, rows or an object is
-shown and cannot be set; in the design mode a class cannot be changed
-through the lists and there is no formula editor; and Workshop has no
-packaged release, so it is run from this
+shown and cannot be set; in the design mode the states, the moves
+between them and who may do what are changed in the text only, and
+there is no formula editor; and Workshop has no packaged release, so
+it is run from this
 repository, with a FadoDB server built from the engine's source, newer
 than its release 0.6.0. This page will say so until that changes.
 
