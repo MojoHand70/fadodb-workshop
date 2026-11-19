@@ -4,6 +4,18 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: a designer changes a class as text. The text is in a
+  box with colours, line numbers, find and undo. Check asks the server
+  and writes nothing; what the server finds is listed, and each finding
+  leads to its place in the text, down to the word inside a formula.
+  "Save as version N" makes the next version of the class. The lists
+  follow the text as it stands. A text that is not JSON is said at its
+  place and never sent. A text that names another class is not saved.
+  When somebody else saved meanwhile, the designer is told and chooses.
+  Discard puts the text back, and leaving with a change asks first. A
+  person who is no designer reads the text and cannot change it.
+- The text box stands on CodeMirror 6, the first thing from outside
+  that the design mode loads; the use mode does not load it.
 - Design mode, its first step: a designer reads a class. The first
   page and the list of a class offer Design to a person in the
   server's group of designers. The class is shown as lists: its

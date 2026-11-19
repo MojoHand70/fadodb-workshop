@@ -1,6 +1,6 @@
 # ADR-0001: What Workshop is
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-19
 
 ## Context
@@ -69,6 +69,10 @@ pages built into `fadodb serve` itself.
 Settled by me, his to veto: item 2 as a rule that a pull request is
 held to; item 5, that our own code is not bundled, and the name of the
 folder.
+
+Accepted by him on 2026-11-19, with the other records from ADR-0001 to
+ADR-0005: "merged and approved". Asked what that covered, he said
+these five records.
 
 ## Consequences
 

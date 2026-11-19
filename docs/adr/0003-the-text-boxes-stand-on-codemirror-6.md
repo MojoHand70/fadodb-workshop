@@ -1,6 +1,6 @@
 # ADR-0003: The text boxes stand on CodeMirror 6
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-19
 
 ## Context
@@ -83,6 +83,10 @@ lighter by far, with undo and the colours ours to write.
 
 Settled by me, his to veto: that item 1 means both boxes, since the
 code view loads CodeMirror anyway; and items 3 to 6.
+
+Accepted by him on 2026-11-19, with the other records from ADR-0001 to
+ADR-0005: "merged and approved". Asked what that covered, he said
+these five records.
 
 ## Consequences
 

@@ -14,7 +14,7 @@ not depend on it. Read `docs/adr/` before changing anything.
 ```
 npm ci                                   # the development tools
 npx playwright install chromium firefox webkit   # the browsers the pages are checked in
-npm run vendor                           # the engine's file for the browser, into pages/vendor/
+npm run vendor                           # what comes from outside, into pages/vendor/: the engine's file, and CodeMirror built into one
 fadodb serve acme.db --pages pages       # Workshop, handed out by a FadoDB server
 npm run serve                            # pages/ alone at http://127.0.0.1:8717/, no server behind
 FADODB_BIN=/path/to/fadodb npm run check # the types, then the pages in the browser
@@ -29,8 +29,10 @@ TEST_BROWSER=firefox npm test            # the same tests in Firefox; webkit is 
    engine as a command for everybody.
 2. **Plain files.** `pages/` is what a FadoDB server hands out, with
    `fadodb serve --pages` (the engine's ADR-0073). Our own code runs as
-   it is written, without a bundler. A built file is made at a release
-   and never committed. A page is written for the one header the
+   it is written, without a bundler. What comes from outside is put
+   into `pages/vendor/` by `npm run vendor`, CodeMirror built into one
+   file, and is never committed. Only `pages/text.js` knows
+   CodeMirror (ADR-0003). A page is written for the one header the
    server sends: every script and style is a file of the folder, and a
    page calls the server alone.
 3. **No new dependency** without a row in `docs/dependencies.md`; one

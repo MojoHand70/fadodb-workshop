@@ -1,6 +1,6 @@
 # ADR-0005: A page works a document out with the engine's own file for the browser
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-19
 
 ## Context
@@ -56,6 +56,10 @@ Settled by me, his to veto: everything in the decision; that the live
 document is written in Workshop for now; and that a page reads a
 person's typing strictly, so that "4200,50" typed in an English browser
 is said to be no number, and is not taken for 420050.
+
+Accepted by him on 2026-11-19, with the other records from ADR-0001 to
+ADR-0005: "merged and approved". Asked what that covered, he said
+these five records.
 
 ## Consequences
 

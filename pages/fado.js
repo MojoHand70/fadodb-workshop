@@ -12,6 +12,15 @@ export const SIGN_IN = '/auth/signin';
 export const ACCOUNT = '/auth/account';
 
 /**
+ * One thing the server finds wrong in a definition: a code that never
+ * changes, where it is (a JSON pointer into the definition and, inside
+ * a formula, how many bytes in, or -1), what is wrong, and sometimes
+ * what to do.
+ *
+ * @typedef {{ code: string, path: string, pos: number, message: string, hint?: string }} Finding
+ */
+
+/**
  * What the server answers when it does not do what was asked: a code
  * that never changes, for the program, and a message, for a person.
  * The code `unreachable` is Workshop's own: nothing that answers as a
@@ -24,14 +33,16 @@ export class Refused extends Error {
    * @param {number} status the status of the answer, 0 when none came
    * @param {string} [hint] what to do instead, when the server knows
    * @param {string} [variable] the variable the refusal is about, when it is about one
+   * @param {Finding[]} [findings] what the server found in a definition it refuses
    */
-  constructor(code, message, status, hint = '', variable = '') {
+  constructor(code, message, status, hint = '', variable = '', findings = []) {
     super(message);
     this.name = 'Refused';
     this.code = code;
     this.status = status;
     this.hint = hint;
     this.variable = variable;
+    this.findings = findings;
   }
 }
 
@@ -64,7 +75,7 @@ export async function call(command, object = {}) {
   if (answer.ok && body !== null) return body;
   const error = body?.error;
   if (typeof error?.code === 'string') {
-    throw new Refused(error.code, String(error.message ?? ''), answer.status, String(error.hint ?? ''), String(error.variable ?? ''));
+    throw new Refused(error.code, String(error.message ?? ''), answer.status, String(error.hint ?? ''), String(error.variable ?? ''), Array.isArray(body.diagnostics) ? body.diagnostics : []);
   }
   throw new Refused('unreachable', 'Nothing here answers as a FadoDB server does.', answer.status);
 }

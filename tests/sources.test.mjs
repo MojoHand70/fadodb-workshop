@@ -41,3 +41,19 @@ test('every page names its icon, so that no browser asks the server for one it d
   }
   assert.deepEqual(without, []);
 });
+
+test('every dependency has its row in docs/dependencies.md, at the version package.json fixes', async () => {
+  const about = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const page = await readFile(new URL('../docs/dependencies.md', import.meta.url), 'utf8');
+  /** @type {string[]} */
+  const missing = [];
+  // What reaches the browser is fixed at one version, and its row says which.
+  for (const [name, version] of Object.entries(about.dependencies ?? {})) {
+    if (!/^\d+\.\d+\.\d+$/.test(String(version))) missing.push(`${name} is not fixed at one version: ${version}`);
+    if (!page.includes(`| \`${name}\` | ${version}, fixed |`)) missing.push(`${name} ${version} has no row among what reaches the browser`);
+  }
+  for (const name of Object.keys(about.devDependencies ?? {})) {
+    if (!page.includes(`| \`${name}\` |`)) missing.push(`${name} has no row among the development tools`);
+  }
+  assert.deepEqual(missing, []);
+});

@@ -26,20 +26,35 @@
 <main class="page page-wide">
   <section data-view="design" id="design" hidden>
     <p class="crumbs"><a href="./">Classes</a> / <a id="to-list" href="./"></a></p>
-    <p class="status">Design mode shows a class as the server holds it. Changing a class here comes next.</p>
+    <p class="status">Design mode: a designer changes a class as text, and the lists follow. Changing it through the lists, and the formula editor, come next.</p>
     <div class="doc-head">
       <h1 id="class-title"></h1>
       <code class="class-name" id="class-name"></code>
       <span class="state state-big" id="class-version"></span>
+      <span class="state state-big state-changed" id="class-changed" hidden>changed, not saved</span>
     </div>
     <p class="lead" id="class-about"></p>
     <p class="count" id="class-defined"></p>
 
-    <div class="chips" role="group" aria-label="Show the class as">
-      <button class="chip" id="as-lists" type="button" aria-pressed="true">Lists</button>
-      <button class="chip" id="as-text" type="button" aria-pressed="false">Text</button>
+    <div class="design-bar">
+      <div class="chips" role="group" aria-label="Show the class as">
+        <button class="chip" id="as-lists" type="button" aria-pressed="true">Lists</button>
+        <button class="chip" id="as-text" type="button" aria-pressed="false">Text</button>
+      </div>
+      <div class="design-do" id="design-do" hidden>
+        <button class="button button-plain" id="check" type="button">Check</button>
+        <button class="button button-plain" id="discard" type="button" disabled>Discard</button>
+        <button class="button" id="save" type="button" disabled>Save</button>
+      </div>
+    </div>
+    <p class="said" id="said" role="status" aria-live="polite"></p>
+    <div class="alert" id="findings-box" hidden>
+      <p class="alert-what" id="findings-what"></p>
+      <p class="alert-hint" id="findings-hint"></p>
+      <ol class="findings" id="findings"></ol>
     </div>
 
+    <p class="said" id="lists-stale" hidden>The text cannot be read as a class just now: the lists show it as it last could.</p>
     <div id="lists" class="design">
       <div class="card" id="variables-card">
         <h2>Variables</h2>
@@ -64,8 +79,8 @@
 
     <div id="text" class="card" hidden>
       <h2>The same class as text</h2>
-      <p class="card-about">What an agent writes, and what the server keeps: the definition of this version, word for word.</p>
-      <pre class="code" id="class-text" tabindex="0" aria-label="The definition of the class"></pre>
+      <p class="card-about" id="text-about">What an agent writes, and what the server keeps. Change it here, check it, and save it as the next version; the lists show the text as it stands.</p>
+      <div id="class-text"></div>
     </div>
   </section>
 

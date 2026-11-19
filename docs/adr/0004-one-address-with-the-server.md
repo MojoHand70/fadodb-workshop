@@ -1,6 +1,6 @@
 # ADR-0004: Workshop answers at the server's own address, and a person signs in on the server's page
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-19
 
 ## Context
@@ -64,6 +64,10 @@ Settled by me, his to veto: that the first way built is the one
 address; and items 3 and 4. Item 5 follows his two rulings on the
 engine's ADR-0073: the pages answer at the root, under one fixed
 header.
+
+Accepted by him on 2026-11-19, with the other records from ADR-0001 to
+ADR-0005: "merged and approved". Asked what that covered, he said
+these five records.
 
 ## Consequences
 
