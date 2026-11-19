@@ -4,6 +4,14 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- The List of a class: its documents, newest first, fifty at a time,
+  with the title, the columns the class marks for its list, the state,
+  who made each and when it last changed. A number, a money, a day and
+  a moment are shown by the format the class gives them, with the
+  separators and the month names of the browser's language. The list
+  is narrowed to one state, and the address keeps the choice. On a
+  phone each document is a card.
+- The classes on the first page lead to their lists.
 - The first page: a person signs in on the FadoDB server's own page,
   comes back, and sees their name and the classes on the server, each
   with the words its class says to people. Signing out ends the session

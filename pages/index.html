@@ -22,36 +22,11 @@
 </header>
 
 <main class="page">
-  <p class="status">Status: signing in and the list of classes work. Nothing else yet.</p>
+  <p class="status">Status: signing in, the classes and their lists work. Documents come next.</p>
 
-  <section id="loading" aria-live="polite">
-    <p class="lead">Asking the server who you are.</p>
-  </section>
-
-  <section id="signed-out" hidden>
-    <h1>Sign in to work here</h1>
-    <p class="lead">
-      You sign in on the FadoDB server's own page, and come back here.
-      Your password is typed only there.
-    </p>
-    <a class="button" id="sign-in" href="/auth/signin?next=/">Sign in</a>
-  </section>
-
-  <section id="no-server" hidden>
-    <h1>No FadoDB server answers here</h1>
-    <p class="lead">
-      Workshop's pages work at the address of a FadoDB server. These
-      pages were handed out with no server behind them.
-    </p>
-    <div class="card">
-      <h2>What the page was told</h2>
-      <p id="no-server-why"></p>
-    </div>
-  </section>
-
-  <section id="home" hidden>
+  <section data-view="home" id="home" hidden>
     <h1>Classes on this server</h1>
-    <p class="lead">Every class you may see. Their lists and their documents come next.</p>
+    <p class="lead">Every class you may see. Choose one to see its list.</p>
     <ul class="classes" id="classes"></ul>
     <p class="lead" id="no-classes" hidden>There is no class here yet.</p>
   </section>
