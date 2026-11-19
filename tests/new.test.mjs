@@ -4,9 +4,8 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { chromium } from 'playwright';
 import { acme, signIn } from './acme.mjs';
-import { fits, plain, ready, watch } from './browser.mjs';
+import { fits, launch, plain, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -62,7 +61,7 @@ before(async () => {
   });
 
   site = server.site;
-  browser = await chromium.launch();
+  browser = await launch();
 });
 
 after(async () => {

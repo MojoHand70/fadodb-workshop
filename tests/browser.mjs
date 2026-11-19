@@ -1,5 +1,27 @@
 // What every test of a page shares: open it in a real browser and
 // collect what went wrong while it loaded.
+//
+// The browser is Chromium unless TEST_BROWSER names another: firefox,
+// or webkit, the engine of Safari. The same tests run in each. (The
+// name is not BROWSER: on many machines that one already names the
+// program that opens a link.)
+
+import { chromium, firefox, webkit } from 'playwright';
+
+/** The browser the tests run in, by its name. */
+export const BROWSER = process.env.TEST_BROWSER || 'chromium';
+
+/**
+ * Starts the browser the tests run in.
+ *
+ * @returns {Promise<import('playwright').Browser>}
+ */
+export function launch() {
+  const engines = { chromium, firefox, webkit };
+  const engine = engines[/** @type {'chromium' | 'firefox' | 'webkit'} */ (BROWSER)];
+  if (!engine) throw new Error(`TEST_BROWSER names ${BROWSER}; the tests run in chromium, firefox or webkit.`);
+  return engine.launch();
+}
 
 /**
  * Opens a page and waits until its script says it is ready.
@@ -47,9 +69,12 @@ export function watch(page) {
     });
   });
   page.on('console', (m) => {
+    if (m.type() !== 'error') return;
     // The browser writes a line for every answer of 400 and above; those
     // are in `answers`.
-    if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) wrong.push(m.text());
+    if (m.text().startsWith('Failed to load resource')) return;
+    if (serversIcon(m.text())) return;
+    wrong.push(m.text());
   });
   page.on('pageerror', (e) => wrong.push(String(e)));
   page.on('requestfailed', (r) => wrong.push(`not loaded: ${r.url()}`));
@@ -57,6 +82,20 @@ export function watch(page) {
     if (r.status() >= 400) answers.push({ status: r.status(), path: new URL(r.url()).pathname });
   });
   return { wrong, answers, commands };
+}
+
+/**
+ * A fault of the server's own pages, not of Workshop's: the pages where
+ * a person signs in name no icon, so Firefox asks for /favicon.ico, and
+ * the header of those pages lets no picture load. Nothing is lost but a
+ * line in the browser's console. A page of Workshop names its icon and
+ * may load pictures of the folder, so this line can only come from the
+ * server's pages. It goes when the engine is mended.
+ *
+ * @param {string} line
+ */
+function serversIcon(line) {
+  return line.includes('/favicon.ico') && /^refused by the security header: img-src|content[- ]security[- ]policy/i.test(line);
 }
 
 /**
@@ -69,7 +108,8 @@ export function watch(page) {
  */
 function slow(page) {
   const rate = Number(process.env.SLOW ?? 0);
-  if (rate > 1) {
+  // Only Chromium can be slowed this way.
+  if (rate > 1 && BROWSER === 'chromium') {
     page.context().newCDPSession(page).then((session) => session.send('Emulation.setCPUThrottlingRate', { rate }));
   }
 }
