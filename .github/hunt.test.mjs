@@ -10,8 +10,9 @@ import { NAME, passage } from './passage.mjs';
 
 const OUT = process.env.HUNT_OUT ?? '.';
 const HOW = process.env.HUNT_HOW ?? 'as-it-is';
-const LANES = 4;
-const ROUNDS = 12;
+// One at a time: a browser opens a box of its own only in the window a person is in.
+const LANES = 1;
+const ROUNDS = 24;
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
 /** @type {Awaited<ReturnType<typeof passage>>} */
@@ -67,6 +68,13 @@ test(`hunt (${HOW}): ${LANES * ROUNDS} sign-ins at the plain address`, async () 
         await page.fill('#password', PASSWORD);
       }
       note('filled password');
+      // What reaches the page of a press of the mouse, from now on.
+      await page.evaluate(() => {
+        /** @type {any} */ (window).reached = [];
+        for (const kind of ['mousedown', 'mouseup', 'click', 'submit', 'blur']) {
+          window.addEventListener(kind, (e) => /** @type {any} */ (window).reached.push(`${kind} ${/** @type {Element} */ (e.target).id || /** @type {Element} */ (e.target).tagName}`), true);
+        }
+      });
       if (HOW === 'enter') await page.press('#password', 'Enter');
       else await page.click('button[type=submit]');
       note('sent');
@@ -78,6 +86,7 @@ test(`hunt (${HOW}): ${LANES * ROUNDS} sign-ins at the plain address`, async () 
           password: /** @type {HTMLInputElement} */ (document.querySelector('#password'))?.value.length,
           active: document.activeElement?.id || document.activeElement?.tagName,
           at: location.pathname + location.search,
+          reached: /** @type {any} */ (window).reached,
         })).catch((error) => ({ error: String(error) }));
         note(`lost; the page holds ${JSON.stringify(held)}`);
         // What a person would do next: press the button again.

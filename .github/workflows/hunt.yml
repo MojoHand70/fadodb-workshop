@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   hunt:
-    name: hunt ${{ matrix.how }}
+    name: hunt ${{ matrix.how }} ${{ matrix.n }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -21,6 +21,7 @@ jobs:
         # enter: the form sent with Enter in the password field
         # typed: the password typed key by key, as a person types
         how: [as-it-is, no-warning, enter, typed]
+        n: [1, 2]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -63,6 +64,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hunt-${{ matrix.how }}
+          name: hunt-${{ matrix.how }}-${{ matrix.n }}
           path: ${{ runner.temp }}/hunt
           if-no-files-found: ignore
