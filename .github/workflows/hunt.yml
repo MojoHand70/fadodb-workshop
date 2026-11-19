@@ -1,0 +1,51 @@
+# Temporary, on this branch only: the suite in Firefox again and again,
+# to bring back a failure seen once. It goes before the branch is merged.
+name: hunt
+
+on:
+  push:
+    branches: [other-browsers]
+
+permissions:
+  contents: read
+
+jobs:
+  hunt:
+    name: hunt ${{ matrix.n }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps firefox
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+      - name: Build the FadoDB server
+        run: |
+          engine="$(node -p "require('./package.json').config.engine")"
+          go install "github.com/MojoHand70/fadodb/cmd/fadodb@${engine}"
+          echo "FADODB_BIN=$(go env GOPATH)/bin/fadodb" >> "$GITHUB_ENV"
+      - name: The suite in Firefox, six times
+        env:
+          TEST_BROWSER: firefox
+        run: |
+          failed=0
+          for i in 1 2 3 4 5 6; do
+            echo "=== run $i"
+            if ! npm test > run.txt 2>&1; then
+              failed=$((failed+1))
+              grep -n "failing tests" -A 80 run.txt | head -160
+            fi
+            grep -E "^ℹ (pass|fail|duration_ms)" run.txt | tr '\n' ' '; echo
+          done
+          echo "failed runs: $failed of 6"
+          exit "$failed"
