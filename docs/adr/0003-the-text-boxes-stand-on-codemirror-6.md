@@ -1,6 +1,6 @@
 # ADR-0003: The text boxes stand on CodeMirror 6
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-19
 
 ## Context
@@ -84,6 +84,10 @@ lighter by far, with undo and the colours ours to write.
 Settled by me, his to veto: that item 1 means both boxes, since the
 code view loads CodeMirror anyway; and items 3 to 6.
 
+Accepted by him on 2026-11-19, with the other records from ADR-0001 to
+ADR-0005: "merged and approved". Asked what that covered, he said
+these five records.
+
 ## Consequences
 
 - Workshop gets its first dependency that reaches the browser: 23
@@ -96,29 +100,8 @@ code view loads CodeMirror anyway; and items 3 to 6.
   lets us keep our copy, and the two functions of item 3 are small
   enough to write again on something else.
 
-## What building the code view showed
-
-Added on 2026-11-19, when the first of the two boxes was built.
-
-- The code view is built from 16 packages, not 23: the formula editor
-  brings the rest. The file is some 360 KB, 120 KB compressed.
-- Workshop's tests open it in Chromium, Firefox and WebKit, under the
-  header a server sends with a page, and nothing is refused.
-- A change the page puts into the text has to be marked as a step of
-  its own in the history of the box. Unmarked, CodeMirror joins it
-  with typing done less than half a second before, and one undo takes
-  back both.
-- The engine counts the place of a finding inside a formula in bytes.
-  The box counts in characters, and a quote inside a formula is
-  written in the text of a class as two. The function of item 3 that
-  makes the code view does the counting.
-
 ## Not tested
 
-On the day of the ruling: Firefox, Safari, a phone or a tablet with
-its own keyboard, and a screen reader. Since the code view was built,
-Firefox and WebKit are tested; a real phone, Safari itself and a
-screen reader are not.
-
-Nor what Ace and Monaco do once they are set up to pass the security
-header.
+Firefox, Safari, a phone or a tablet with its own keyboard, and a
+screen reader. What Ace and Monaco do once they are set up to pass the
+security header.

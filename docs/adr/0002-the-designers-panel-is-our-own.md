@@ -1,6 +1,6 @@
 # ADR-0002: The designer's panel is our own
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-19
 
 ## Context
@@ -63,6 +63,10 @@ The other way was to stand on GrapesJS or on VvvebJs and work against
 the one's model or the other's way of saving.
 
 Settled by me, his to veto: the list of item 4.
+
+Accepted by him on 2026-11-19, with the other records from ADR-0001 to
+ADR-0005: "merged and approved". Asked what that covered, he said
+these five records.
 
 ## Consequences
 
