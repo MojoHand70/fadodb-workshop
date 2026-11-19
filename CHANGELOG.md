@@ -4,6 +4,12 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- A new document: the list of a class offers New to whoever the class
+  lets make one. The page begins with what the class gives a new
+  document, its defaults, and what the class calculates follows as the
+  person types. Create makes it on the server and opens it; what is
+  needed and missing is said at its field. Pressing Create twice makes
+  one document.
 - Changing a document: a value the person may set, as the document
   stands, is a field. As they type, what the class calculates follows
   at once, worked out in the browser as the server works it out, and

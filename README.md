@@ -4,15 +4,16 @@ The open face of [FadoDB](https://github.com/MojoHand70/fadodb): a web
 application for people to use, and to design, what runs on a FadoDB
 server.
 
-**Status: the first pages work, in development only.** A person signs
-in on the FadoDB server's own page, sees the classes on the server,
-opens the list of a class, and opens a document. There they read it by
-the sections of its class, change the values the class lets them
-change, with what the class calculates following as they type, save,
-and move the document along its flow. A new document cannot be made
-here yet, and there is no design mode. Workshop cannot be installed
-for people to use: that waits for the server to hand out Workshop's
-folder. This page will say so until it can.
+**Status: the use mode works for a class of plain values, in
+development only.** A person signs in on the FadoDB server's own page,
+sees the classes on the server, opens the list of a class, makes a new
+document, and opens one. There they read it by the sections of its
+class, change the values the class lets them change, with what the
+class calculates following as they type, save, and move the document
+along its flow. A value that is a list, rows or an object is shown and
+cannot be set yet. There is no design mode. Workshop cannot be
+installed for people to use: that waits for the server to hand out
+Workshop's folder. This page will say so until it can.
 
 ## What is planned
 

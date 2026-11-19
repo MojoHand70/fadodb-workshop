@@ -149,6 +149,31 @@ export class Live {
     /** The changes the server's last answer was worked out for. */
     this.answered = '{}';
     this.title = '';
+    /** True for a document that is not made yet. */
+    this.fresh = false;
+  }
+
+  /**
+   * Begins a document that is not made yet: it is in the first state of
+   * its class, the person is its maker, and it holds what the class
+   * gives a new document, its defaults.
+   */
+  begin() {
+    this.fresh = true;
+    this.saved = {
+      id: '',
+      state: this.definition.states?.initial,
+      created_by: this.user.id,
+      updated_by: this.user.id,
+      state_entered_by: this.user.id,
+      values: {},
+    };
+    this.values = {};
+    this.changed.clear();
+    this.asks.clear();
+    this.answered = '';
+    this.title = '';
+    this.workOut();
   }
 
   /**
@@ -158,6 +183,7 @@ export class Live {
    * @param {any} document
    */
   take(document) {
+    this.fresh = false;
     this.saved = document;
     this.values = { ...(document.values ?? {}) };
     this.changed.clear();
@@ -247,7 +273,9 @@ export class Live {
   set(name, wire) {
     this.values[name] = wire;
     const before = JSON.stringify(this.saved.values?.[name] ?? null);
-    if (JSON.stringify(wire ?? null) === before) this.changed.delete(name);
+    // In a new document whatever the person touched is theirs, an
+    // emptied field too: the class's default no longer fills it.
+    if (!this.fresh && JSON.stringify(wire ?? null) === before) this.changed.delete(name);
     else this.changed.add(name);
     this.workOut();
   }
@@ -256,10 +284,28 @@ export class Live {
   workOut() {
     /** What changed since the server last answered, and what follows from it. */
     const moved = new Set(this.changed);
-    // What the server works out is fresh while the changes are the ones
-    // it last answered for.
-    const fresh = this.answered === JSON.stringify(this.changes());
+    // What the server works out is current while the changes are the
+    // ones it last answered for.
+    const current = this.answered === JSON.stringify(this.changes());
     this.asks.clear();
+    if (this.fresh) {
+      // A new document: the defaults first, in the engine's order, for
+      // every variable the person has not set.
+      for (const one of this.compiled.defaults ?? []) {
+        if (this.changed.has(one.variable)) continue;
+        if (typeof one.formula === 'string') {
+          try {
+            const worked = toWire(fit(this.run(one.formula, this.values), one.type));
+            if (JSON.stringify(worked) !== JSON.stringify(this.values[one.variable] ?? null)) moved.add(one.variable);
+            this.values[one.variable] = worked;
+            continue;
+          } catch {
+            // Not for a page to work out: it is the server's.
+          }
+        }
+        if (!current) this.asks.add(one.variable);
+      }
+    }
     for (const one of this.compiled.computed ?? []) {
       const follows = (one.reads ?? []).some((/** @type {string} */ read) => moved.has(read));
       if (typeof one.formula === 'string') {
@@ -273,7 +319,7 @@ export class Live {
         }
       }
       if (follows) {
-        if (!fresh) this.asks.add(one.variable);
+        if (!current) this.asks.add(one.variable);
         moved.add(one.variable);
       }
     }
@@ -299,9 +345,26 @@ export class Live {
     this.workOut();
   }
 
-  /** Puts every value back as the server last sent it. */
+  /** Puts every value back as the server last sent it, or as a new document begins. */
   discard() {
-    this.take(this.saved);
+    if (this.fresh) this.begin();
+    else this.take(this.saved);
+  }
+
+  /**
+   * Whether the person may make a document of the class. Null when the
+   * page cannot tell, and the server's answer counts.
+   *
+   * @returns {boolean | null}
+   */
+  mayCreate() {
+    const rule = this.compiled.access?.create;
+    if (rule === undefined) return false;
+    const was = this.saved;
+    this.saved = { id: '', state: this.definition.states?.initial, created_by: this.user.id, values: {} };
+    const holds = this.holds(rule, {});
+    this.saved = was;
+    return holds;
   }
 
   /** The changes the server has not taken yet, as the wire carries them. */
