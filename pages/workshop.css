@@ -423,3 +423,68 @@ h1 {
   .facts { grid-template-columns: 1fr; gap: 0; }
   .facts dd { margin: 0 0 8px; }
 }
+
+/* A value the person may set. */
+
+.field-label label { cursor: pointer; }
+
+.field-must { color: var(--wip); font-weight: 500; }
+
+.field-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.input {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--taupe, #A89C86);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 16px/1.3 var(--sans);
+}
+
+.input:focus-visible,
+.check:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+.input-number { font-variant-numeric: tabular-nums; }
+
+.input-currency { flex: none; width: 4.6em; text-transform: uppercase; }
+
+.input-unit { flex: none; color: var(--ink-2); }
+
+.check { width: 22px; height: 22px; margin: 11px 0; accent-color: var(--blue); }
+
+.field-wrong .input { border-color: #B4442F; background: #FBEFEC; }
+
+.field-why { margin: 4px 0 0; color: #7A2318; font-size: 13px; font-weight: 600; }
+
+.field-waiting { color: var(--ink-2); }
+
+/* What is not saved yet stays in sight at the foot of the window. */
+
+.changes {
+  position: sticky;
+  bottom: 12px;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(36, 38, 43, .18);
+}
+
+.changes-what { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.changes-wrong { margin: 2px 0 0; color: #7A2318; font-size: 14px; }
+.changes-do { display: flex; gap: 10px; }

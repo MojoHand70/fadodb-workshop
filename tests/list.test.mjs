@@ -95,7 +95,7 @@ async function annOpensTheList(locale, label = 'Expense') {
  */
 async function rowOf(page, title) {
   const row = page.locator('#rows tr', { has: page.locator('td.title', { hasText: title }) });
-  return (await row.locator('td').allInnerTexts()).map((text) => text.replaceAll(' ', ' '));
+  return (await row.locator('td').allInnerTexts()).map((text) => text.replaceAll('\u00a0', ' '));
 }
 
 test('Ann opens the list of expenses from the first page', async () => {

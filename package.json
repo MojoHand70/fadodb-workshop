@@ -12,8 +12,12 @@
     "engine": "924871edfb22471153d0929103187b3cbd445f32"
   },
   "scripts": {
+    "vendor": "node tools/vendor.mjs",
+    "preserve": "npm run vendor",
     "serve": "node tools/serve.mjs",
+    "pretypecheck": "npm run vendor",
     "typecheck": "tsc -p tsconfig.json",
+    "pretest": "npm run vendor",
     "test": "node --test \"tests/**/*.test.mjs\"",
     "check": "npm run typecheck && npm test"
   },
@@ -21,5 +25,8 @@
     "@types/node": "^26.6.6",
     "playwright": "^1.65.1",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "fadodb-vm": "4.0.0"
   }
 }

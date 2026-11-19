@@ -4,6 +4,17 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Changing a document: a value the person may set, as the document
+  stands, is a field. As they type, what the class calculates follows
+  at once, worked out in the browser as the server works it out, and
+  the title with it. Nothing is the server's until they save. A change
+  the server refuses is shown at its field, in its words, and nothing
+  typed is lost. A number is typed in the browser's language and read
+  strictly; a rate the class shows as a percentage is typed as one.
+  While something is not saved the document cannot be moved, and
+  leaving the page asks first.
+- A value the person may not read says so, where an empty one shows a
+  dash.
 - One document: a row of a list opens it. The page shows its values by
   the sections of its class, each with its label, its format and what
   the class says it is for; the state and what the class says of it;

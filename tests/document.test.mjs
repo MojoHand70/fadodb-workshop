@@ -82,8 +82,13 @@ function fieldsOf(page) {
     /** @type {Record<string, string>} */
     const all = {};
     for (const box of document.querySelectorAll('.field')) {
-      const label = [...(box.querySelector('.field-label')?.childNodes ?? [])].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('');
-      all[label] = (box.querySelector('.field-value')?.textContent ?? '').replaceAll(' ', ' ');
+      // The label of a field is a <label>; the label of a value that is only shown is plain text beside the fx mark.
+      const head = box.querySelector('.field-label');
+      const label = head?.querySelector('label')?.textContent ?? [...(head?.childNodes ?? [])].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('');
+      // A value the person may set is in a field; any other is shown.
+      const typed = [...box.querySelectorAll('input, select')].map((one) => /** @type {HTMLInputElement} */ (one).value);
+      const text = typed.length > 0 ? typed.join(' ') : box.querySelector('.field-value')?.textContent ?? '';
+      all[label] = text.replaceAll('\u00a0', ' ');
     }
     return all;
   });
@@ -170,7 +175,7 @@ test('Jan is shown what is his to do, and a condition that does not hold yet', a
   assert.deepEqual(await page.locator('#moves button').allInnerTexts(), ['Submit']);
   assert.ok(await page.locator('#moves button').isDisabled());
   assert.equal(await page.locator('.move-why').innerText(), 'Not yet. The author sends it for approval. It needs a total above zero.');
-  assert.equal((await fieldsOf(page))['Cost centre'], '—', 'a value that is not there is shown as a dash');
+  assert.equal(await page.inputValue('#f-cost_centre'), '', 'his own draft is his to fill in');
   assert.deepEqual(wrong, []);
   await context.close();
 });

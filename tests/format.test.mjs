@@ -8,7 +8,7 @@ import { kindOf, show, showDate, showNumber } from '../pages/format.js';
 const EN = 'en-GB';
 const PL = 'pl-PL';
 /** The space Polish puts between thousands, and the one before a currency. */
-const NB = ' ';
+const NB = '\u00a0';
 
 test('a number by a pattern, in English', () => {
   assert.equal(showNumber('5166.00', '#,##0.00', EN), '5,166.00');
