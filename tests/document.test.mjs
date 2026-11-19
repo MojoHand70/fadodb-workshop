@@ -4,9 +4,8 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { chromium } from 'playwright';
 import { acme, signIn } from './acme.mjs';
-import { fits, ready, watch } from './browser.mjs';
+import { fits, launch, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -21,7 +20,7 @@ before(async () => {
   const expense = JSON.parse(await readFile(new URL('./fixtures/expense.json', import.meta.url), 'utf8'));
   await server.exec('define_class', { definition: expense });
   site = server.site;
-  browser = await chromium.launch();
+  browser = await launch();
 });
 
 after(async () => {

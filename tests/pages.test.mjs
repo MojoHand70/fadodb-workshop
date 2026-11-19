@@ -4,10 +4,9 @@
 
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
 import { POLICY, serve } from '../tools/serve.mjs';
 import { PAGES, acme } from './acme.mjs';
-import { fits, open } from './browser.mjs';
+import { fits, launch, open } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -20,7 +19,7 @@ let browser;
 before(async () => {
   server = await acme();
   alone = await serve({ dir: PAGES });
-  browser = await chromium.launch();
+  browser = await launch();
 });
 
 after(async () => {

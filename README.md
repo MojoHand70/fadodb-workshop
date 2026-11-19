@@ -40,7 +40,7 @@ The decisions and the reasons for them are in
 | `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, Workshop's door to the server (`fado.js`), the live document (`live.js`), and how a value is shown to a person and read from their typing (`format.js`, `input.js`). |
 | `pages/vendor/` | Made by `npm run vendor`, not kept here: the engine's file for the browser. |
 | `tools/serve.mjs` | A helper that hands out `pages/` with no FadoDB server behind them, to look at a page as it is drawn. |
-| `tests/` | The checks: each page is opened in a real browser, in front of a real FadoDB server. |
+| `tests/` | The checks: each page is opened in a real browser, in front of a real FadoDB server, in Chromium, Firefox and WebKit. |
 | `docs/adr/` | The decision records. |
 
 ## See it work
@@ -107,12 +107,21 @@ says what a server hands out from it and under which header.
 
 ```
 npm ci
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 FADODB_BIN="$(go env GOPATH)/bin/fadodb" npm run check
+TEST_BROWSER=firefox npm test
+TEST_BROWSER=webkit npm test
 ```
 
 The tests start the program `FADODB_BIN` names, with a database of
 their own that they throw away.
+
+The pages are checked in three browsers: Chromium, which Chrome and
+Edge are built on, Firefox, and WebKit, which Safari is built on.
+`npm run check` opens them in Chromium; `TEST_BROWSER` names another.
+Every pull request runs all three. WebKit here is the build the test
+tool brings, on Linux: the pages have not been opened in Safari
+itself, on a Mac or a phone.
 
 ## Licence
 

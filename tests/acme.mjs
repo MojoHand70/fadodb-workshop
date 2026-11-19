@@ -13,7 +13,7 @@
 // engine that package.json says this Workshop needs (config.engine).
 
 import { execFile, spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -51,8 +51,14 @@ function freePort() {
 
 /**
  * Makes the database, starts the server and waits until it answers.
+ *
+ * @param {{ name?: string }} [options]
+ *   name, when given, is the name people reach the server by, over plain
+ *   http: the operator tells the server so, as `url` in its settings,
+ *   and `site` is then at that name. The server still listens on this
+ *   machine; tests/passage.mjs takes a browser to it.
  */
-export async function acme() {
+export async function acme({ name } = {}) {
   const program = process.env.FADODB_BIN;
   if (!program) {
     throw new Error('FADODB_BIN is not set: it names the fadodb program the tests start, built from the engine this Workshop needs (package.json, config.engine).');
@@ -70,7 +76,14 @@ export async function acme() {
 
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
-  const server = spawn(program, ['serve', database, '--listen', `127.0.0.1:${port}`, '--pages', PAGES], { stdio: 'ignore' });
+  const reached = name ? `http://${name}:${port}` : url;
+  const told = ['serve', database, '--listen', `127.0.0.1:${port}`, '--pages', PAGES];
+  if (name) {
+    const settings = join(folder, 'settings.json');
+    await writeFile(settings, JSON.stringify({ url: reached }));
+    told.push('--settings', settings);
+  }
+  const server = spawn(program, told, { stdio: 'ignore' });
   /** @type {Promise<void>} */
   const ended = new Promise((done) => server.once('exit', () => done()));
 
@@ -90,8 +103,8 @@ export async function acme() {
   return {
     /** The address the server listens at. */
     url,
-    /** Where Workshop's pages answer: the same address. */
-    site: { url: `${url}/` },
+    /** Where Workshop's pages answer: the address people reach the server at. */
+    site: { url: `${reached}/` },
     /**
      * Sends a command with a key: Olga's, or Jan's when asked.
      *
@@ -126,6 +139,14 @@ export const PASSWORD = 'a long password 42';
  * A person sets their password with a link an administrator made, as a
  * person does the first time, and signs in from Workshop's first page.
  *
+ * Each form is sent with Enter, not with a press of the mouse on its
+ * button. At an address a browser does not hold for secure, Firefox may
+ * open a box of its own at the password field, over the button; the
+ * first press of the mouse then closes that box and never reaches the
+ * page. Measured on GitHub's machines at http://workshop.test: of 288
+ * sign-ins sent with the button 5 did nothing, and each went through at
+ * a second press; of 288 sent with Enter, none was lost.
+ *
  * @param {import('playwright').Page} page
  * @param {{ url: string }} site where Workshop's pages are
  * @param {{ exec: (command: string, object?: Record<string, unknown>) => Promise<any> }} server
@@ -136,7 +157,7 @@ export async function signIn(page, site, server, user = 'ann') {
   await page.goto(`${site.url}auth/password?link=${link.token}`);
   await page.fill('#password', PASSWORD);
   await page.fill('#again', PASSWORD);
-  await page.click('button[type=submit]');
+  await page.press('#again', 'Enter');
   // The server answers with a page that no longer carries the link. Only
   // then is the password set, and only then may the browser go on.
   await page.waitForURL((address) => !address.search.includes('link='));
@@ -145,7 +166,13 @@ export async function signIn(page, site, server, user = 'ann') {
   await page.click('#sign-in');
   await page.fill('#user', user);
   await page.fill('#password', PASSWORD);
-  await page.click('button[type=submit]');
-  await page.waitForURL(site.url);
+  await page.press('#password', 'Enter');
+  try {
+    await page.waitForURL(site.url);
+  } catch (error) {
+    // Say where the person was left, and what that page told them.
+    const says = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
+    throw new Error(`${user} signed in and did not arrive at ${site.url}: the page is at ${page.url()} and says "${says}"`, { cause: error });
+  }
   await page.waitForFunction(() => document.documentElement.dataset.ready === 'yes');
 }

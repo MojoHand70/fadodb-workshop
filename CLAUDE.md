@@ -13,12 +13,13 @@ not depend on it. Read `docs/adr/` before changing anything.
 
 ```
 npm ci                                   # the development tools
-npx playwright install chromium          # the browser the pages are checked in
+npx playwright install chromium firefox webkit   # the browsers the pages are checked in
 npm run vendor                           # the engine's file for the browser, into pages/vendor/
 fadodb serve acme.db --pages pages       # Workshop, handed out by a FadoDB server
 npm run serve                            # pages/ alone at http://127.0.0.1:8717/, no server behind
 FADODB_BIN=/path/to/fadodb npm run check # the types, then the pages in the browser
-SLOW=6 npm test                          # the same tests with the page six times slower
+SLOW=6 npm test                          # the same tests with the page six times slower (Chromium)
+TEST_BROWSER=firefox npm test            # the same tests in Firefox; webkit is the engine of Safari
 ```
 
 ## Invariants
@@ -47,7 +48,9 @@ SLOW=6 npm test                          # the same tests with the page six time
    markup, and a test tries it. A test waits for what the page itself
    says it has done, never for a moment in between; before a push the
    tests are run slowed too, `SLOW=6 npm test`, which shows a test that
-   read too early.
+   read too early. The same tests run in Chromium, Firefox and WebKit;
+   a test that cannot run in one of them says why, and is not left out
+   silently.
 7. **A public repository.** Nothing private belongs here.
 
 ## Style

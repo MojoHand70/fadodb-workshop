@@ -27,3 +27,17 @@ test('no source file holds a character that cannot be told apart by eye', async 
   }
   assert.deepEqual(found, [], `write each as its escape, as in '\\u00a0' (checked from ${fileURLToPath(new URL('..', import.meta.url))})`);
 });
+
+test('every page names its icon, so that no browser asks the server for one it does not have', async () => {
+  // A page that names none makes Firefox ask the server for
+  // /favicon.ico each time, which the server answers with "not found".
+  const at = new URL('../pages/', import.meta.url);
+  /** @type {string[]} */
+  const without = [];
+  for (const name of await readdir(at)) {
+    if (!name.endsWith('.html')) continue;
+    const text = await readFile(new URL(name, at), 'utf8');
+    if (!/<link rel="icon" href="[^"]+">/.test(text)) without.push(name);
+  }
+  assert.deepEqual(without, []);
+});

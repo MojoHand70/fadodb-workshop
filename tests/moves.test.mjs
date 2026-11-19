@@ -5,9 +5,8 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { chromium } from 'playwright';
 import { acme, signIn } from './acme.mjs';
-import { ready, watch } from './browser.mjs';
+import { launch, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -56,7 +55,7 @@ before(async () => {
       access: { read: 'INGROUP("everyone")', create: 'INGROUP("everyone")', update: 'INGROUP("everyone")', delete: 'FALSE' },
     },
   });
-  browser = await chromium.launch();
+  browser = await launch();
 });
 
 after(async () => {
