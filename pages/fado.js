@@ -22,12 +22,14 @@ export class Refused extends Error {
    * @param {string} code
    * @param {string} message
    * @param {number} status the status of the answer, 0 when none came
+   * @param {string} [hint] what to do instead, when the server knows
    */
-  constructor(code, message, status) {
+  constructor(code, message, status, hint = '') {
     super(message);
     this.name = 'Refused';
     this.code = code;
     this.status = status;
+    this.hint = hint;
   }
 }
 
@@ -59,7 +61,7 @@ export async function call(command, object = {}) {
   }
   if (answer.ok && body !== null) return body;
   const error = body?.error;
-  if (typeof error?.code === 'string') throw new Refused(error.code, String(error.message ?? ''), answer.status);
+  if (typeof error?.code === 'string') throw new Refused(error.code, String(error.message ?? ''), answer.status, String(error.hint ?? ''));
   throw new Refused('unreachable', 'Nothing here answers as a FadoDB server does.', answer.status);
 }
 

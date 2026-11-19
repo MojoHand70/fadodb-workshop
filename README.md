@@ -5,13 +5,13 @@ application for people to use, and to design, what runs on a FadoDB
 server.
 
 **Status: the first pages work, in development only.** A person signs
-in on the FadoDB server's own page, sees the classes on the server, and
-opens the list of a class: its documents, with the columns, the labels
-and the formats the class gives them, in the language of the browser.
-There are no pages for one document yet, and no design mode, and
-Workshop cannot be installed for people to use: that waits for the
-server to hand out Workshop's folder. This page will say so until it
-can.
+in on the FadoDB server's own page, sees the classes on the server,
+opens the list of a class, and opens a document: its values by the
+sections of its class, where it stands, its history, and the
+transitions that person may take, which work. A document cannot be
+changed or made here yet, and there is no design mode. Workshop cannot
+be installed for people to use: that waits for the server to hand out
+Workshop's folder. This page will say so until it can.
 
 ## What is planned
 
@@ -31,7 +31,7 @@ The decisions and the reasons for them are in
 
 | | |
 |---|---|
-| `pages/` | The files a server hands out. Today: the first page, the list of a class, Workshop's door to the server (`fado.js`) and how a value is shown to a person (`format.js`). |
+| `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, Workshop's door to the server (`fado.js`) and how a value is shown to a person (`format.js`). |
 | `tools/serve.mjs` | A helper for development: it hands out `pages/` on your own machine and stands in front of a FadoDB server, so that both answer at one address. |
 | `tests/` | The checks: each page is opened in a real browser, in front of a real FadoDB server. |
 | `docs/adr/` | The decision records. |
@@ -75,7 +75,8 @@ fadodb exec create '{"class": "Expense", "values": {"what": "Train tickets to Gd
 ```
 
 Open the link the fifth command printed and set a password. Then open
-`http://127.0.0.1:8717/`, sign in as `ann`, and choose Expense.
+`http://127.0.0.1:8717/`, sign in as `ann`, choose Expense, and open the
+document.
 
 If something else on your machine already listens at 8080, the server
 says so. Give it another address, `fadodb serve acme.db --listen
