@@ -16,6 +16,10 @@
 // Which transitions the person may take is the server's answer, not the
 // page's guess. A transition that is not this person's to take is left
 // out; one whose condition does not hold yet is shown, and says so.
+//
+// The same page makes a new document, at document.html?class=…&new: it
+// begins with what the class gives a new document, its defaults, and is
+// the server's when the person creates it.
 
 import { Refused, call } from './fado.js';
 import { kindOf, show as showValue } from './format.js';
@@ -27,6 +31,10 @@ const person = { locale: navigator.language || 'en', yes: 'Yes', no: 'No' };
 const asked = new URLSearchParams(location.search);
 const className = asked.get('class') ?? '';
 const id = asked.get('id') ?? '';
+/** True when the page makes a new document, and has none to read. */
+const making = id === '' && asked.has('new');
+/** One key for this new document, so that sending it twice makes it once. */
+const key = crypto.randomUUID();
 
 /** @type {Live} */
 let live;
@@ -44,6 +52,11 @@ const unread = new Map();
 /** @type {any[]} */
 let moves = [];
 let asking = 0;
+/** Each field as it was drawn: its box, and the value it was drawn with. */
+/** @type {Map<string, { box: HTMLElement, drawn: string }>} */
+const fields = new Map();
+/** True once the person is sent on by the page itself: then leaving asks nothing. */
+let done = false;
 
 /**
  * The name of a person, asked once.
@@ -251,6 +264,7 @@ function field(name) {
   box.append(label);
 
   if (set) {
+    fields.set(name, { box, drawn: JSON.stringify(live.values[name] ?? null) });
     const holder = make('dd', 'field-input');
     holder.append(...set.parts);
     const why = make('dd', 'field-why');
@@ -302,14 +316,22 @@ function typed(name, read, box, why) {
  */
 function follow() {
   for (const name of cells.keys()) showCell(name);
-  part('doc-title').textContent = live.title;
+  // A field the person has not touched follows too: a default worked
+  // out again, or one the server has just answered.
+  for (const [name, { box, drawn }] of fields) {
+    if (live.changed.has(name) || unread.has(name) || box.contains(document.activeElement)) continue;
+    if (JSON.stringify(live.values[name] ?? null) !== drawn) box.replaceWith(field(name));
+  }
+  part('doc-title').textContent = live.title || (making ? `New: ${String(definition.label || className)}` : '');
 
   const changed = [...live.changed, ...[...unread.keys()].filter((name) => !live.changed.has(name))];
   const dirty = changed.length > 0;
-  part('changes').hidden = !dirty;
-  part('changes-what').textContent = `Not saved yet: ${changed.map(labelOf).join(', ')}.`;
+  part('changes').hidden = !dirty && !making;
+  part('changes-what').textContent = making
+    ? 'Not made yet. Nothing is the server\'s until you create it.'
+    : `Not saved yet: ${changed.map(labelOf).join(', ')}.`;
   part('changes-wrong').hidden = unread.size === 0;
-  /** @type {HTMLButtonElement} */ (part('save')).disabled = unread.size > 0 || live.changed.size === 0;
+  /** @type {HTMLButtonElement} */ (part('save')).disabled = unread.size > 0 || (!making && live.changed.size === 0);
   drawMoves(dirty);
 
   if (live.asks.size > 0) {
@@ -317,7 +339,7 @@ function follow() {
     setTimeout(async () => {
       if (mine !== asking) return;
       try {
-        const { preview } = await call('preview', { class: className, id, values: live.changes() });
+        const { preview } = await call('preview', making ? { class: className, values: live.changes() } : { class: className, id, values: live.changes() });
         if (mine !== asking) return;
         live.settle(preview?.document?.values ?? {});
         follow();
@@ -368,6 +390,7 @@ function drawSections() {
   const box = part('sections');
   box.replaceChildren();
   cells.clear();
+  fields.clear();
   unread.clear();
   const inSections = held(definition.sections, new Set());
   const loose = Object.keys(definition.variables ?? {}).filter((name) => !inSections.has(name));
@@ -453,7 +476,7 @@ function drawMoves(waiting) {
     box.append(item);
     offered++;
   }
-  part('moves-none').hidden = offered > 0;
+  part('moves-none').hidden = offered > 0 || making;
   part('moves-wait').hidden = !(waiting && offered > 0);
 }
 
@@ -500,6 +523,14 @@ async function save() {
   part('refused').hidden = true;
   part('said').textContent = '';
   try {
+    if (making) {
+      // The same key goes with every try, so a second click, or a try
+      // after a lost answer, makes no second document.
+      const { document: made } = await call('create', { class: className, values: live.changes(), key });
+      done = true;
+      location.replace(`document.html?class=${encodeURIComponent(className)}&id=${encodeURIComponent(made.id)}`);
+      return;
+    }
     await call('set', { class: className, id, values: live.changes() });
     await load();
     part('said').textContent = 'Saved.';
@@ -540,24 +571,45 @@ async function load() {
 const user = await enter();
 if (user) {
   try {
-    if (!className || !id) throw new Refused('unknown_document', 'The address names no document: it ends in document.html?class=, the name of a class, &id= and the id of a document.', 0);
+    if (!className || (!id && !making)) throw new Refused('unknown_document', 'The address names no document: it ends in document.html?class=, the name of a class, &id= and the id of a document.', 0);
     const bundle = await call('get_bundle', { class: className, language: person.locale });
     live = new Live(bundle, user);
     definition = live.definition;
+    const list = `list.html?class=${encodeURIComponent(className)}`;
     const toList = part('to-list');
     toList.textContent = String(definition.label || className);
-    toList.setAttribute('href', `list.html?class=${encodeURIComponent(className)}`);
+    toList.setAttribute('href', list);
     part('save').addEventListener('click', save);
     part('discard').addEventListener('click', () => {
+      if (making) {
+        done = true;
+        location.assign(list);
+        return;
+      }
       live.discard();
       part('refused').hidden = true;
       drawSections();
       follow();
     });
     window.addEventListener('beforeunload', (leaving) => {
-      if (live.changed.size > 0) leaving.preventDefault();
+      if (!done && live.changed.size > 0) leaving.preventDefault();
     });
-    await load();
+    if (making) {
+      if (live.mayCreate() === false) throw new Refused('forbidden', `You may not make a document of ${String(definition.label || className)}: the class keeps that for others.`, 0);
+      live.begin();
+      const first = live.saved.state;
+      document.title = `New: ${String(definition.label || className)} · FadoDB Workshop`;
+      part('doc-state').textContent = stateLabel(first);
+      part('doc-state-about').textContent = String(definition.states?.descriptions?.[first] || '');
+      part('save').textContent = 'Create';
+      part('discard').textContent = 'Cancel';
+      part('about').hidden = true;
+      part('history-card').hidden = true;
+      drawSections();
+      follow();
+    } else {
+      await load();
+    }
     show('document');
   } catch (refusal) {
     part('trouble-why').textContent = refusal instanceof Error ? refusal.message : String(refusal);

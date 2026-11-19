@@ -488,3 +488,5 @@ h1 {
 .changes-what { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .changes-wrong { margin: 2px 0 0; color: #7A2318; font-size: 14px; }
 .changes-do { display: flex; gap: 10px; }
+
+.doc-head .button { margin-left: auto; }

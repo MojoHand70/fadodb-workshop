@@ -76,6 +76,16 @@ export async function ready(page) {
 }
 
 /**
+ * A text of a page with plain spaces: a number shown in a person's
+ * language may hold spaces that do not break.
+ *
+ * @param {string} text
+ */
+export function plain(text) {
+  return text.replaceAll(String.fromCharCode(0xa0), ' ').replaceAll(String.fromCharCode(0x202f), ' ');
+}
+
+/**
  * Whether the page fits its window, with nothing to scroll sideways.
  *
  * @param {import('playwright').Page} page

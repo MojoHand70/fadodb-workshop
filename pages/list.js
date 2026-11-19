@@ -12,6 +12,7 @@
 
 import { Refused, call } from './fado.js';
 import { kindOf, show as showValue } from './format.js';
+import { Live } from './live.js';
 import { enter, make, part, ready, show } from './shell.js';
 
 /** How many documents are asked for at a time. */
@@ -185,10 +186,17 @@ function trouble(/** @type {unknown} */ refusal) {
   show('trouble');
 }
 
-if (await enter()) {
+const user = await enter();
+if (user) {
   try {
     if (!className) throw new Refused('unknown_class', 'The address names no class: it ends in list.html?class= and the name of a class.', 0);
-    readClass(await call('get_bundle', { class: className, language: person.locale }));
+    const bundle = await call('get_bundle', { class: className, language: person.locale });
+    readClass(bundle);
+    // A new document is offered to whoever the class lets make one. Where
+    // the page cannot tell, it is offered and the server decides.
+    const fresh = part('new');
+    fresh.setAttribute('href', `document.html?class=${encodeURIComponent(className)}&new`);
+    fresh.hidden = new Live(bundle, user).mayCreate() === false;
     const wanted = asked.get('state') ?? '';
     state = (definition.states?.list ?? []).includes(wanted) ? wanted : '';
     const label = String(definition.label || className);
