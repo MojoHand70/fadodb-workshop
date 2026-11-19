@@ -16,12 +16,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # as-it-is: the sign-in as the tests do it, and a second click when the first is lost
-        # no-warning: Firefox told not to open its warning under a password field
-        # enter: the form sent with Enter in the password field
-        # typed: the password typed key by key, as a person types
-        how: [as-it-is, no-warning, enter, typed]
-        n: [1, 2]
+        how: [final]
+        n: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
