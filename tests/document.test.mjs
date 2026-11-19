@@ -143,8 +143,10 @@ test('Ann approves it, and the page shows where it stands afterwards', async () 
   await openDocument(page, id);
 
   await page.locator('#moves button', { hasText: 'Approve' }).click();
-  await page.waitForFunction(() => document.getElementById('doc-state')?.textContent === 'Approved');
+  // The page says what it did when it has drawn the document again.
+  await page.waitForFunction(() => document.getElementById('said')?.textContent !== '');
   assert.equal(await page.locator('#said').innerText(), 'Done: Approve. It is now in Approved.');
+  assert.equal(await page.locator('#doc-state').innerText(), 'Approved');
   assert.equal(await page.locator('#moves button').count(), 0, 'paying it is the accountants\'');
   assert.ok(await page.locator('#moves-none').isVisible());
   assert.equal((await historyOf(page))[0], 'Ann Kowalska moved it from Waiting for approval to Approved');

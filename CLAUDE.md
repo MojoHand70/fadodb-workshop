@@ -17,6 +17,7 @@ npx playwright install chromium          # the browser the pages are checked in
 npm run serve                            # pages/ at http://127.0.0.1:8717/
 npm run serve -- --server http://127.0.0.1:8080   # in front of a FadoDB server
 FADODB_BIN=/path/to/fadodb npm run check # the types, then the pages in the browser
+SLOW=6 npm test                          # the same tests with the page six times slower
 ```
 
 ## Invariants
@@ -39,7 +40,10 @@ FADODB_BIN=/path/to/fadodb npm run check # the types, then the pages in the brow
    of a database comes from a FadoDB server the test starts, built from
    the commit `package.json` names under `config.engine`; nothing is
    faked. What comes from a database is put on a page as text, never as
-   markup, and a test tries it.
+   markup, and a test tries it. A test waits for what the page itself
+   says it has done, never for a moment in between; before a push the
+   tests are run slowed too, `SLOW=6 npm test`, which shows a test that
+   read too early.
 7. **A public repository.** Nothing private belongs here.
 
 ## Style
