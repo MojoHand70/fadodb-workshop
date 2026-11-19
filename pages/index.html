@@ -15,27 +15,45 @@
     <span class="brand-name">FadoDB</span>
     <span class="brand-tag">workshop</span>
   </a>
+  <div class="who" id="who" hidden>
+    <a class="who-name" id="who-name" href="/auth/account"></a>
+    <button class="button button-plain" id="sign-out" type="button">Sign out</button>
+  </div>
 </header>
 
 <main class="page">
-  <p class="status">Status: nothing works yet</p>
-  <h1>The skeleton of FadoDB Workshop</h1>
-  <p class="lead">
-    Workshop is the open face of FadoDB: a web application for people
-    to use, and to design, what runs on a FadoDB server. This page is
-    its first file. It shows that the pages load under the security
-    header they are held to, and nothing more.
-  </p>
-  <section class="card" aria-labelledby="planned">
-    <h2 id="planned">What is planned</h2>
-    <ul>
-      <li>A use mode, for the people who work: apps, lists and documents.</li>
-      <li>A design mode, for a designer: classes, flows and faces, by hand or beside an agent.</li>
-    </ul>
-    <p>
-      The decisions made so far are in the
-      <a href="https://github.com/MojoHand70/fadodb-workshop/tree/main/docs/adr">decision records</a>.
+  <p class="status">Status: signing in and the list of classes work. Nothing else yet.</p>
+
+  <section id="loading" aria-live="polite">
+    <p class="lead">Asking the server who you are.</p>
+  </section>
+
+  <section id="signed-out" hidden>
+    <h1>Sign in to work here</h1>
+    <p class="lead">
+      You sign in on the FadoDB server's own page, and come back here.
+      Your password is typed only there.
     </p>
+    <a class="button" id="sign-in" href="/auth/signin?next=/">Sign in</a>
+  </section>
+
+  <section id="no-server" hidden>
+    <h1>No FadoDB server answers here</h1>
+    <p class="lead">
+      Workshop's pages work at the address of a FadoDB server. These
+      pages were handed out with no server behind them.
+    </p>
+    <div class="card">
+      <h2>What the page was told</h2>
+      <p id="no-server-why"></p>
+    </div>
+  </section>
+
+  <section id="home" hidden>
+    <h1>Classes on this server</h1>
+    <p class="lead">Every class you may see. Their lists and their documents come next.</p>
+    <ul class="classes" id="classes"></ul>
+    <p class="lead" id="no-classes" hidden>There is no class here yet.</p>
   </section>
 </main>
 

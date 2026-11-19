@@ -24,3 +24,9 @@ They check Workshop and never reach the browser.
 | `typescript` | Apache-2.0 | Checks the types written in the comments of our plain JavaScript. It builds nothing. |
 | `@types/node` | MIT | The types of Node, for the helper and the tests. |
 | `playwright` | Apache-2.0 | Opens the pages in a real browser for the tests. |
+
+## The engine
+
+Workshop is checked against one commit of FadoDB, named in
+`package.json` under `config.engine`. The tests build the server from
+it and start it. Moving to a newer commit is a pull request of its own.

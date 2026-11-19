@@ -14,3 +14,4 @@ Where a record says "the engine's ADR", it means a record of FadoDB.
 | [0001](0001-what-workshop-is.md) | What Workshop is | Proposed |
 | [0002](0002-the-designers-panel-is-our-own.md) | The designer's panel is our own | Proposed |
 | [0003](0003-the-text-boxes-stand-on-codemirror-6.md) | The text boxes stand on CodeMirror 6 | Proposed |
+| [0004](0004-one-address-with-the-server.md) | Workshop answers at the server's own address, and a person signs in on the server's page | Proposed |

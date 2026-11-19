@@ -8,6 +8,9 @@
   "engines": {
     "node": ">=22"
   },
+  "config": {
+    "engine": "924871edfb22471153d0929103187b3cbd445f32"
+  },
   "scripts": {
     "serve": "node tools/serve.mjs",
     "typecheck": "tsc -p tsconfig.json",

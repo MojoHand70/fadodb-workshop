@@ -23,5 +23,14 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Check the types
         run: npm run typecheck
-      - name: Open the pages in the browser
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+      - name: Build the FadoDB server the tests start, from the commit package.json names
+        run: |
+          engine="$(node -p "require('./package.json').config.engine")"
+          go install "github.com/MojoHand70/fadodb/cmd/fadodb@${engine}"
+          echo "FADODB_BIN=$(go env GOPATH)/bin/fadodb" >> "$GITHUB_ENV"
+      - name: Open the pages in the browser, in front of the server
         run: npm test

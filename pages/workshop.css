@@ -23,6 +23,9 @@
 
 * { box-sizing: border-box; }
 
+/* What is hidden stays hidden, whatever a rule below gives it to show. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -102,3 +105,69 @@ h1 {
 .card ul { margin: 0 0 12px; padding-left: 22px; }
 .card li { margin: 4px 0; }
 .card p { margin: 0; color: var(--ink-2); }
+
+/* The person, at the end of the top bar. */
+
+.top { justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+.who { display: flex; align-items: center; gap: 12px; }
+
+.who-name { font-weight: 500; }
+
+/* A button, and a link that is one. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--blue-strong);
+  border-radius: 10px;
+  background: var(--blue);
+  color: #FFFFFF;
+  font: 600 15px/1 var(--sans);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover { background: var(--blue-strong); color: #FFFFFF; }
+.button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.button-plain {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.button-plain:hover { background: var(--bg-2); color: var(--ink); }
+
+/* The classes of a server. */
+
+.classes {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.class {
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.class-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.class-label { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+
+.class-name { color: var(--ink-2); font: 500 13px/1.5 var(--mono); }
+
+.class-about { margin: 6px 0 0; color: var(--ink-2); overflow-wrap: anywhere; }

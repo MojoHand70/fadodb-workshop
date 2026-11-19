@@ -15,7 +15,8 @@ not depend on it. Read `docs/adr/` before changing anything.
 npm ci                                   # the development tools
 npx playwright install chromium          # the browser the pages are checked in
 npm run serve                            # pages/ at http://127.0.0.1:8717/
-npm run check                            # the types, then the pages in the browser
+npm run serve -- --server http://127.0.0.1:8080   # in front of a FadoDB server
+FADODB_BIN=/path/to/fadodb npm run check # the types, then the pages in the browser
 ```
 
 ## Invariants
@@ -32,9 +33,13 @@ npm run check                            # the types, then the pages in the brow
    Proposed and is Accepted on the owner's word.
 5. **Honest status.** The README and the pages say what works today.
    Planned behaviour is marked as planned.
-6. **Checked in a real browser.** Every page has a test that opens it
-   under the security header, with nothing refused, at a phone's width
-   and by the keyboard.
+6. **Checked in a real browser, against a real server.** Every page
+   has a test that opens it under the security header, with nothing
+   refused, at a phone's width and by the keyboard. What a page shows
+   of a database comes from a FadoDB server the test starts, built from
+   the commit `package.json` names under `config.engine`; nothing is
+   faked. What comes from a database is put on a page as text, never as
+   markup, and a test tries it.
 7. **A public repository.** Nothing private belongs here.
 
 ## Style
