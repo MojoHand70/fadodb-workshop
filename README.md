@@ -13,19 +13,22 @@ with what the class calculates following as they type, save, and move
 the document along its flow. The buttons that move it follow the
 typing too, and a move takes what was typed with it, in one step.
 
-**The design mode has begun: it shows a class and does not change one
-yet.** A designer opens a class as lists: its variables by section,
-each with its kind in a line; its states; and, for the state they
-choose, the ways out of it, who may take each, and who may set what
+**The design mode has begun: a designer reads a class as lists and
+changes it as text.** The lists show its variables by section, each
+with its kind in a line; its states; and, for the state the designer
+chooses, the ways out of it, who may take each, and who may set what
 there. Every formula is shown whole. The same class is there as text,
-word for word as the server keeps it.
+as an agent writes it. A designer changes the text, asks the server to
+check it, and saves it as the next version. What the server finds is
+listed, each finding leading to its place in the text, and the lists
+follow the text as it stands.
 
 What is not there yet: a value that is a list, rows or an object is
-shown and cannot be set; a class cannot be changed in the design mode,
-by text or through the lists, and there is no formula editor; and
-Workshop has no packaged release, so it is run from this repository,
-with a FadoDB server built from the engine's source, newer than its
-release 0.6.0. This page will say so until that changes.
+shown and cannot be set; in the design mode a class cannot be changed
+through the lists, a new class cannot be made, and there is no formula
+editor; and Workshop has no packaged release, so it is run from this
+repository, with a FadoDB server built from the engine's source, newer
+than its release 0.6.0. This page will say so until that changes.
 
 ## What is planned
 
@@ -45,8 +48,9 @@ The decisions and the reasons for them are in
 
 | | |
 |---|---|
-| `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, the design of a class, Workshop's door to the server (`fado.js`), the live document (`live.js`), how a value is shown to a person and read from their typing (`format.js`, `input.js`), and how a class is read for the designer's lists (`class.js`). |
-| `pages/vendor/` | Made by `npm run vendor`, not kept here: the engine's file for the browser. |
+| `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, the design of a class, Workshop's door to the server (`fado.js`), the live document (`live.js`), how a value is shown to a person and read from their typing (`format.js`, `input.js`), how a class is read for the designer's lists (`class.js`), and the text box of the design mode (`text.js`). |
+| `pages/vendor/` | Made by `npm run vendor`, not kept here: the engine's file for the browser, and CodeMirror, which stands under the text box, built into one file with its licences beside it. |
+| `tools/vendor.mjs`, `tools/codemirror.entry.mjs` | What makes `pages/vendor/`, and the list of what Workshop takes from CodeMirror. |
 | `tools/serve.mjs` | A helper that hands out `pages/` with no FadoDB server behind them, to look at a page as it is drawn. |
 | `tests/` | The checks: each page is opened in a real browser, in front of a real FadoDB server, in Chromium, Firefox and WebKit. |
 | `docs/adr/` | The decision records. |
