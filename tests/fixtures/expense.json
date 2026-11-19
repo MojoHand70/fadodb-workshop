@@ -1,0 +1,71 @@
+{
+  "name": "Expense",
+  "label": "Expense",
+  "description": "What an employee paid for the company and asks to be paid back. Above 5,000 it needs a director.",
+  "title": "what",
+  "variables": {
+    "what":           {"type": "text", "required": true, "label": "What was bought", "list": true,
+                       "description": "A few words a colleague would understand."},
+    "bought_on":      {"type": "date", "default": "TODAY()", "label": "Bought on", "list": true, "format": "d mmm yyyy",
+                       "description": "The day on the receipt."},
+    "cost_centre":    {"type": "text", "label": "Cost centre", "list": true,
+                       "description": "The part of the company that pays for it."},
+    "note":           {"type": "text", "label": "Note",
+                       "description": "Anything the approver should know."},
+    "net":            {"type": "money", "scale": 2, "label": "Net amount", "format": "#,##0.00",
+                       "description": "The amount on the receipt before VAT."},
+    "vat_rate":       {"type": "decimal", "scale": 2, "default": "0.23", "min": 0, "max": "0.23",
+                       "label": "VAT rate", "format": "0%",
+                       "description": "The rate on the receipt, 23% unless it says otherwise."},
+    "vat":            {"formula": "ROUND(net * vat_rate, 2)", "label": "VAT", "format": "#,##0.00",
+                       "description": "The VAT on the net amount, to the cent."},
+    "total":          {"formula": "net + vat", "label": "Total", "list": true, "format": "#,##0.00",
+                       "description": "What the employee is paid back."},
+    "needs_director": {"formula": "total > 5000", "label": "Needs the director",
+                       "description": "TRUE above 5,000: then only a director may approve it."}
+  },
+  "sections": {
+    "purchase": {"label": "The purchase", "description": "What was bought, when, and for whom.",
+                 "variables": ["what", "bought_on", "cost_centre", "note"]},
+    "amounts":  {"label": "Amounts", "description": "What it cost, and what is paid back.",
+                 "variables": ["net", "vat_rate", "vat", "total", "needs_director"]}
+  },
+  "states": {
+    "initial": "draft", "list": ["draft", "submitted", "approved", "paid"], "final": ["paid"],
+    "labels": {"draft": "Draft", "submitted": "Waiting for approval", "approved": "Approved", "paid": "Paid"},
+    "descriptions": {
+      "draft":     "Its author writes it and may change it.",
+      "submitted": "Waiting for an approver, who may add to the note. Nothing else changes.",
+      "approved":  "Approved, and waiting for accounting to pay it.",
+      "paid":      "Paid back. It changes no more."}
+  },
+  "transitions": [
+    {"name": "submit",    "from": "draft",     "to": "submitted", "guard": "total > 0", "label": "Submit",
+     "description": "The author sends it for approval. It needs a total above zero."},
+    {"name": "take_back", "from": "submitted", "to": "draft", "label": "Take back",
+     "description": "The author takes it back to change it, while nobody has approved it."},
+    {"name": "send_back", "from": "submitted", "to": "draft", "label": "Send back",
+     "description": "An approver returns it to its author."},
+    {"name": "approve",   "from": "submitted", "to": "approved", "label": "Approve",
+     "description": "An approver who is not its author accepts it; above 5,000, a director."},
+    {"name": "pay",       "from": "approved",  "to": "paid", "label": "Record payment",
+     "description": "Accounting records that the employee was paid back."}
+  ],
+  "access": {
+    "read":   "CREATEDBY() = USER() OR INGROUP(\"expense_approvers\") OR INGROUP(\"accountants\")",
+    "create": "INGROUP(\"everyone\")",
+    "update": "(CREATEDBY() = USER() AND STATE() = \"draft\") OR (INGROUP(\"expense_approvers\") AND STATE() = \"submitted\")",
+    "delete": "FALSE",
+    "transition": {
+      "submit":    "CREATEDBY() = USER()",
+      "take_back": "CREATEDBY() = USER()",
+      "send_back": "INGROUP(\"expense_approvers\")",
+      "approve":   "INGROUP(\"expense_approvers\") AND CREATEDBY() <> USER() AND (NOT(needs_director) OR INGROUP(\"directors\"))",
+      "pay":       "INGROUP(\"accountants\")"
+    }
+  },
+  "rights": {
+    "draft":     {"*": {"write": "CREATEDBY() = USER()"}},
+    "submitted": {"*": {"write": "FALSE"}, "note": {"write": ["expense_approvers"]}}
+  }
+}
