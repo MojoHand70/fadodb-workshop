@@ -5,7 +5,9 @@ it. One that reaches the browser also needs a decision record.
 
 ## What reaches the browser
 
-Nothing yet. Workshop's pages are its own files.
+| Package | Version | Licence | Why |
+|---|---|---|---|
+| `fadodb-vm` | 4.0.0, fixed | Apache-2.0 | The engine's own formula machine for a page: one file of 35 KB with no dependency. A page works a document out with it as the server does ([ADR-0005](adr/0005-a-page-works-a-document-out.md)). `npm run vendor` copies it into `pages/vendor/`, which is not kept in the repository. Its major version is the format of the engine's compiled formulas. |
 
 Planned: CodeMirror 6, for the two text boxes of the design mode
 ([ADR-0003](adr/0003-the-text-boxes-stand-on-codemirror-6.md)). Its

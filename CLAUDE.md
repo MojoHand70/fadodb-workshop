@@ -14,6 +14,7 @@ not depend on it. Read `docs/adr/` before changing anything.
 ```
 npm ci                                   # the development tools
 npx playwright install chromium          # the browser the pages are checked in
+npm run vendor                           # the engine's file for the browser, into pages/vendor/
 npm run serve                            # pages/ at http://127.0.0.1:8717/
 npm run serve -- --server http://127.0.0.1:8080   # in front of a FadoDB server
 FADODB_BIN=/path/to/fadodb npm run check # the types, then the pages in the browser

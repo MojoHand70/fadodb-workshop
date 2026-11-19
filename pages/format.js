@@ -333,7 +333,7 @@ export function show(value, how, person) {
     const found = /^(\S+)\s+(\S+)$/.exec(String(value));
     if (!found) return String(value);
     const amount = pattern ? showNumber(found[1], pattern, locale) : plainNumber(found[1], locale);
-    return `${amount} ${found[2]}`;
+    return `${amount}\u00a0${found[2]}`;
   }
 
   if (kind === 'number' || kind === 'int' || kind === 'decimal') {
