@@ -4,6 +4,15 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- The buttons that move a document follow what the person types, by
+  the class's own rules and guards: Submit lights up when the total is
+  above zero, before anything is saved. Where a condition is the
+  server's to work out, the page asks the server. A move takes what was
+  typed with it, in one step: the server takes the change and the move,
+  or neither. A move the server refuses keeps the typing.
+- Discard reads the document again, as somebody else may have left it.
+- Fixed: a button pressed right after typing into a field did nothing,
+  because the page drew its buttons again when the field was left.
 - A FadoDB server hands out Workshop's pages itself: `fadodb serve
   acme.db --pages pages`, with an engine newer than its release 0.6.0.
   The helper that stood in front of a server is gone; what is left of

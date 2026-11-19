@@ -10,7 +10,8 @@ own page, sees the classes on the server, opens the list of a class,
 makes a new document, and opens one. There they read it by the
 sections of its class, change the values the class lets them change,
 with what the class calculates following as they type, save, and move
-the document along its flow.
+the document along its flow. The buttons that move it follow the
+typing too, and a move takes what was typed with it, in one step.
 
 What is not there yet: a value that is a list, rows or an object is
 shown and cannot be set; there is no design mode; and Workshop has no

@@ -7,7 +7,8 @@
  * `wrong` gathers what must never happen on a page of Workshop: something
  * refused by the security header, an error of a script, a file that did
  * not load. `answers` gathers the answers of 400 and above, which a test
- * may expect: a person who is not signed in is answered 401.
+ * may expect: a person who is not signed in is answered 401. `commands`
+ * gathers the names of the commands the page sent.
  *
  * @param {import('playwright').Browser} browser
  * @param {string} url
@@ -16,10 +17,10 @@
 export async function open(browser, url, viewport = { width: 1280, height: 800 }) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
-  const { wrong, answers } = watch(page);
+  const { wrong, answers, commands } = watch(page);
   await page.goto(url);
   await ready(page);
-  return { context, page, wrong, answers };
+  return { context, page, wrong, answers, commands };
 }
 
 /**
@@ -33,6 +34,13 @@ export function watch(page) {
   const wrong = [];
   /** @type {{ status: number, path: string }[]} */
   const answers = [];
+  /** The commands the page sent, by name, in order. */
+  /** @type {string[]} */
+  const commands = [];
+  page.on('request', (r) => {
+    const path = new URL(r.url()).pathname;
+    if (path.startsWith('/v1/')) commands.push(path.slice(4));
+  });
   page.addInitScript(() => {
     document.addEventListener('securitypolicyviolation', (e) => {
       console.error(`refused by the security header: ${e.violatedDirective} ${e.blockedURI}`);
@@ -48,7 +56,7 @@ export function watch(page) {
   page.on('response', (r) => {
     if (r.status() >= 400) answers.push({ status: r.status(), path: new URL(r.url()).pathname });
   });
-  return { wrong, answers };
+  return { wrong, answers, commands };
 }
 
 /**
