@@ -1,0 +1,16 @@
+# Decision records
+
+One file per decision, as in
+[FadoDB](https://github.com/MojoHand70/fadodb/tree/main/docs/adr). A
+record goes in as Proposed and is Accepted on the owner's word. A record
+is never edited after acceptance; a change is a new record that amends
+or supersedes the old one, and the old one's status line says so. Copy
+`0000-template.md` to start.
+
+Where a record says "the engine's ADR", it means a record of FadoDB.
+
+| ADR | Title | Status |
+|---|---|---|
+| [0001](0001-what-workshop-is.md) | What Workshop is | Proposed |
+| [0002](0002-the-designers-panel-is-our-own.md) | The designer's panel is our own | Proposed |
+| [0003](0003-the-text-boxes-stand-on-codemirror-6.md) | The text boxes stand on CodeMirror 6 | Proposed |
