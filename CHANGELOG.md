@@ -4,6 +4,11 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- A FadoDB server hands out Workshop's pages itself: `fadodb serve
+  acme.db --pages pages`, with an engine newer than its release 0.6.0.
+  The helper that stood in front of a server is gone; what is left of
+  it hands out the pages with no server behind them. Workshop's tests
+  start a real server that way.
 - A new document: the list of a class offers New to whoever the class
   lets make one. The page begins with what the class gives a new
   document, its defaults, and what the class calculates follows as the

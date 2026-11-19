@@ -4,16 +4,19 @@ The open face of [FadoDB](https://github.com/MojoHand70/fadodb): a web
 application for people to use, and to design, what runs on a FadoDB
 server.
 
-**Status: the use mode works for a class of plain values, in
-development only.** A person signs in on the FadoDB server's own page,
-sees the classes on the server, opens the list of a class, makes a new
-document, and opens one. There they read it by the sections of its
-class, change the values the class lets them change, with what the
-class calculates following as they type, save, and move the document
-along its flow. A value that is a list, rows or an object is shown and
-cannot be set yet. There is no design mode. Workshop cannot be
-installed for people to use: that waits for the server to hand out
-Workshop's folder. This page will say so until it can.
+**Status: the use mode works for a class of plain values.** A FadoDB
+server hands out Workshop's pages. A person signs in on the server's
+own page, sees the classes on the server, opens the list of a class,
+makes a new document, and opens one. There they read it by the
+sections of its class, change the values the class lets them change,
+with what the class calculates following as they type, save, and move
+the document along its flow.
+
+What is not there yet: a value that is a list, rows or an object is
+shown and cannot be set; there is no design mode; and Workshop has no
+packaged release, so it is run from this repository, with a FadoDB
+server built from the engine's source, newer than its release 0.6.0.
+This page will say so until that changes.
 
 ## What is planned
 
@@ -35,19 +38,27 @@ The decisions and the reasons for them are in
 |---|---|
 | `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, Workshop's door to the server (`fado.js`), the live document (`live.js`), and how a value is shown to a person and read from their typing (`format.js`, `input.js`). |
 | `pages/vendor/` | Made by `npm run vendor`, not kept here: the engine's file for the browser. |
-| `tools/serve.mjs` | A helper for development: it hands out `pages/` on your own machine and stands in front of a FadoDB server, so that both answer at one address. |
+| `tools/serve.mjs` | A helper that hands out `pages/` with no FadoDB server behind them, to look at a page as it is drawn. |
 | `tests/` | The checks: each page is opened in a real browser, in front of a real FadoDB server. |
 | `docs/adr/` | The decision records. |
 
 ## See it work
 
-You need Node 22 or newer, Go, and a FadoDB server newer than the
-release 0.6.0, which has no page to sign in on. `package.json` names
+You need Go, Node 22 or newer, and a FadoDB server newer than the
+release 0.6.0, which does not hand out pages yet. `package.json` names
 the commit of the engine this Workshop is checked against, under
 `config.engine`:
 
 ```
-go install github.com/MojoHand70/fadodb/cmd/fadodb@924871edfb22471153d0929103187b3cbd445f32
+go install github.com/MojoHand70/fadodb/cmd/fadodb@9a02ce8e5bd461925631cbffa94b703ad1bcf7ca
+```
+
+Get Workshop's pages ready. The second command puts the engine's file
+for the browser into `pages/vendor/`:
+
+```
+npm ci
+npm run vendor
 ```
 
 Make a database with two people: Olga, who designs, and Ann, who
@@ -59,17 +70,17 @@ fadodb init acme.db
 fadodb user add olga --kind person --name "Olga Nowak" --system designers --db acme.db
 fadodb user add ann --kind person --name "Ann Kowalska" --group expense_approvers --db acme.db
 fadodb key new olga --db acme.db
-fadodb user password ann --db acme.db --url http://127.0.0.1:8717
+fadodb user password ann --db acme.db --url http://127.0.0.1:8080
 ```
 
-Serve the database, and put Workshop in front of it:
+Start the server with Workshop's pages:
 
 ```
-fadodb serve acme.db
-npm run serve -- --server http://127.0.0.1:8080
+fadodb serve acme.db --pages pages
 ```
 
-Give the database a class and a document, with Olga's key:
+In another terminal, give the database a class and a document, with
+Olga's key:
 
 ```
 export FADODB_KEY=<the key the fourth command printed>
@@ -78,13 +89,18 @@ fadodb exec create '{"class": "Expense", "values": {"what": "Train tickets to Gd
 ```
 
 Open the link the fifth command printed and set a password. Then open
-`http://127.0.0.1:8717/`, sign in as `ann`, choose Expense, and open the
-document.
+`http://127.0.0.1:8080/`, sign in as `ann`, choose Expense, and open
+the document.
 
 If something else on your machine already listens at 8080, the server
-says so. Give it another address, `fadodb serve acme.db --listen
-127.0.0.1:8791`, and name that address to the helper and, as
-`FADODB_URL`, to `fadodb exec`.
+says so. Give it another address, `fadodb serve acme.db --pages pages
+--listen 127.0.0.1:8791`, and name that address in `--url` above and,
+as `FADODB_URL`, to `fadodb exec`.
+
+The folder is yours to answer for: a script in it acts as whoever is
+signed in. The engine's chapter on
+[serving a database](https://github.com/MojoHand70/fadodb/blob/main/docs/manual/serving-a-database.md#the-pages-of-a-face)
+says what a server hands out from it and under which header.
 
 ## Run the checks
 

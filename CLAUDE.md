@@ -15,8 +15,8 @@ not depend on it. Read `docs/adr/` before changing anything.
 npm ci                                   # the development tools
 npx playwright install chromium          # the browser the pages are checked in
 npm run vendor                           # the engine's file for the browser, into pages/vendor/
-npm run serve                            # pages/ at http://127.0.0.1:8717/
-npm run serve -- --server http://127.0.0.1:8080   # in front of a FadoDB server
+fadodb serve acme.db --pages pages       # Workshop, handed out by a FadoDB server
+npm run serve                            # pages/ alone at http://127.0.0.1:8717/, no server behind
 FADODB_BIN=/path/to/fadodb npm run check # the types, then the pages in the browser
 SLOW=6 npm test                          # the same tests with the page six times slower
 ```
@@ -26,9 +26,12 @@ SLOW=6 npm test                          # the same tests with the page six time
 1. **Only the server's public commands.** Workshop does nothing that
    another face could not do (ADR-0001). What it lacks is asked of the
    engine as a command for everybody.
-2. **Plain files.** `pages/` is what a server hands out. Our own code
-   runs as it is written, without a bundler. A built file is made at a
-   release and never committed.
+2. **Plain files.** `pages/` is what a FadoDB server hands out, with
+   `fadodb serve --pages` (the engine's ADR-0073). Our own code runs as
+   it is written, without a bundler. A built file is made at a release
+   and never committed. A page is written for the one header the
+   server sends: every script and style is a file of the folder, and a
+   page calls the server alone.
 3. **No new dependency** without a row in `docs/dependencies.md`; one
    that reaches the browser needs a decision record too.
 4. **Decisions are records.** A record under `docs/adr/` goes in as
