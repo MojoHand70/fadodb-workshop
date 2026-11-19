@@ -73,7 +73,6 @@ export function watch(page) {
     // The browser writes a line for every answer of 400 and above; those
     // are in `answers`.
     if (m.text().startsWith('Failed to load resource')) return;
-    if (serversIcon(m.text())) return;
     wrong.push(m.text());
   });
   page.on('pageerror', (e) => wrong.push(String(e)));
@@ -82,20 +81,6 @@ export function watch(page) {
     if (r.status() >= 400) answers.push({ status: r.status(), path: new URL(r.url()).pathname });
   });
   return { wrong, answers, commands };
-}
-
-/**
- * A fault of the server's own pages, not of Workshop's: the pages where
- * a person signs in name no icon, so Firefox asks for /favicon.ico, and
- * the header of those pages lets no picture load. Nothing is lost but a
- * line in the browser's console. A page of Workshop names its icon and
- * may load pictures of the folder, so this line can only come from the
- * server's pages. It goes when the engine is mended.
- *
- * @param {string} line
- */
-function serversIcon(line) {
-  return line.includes('/favicon.ico') && /^refused by the security header: img-src|content[- ]security[- ]policy/i.test(line);
 }
 
 /**
