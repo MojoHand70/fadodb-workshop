@@ -13,7 +13,7 @@
 // engine that package.json says this Workshop needs (config.engine).
 
 import { execFile, spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -51,8 +51,14 @@ function freePort() {
 
 /**
  * Makes the database, starts the server and waits until it answers.
+ *
+ * @param {{ name?: string }} [options]
+ *   name, when given, is the name people reach the server by, over plain
+ *   http: the operator tells the server so, as `url` in its settings,
+ *   and `site` is then at that name. The server still listens on this
+ *   machine; tests/passage.mjs takes a browser to it.
  */
-export async function acme() {
+export async function acme({ name } = {}) {
   const program = process.env.FADODB_BIN;
   if (!program) {
     throw new Error('FADODB_BIN is not set: it names the fadodb program the tests start, built from the engine this Workshop needs (package.json, config.engine).');
@@ -70,7 +76,14 @@ export async function acme() {
 
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
-  const server = spawn(program, ['serve', database, '--listen', `127.0.0.1:${port}`, '--pages', PAGES], { stdio: 'ignore' });
+  const reached = name ? `http://${name}:${port}` : url;
+  const told = ['serve', database, '--listen', `127.0.0.1:${port}`, '--pages', PAGES];
+  if (name) {
+    const settings = join(folder, 'settings.json');
+    await writeFile(settings, JSON.stringify({ url: reached }));
+    told.push('--settings', settings);
+  }
+  const server = spawn(program, told, { stdio: 'ignore' });
   /** @type {Promise<void>} */
   const ended = new Promise((done) => server.once('exit', () => done()));
 
@@ -90,8 +103,8 @@ export async function acme() {
   return {
     /** The address the server listens at. */
     url,
-    /** Where Workshop's pages answer: the same address. */
-    site: { url: `${url}/` },
+    /** Where Workshop's pages answer: the address people reach the server at. */
+    site: { url: `${reached}/` },
     /**
      * Sends a command with a key: Olga's, or Jan's when asked.
      *

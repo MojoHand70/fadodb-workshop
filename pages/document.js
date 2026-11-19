@@ -38,7 +38,7 @@ const id = asked.get('id') ?? '';
 /** True when the page makes a new document, and has none to read. */
 const making = id === '' && asked.has('new');
 /** One key for this new document, so that sending it twice makes it once. */
-const key = crypto.randomUUID();
+const key = newKey();
 
 /** @type {Live} */
 let live;
@@ -694,4 +694,15 @@ if (user) {
     show('trouble');
   }
   ready();
+}
+
+/**
+ * A key nobody can guess: 32 digits, base sixteen. The browser's own
+ * maker of such keys, crypto.randomUUID, is there only at an address the
+ * browser holds for secure, https or this machine; a server on an
+ * office network may answer over plain http, and the page must load
+ * there too.
+ */
+function newKey() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }

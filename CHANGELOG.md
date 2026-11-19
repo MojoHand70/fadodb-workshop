@@ -4,6 +4,15 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- The pages are checked in Firefox and in WebKit, the engine of Safari,
+  as they are in Chromium: every test, on every pull request.
+- Fixed: at a server reached by a name over plain http, as on an
+  office network with no certificate, the page of a document did not
+  load at all. It asked the browser for something a browser gives only
+  at a secure address.
+- A page names an empty icon, so that a browser no longer asks the
+  server for `/favicon.ico` on every page. Workshop has no icon of its
+  own yet.
 - The buttons that move a document follow what the person types, by
   the class's own rules and guards: Submit lights up when the total is
   above zero, before anything is saved. Where a condition is the
