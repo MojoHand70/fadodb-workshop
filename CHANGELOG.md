@@ -15,6 +15,9 @@ What a user of Workshop would see, newest first.
   make, change and delete a document. Every formula is shown whole, as
   the class writes it. The same class is there as text, word for word
   as the server keeps it. Nothing can be changed there yet.
+- Workshop is checked against an engine whose own pages, where a
+  person signs in, name an empty icon too: Firefox no longer writes a
+  refusal in its console there.
 - The pages are checked in Firefox and in WebKit, the engine of Safari,
   as they are in Chromium: every test, on every pull request.
 - Fixed: at a server reached by a name over plain http, as on an
