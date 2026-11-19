@@ -139,6 +139,14 @@ export const PASSWORD = 'a long password 42';
  * A person sets their password with a link an administrator made, as a
  * person does the first time, and signs in from Workshop's first page.
  *
+ * Each form is sent with Enter, not with a press of the mouse on its
+ * button. At an address a browser does not hold for secure, Firefox may
+ * open a box of its own at the password field, over the button; the
+ * first press of the mouse then closes that box and never reaches the
+ * page. Measured on GitHub's machines at http://workshop.test: of 288
+ * sign-ins sent with the button 5 did nothing, and each went through at
+ * a second press; of 288 sent with Enter, none was lost.
+ *
  * @param {import('playwright').Page} page
  * @param {{ url: string }} site where Workshop's pages are
  * @param {{ exec: (command: string, object?: Record<string, unknown>) => Promise<any> }} server
@@ -149,7 +157,7 @@ export async function signIn(page, site, server, user = 'ann') {
   await page.goto(`${site.url}auth/password?link=${link.token}`);
   await page.fill('#password', PASSWORD);
   await page.fill('#again', PASSWORD);
-  await page.click('button[type=submit]');
+  await page.press('#again', 'Enter');
   // The server answers with a page that no longer carries the link. Only
   // then is the password set, and only then may the browser go on.
   await page.waitForURL((address) => !address.search.includes('link='));
@@ -158,7 +166,7 @@ export async function signIn(page, site, server, user = 'ann') {
   await page.click('#sign-in');
   await page.fill('#user', user);
   await page.fill('#password', PASSWORD);
-  await page.click('button[type=submit]');
+  await page.press('#password', 'Enter');
   try {
     await page.waitForURL(site.url);
   } catch (error) {
