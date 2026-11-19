@@ -11,12 +11,16 @@ permissions:
 
 jobs:
   hunt:
-    name: hunt ${{ matrix.n }}
+    name: hunt ${{ matrix.how }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        n: [1, 2, 3, 4]
+        # as-it-is: the sign-in as the tests do it, and a second click when the first is lost
+        # no-warning: Firefox told not to open its warning under a password field
+        # enter: the form sent with Enter in the password field
+        # typed: the password typed key by key, as a person types
+        how: [as-it-is, no-warning, enter, typed]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -40,6 +44,7 @@ jobs:
         env:
           TEST_BROWSER: firefox
           HUNT_OUT: ${{ runner.temp }}/hunt
+          HUNT_HOW: ${{ matrix.how }}
         run: |
           mkdir -p "$HUNT_OUT"
           failed=0
@@ -58,6 +63,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hunt-${{ matrix.n }}
+          name: hunt-${{ matrix.how }}
           path: ${{ runner.temp }}/hunt
           if-no-files-found: ignore
