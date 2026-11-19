@@ -6,9 +6,12 @@ import { enter, make, part, ready, show } from './shell.js';
 /**
  * The classes, each with the words its class says to people and a way
  * to its list. A class whose definition the person may not read is
- * shown by its name alone.
+ * shown by its name alone. A designer gets a way to the design of each
+ * class beside it.
+ *
+ * @param {boolean} designer
  */
-async function showClasses() {
+async function showClasses(designer) {
   const { classes } = await call('list_classes');
   /** @type {string[]} */
   const names = Array.isArray(classes) ? classes : [];
@@ -31,13 +34,20 @@ async function showClasses() {
     if (definition.description) way.append(make('p', 'class-about', String(definition.description)));
     const item = make('li', 'class');
     item.append(way);
+    if (designer) {
+      const design = make('a', 'class-design', 'Design');
+      design.setAttribute('href', `design.html?class=${encodeURIComponent(name)}`);
+      design.setAttribute('aria-label', `Design ${String(definition.label || name)}`);
+      item.append(design);
+    }
     list.append(item);
   }
   part('no-classes').hidden = names.length > 0;
 }
 
-if (await enter()) {
-  await showClasses();
+const user = await enter();
+if (user) {
+  await showClasses((user.system_groups ?? []).includes('designers'));
   show('home');
   ready();
 }
