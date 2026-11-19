@@ -197,6 +197,10 @@ if (user) {
     const fresh = part('new');
     fresh.setAttribute('href', `document.html?class=${encodeURIComponent(className)}&new`);
     fresh.hidden = new Live(bundle, user).mayCreate() === false;
+    // A designer gets a way to the design of the class.
+    const design = part('design');
+    design.setAttribute('href', `design.html?class=${encodeURIComponent(className)}`);
+    design.hidden = !(user.system_groups ?? []).includes('designers');
     const wanted = asked.get('state') ?? '';
     state = (definition.states?.list ?? []).includes(wanted) ? wanted : '';
     const label = String(definition.label || className);

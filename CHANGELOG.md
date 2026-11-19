@@ -4,6 +4,17 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode, its first step: a designer reads a class. The first
+  page and the list of a class offer Design to a person in the
+  server's group of designers. The class is shown as lists: its
+  variables by section, each with its kind in a line (`text,
+  required`, `fx net + vat`); its states; and for the state the
+  designer chooses, the ways out of it with who may take each and on
+  what condition, who may set and see single variables there, and
+  what the class does by itself. "The whole class" shows who may see,
+  make, change and delete a document. Every formula is shown whole, as
+  the class writes it. The same class is there as text, word for word
+  as the server keeps it. Nothing can be changed there yet.
 - The pages are checked in Firefox and in WebKit, the engine of Safari,
   as they are in Chromium: every test, on every pull request.
 - Fixed: at a server reached by a name over plain http, as on an

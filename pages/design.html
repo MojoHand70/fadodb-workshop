@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design · FadoDB Workshop</title>
+<link rel="stylesheet" href="workshop.css">
+<!-- Workshop has no icon yet. An empty one is named, so that no browser asks the server for /favicon.ico. -->
+<link rel="icon" href="data:,">
+<script type="module" src="design.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="./">
+    <svg aria-hidden="true" width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="1" y="1" width="26" height="26" rx="7" fill="#3F74A3"></rect><path d="M9 20V8h10M9 14h8" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <span class="brand-name">FadoDB</span>
+    <span class="brand-tag">workshop</span>
+  </a>
+  <div class="who" id="who" hidden>
+    <a class="who-name" id="who-name" href="/auth/account"></a>
+    <button class="button button-plain" id="sign-out" type="button">Sign out</button>
+  </div>
+</header>
+
+<main class="page page-wide">
+  <section data-view="design" id="design" hidden>
+    <p class="crumbs"><a href="./">Classes</a> / <a id="to-list" href="./"></a></p>
+    <p class="status">Design mode shows a class as the server holds it. Changing a class here comes next.</p>
+    <div class="doc-head">
+      <h1 id="class-title"></h1>
+      <code class="class-name" id="class-name"></code>
+      <span class="state state-big" id="class-version"></span>
+    </div>
+    <p class="lead" id="class-about"></p>
+    <p class="count" id="class-defined"></p>
+
+    <div class="chips" role="group" aria-label="Show the class as">
+      <button class="chip" id="as-lists" type="button" aria-pressed="true">Lists</button>
+      <button class="chip" id="as-text" type="button" aria-pressed="false">Text</button>
+    </div>
+
+    <div id="lists" class="design">
+      <div class="card" id="variables-card">
+        <h2>Variables</h2>
+        <p class="card-about">What each document holds, by the sections of the class. <span class="fx">fx</span> marks what the class works out.</p>
+        <div id="variables"></div>
+      </div>
+
+      <div class="design-side">
+        <div class="card" id="states-card">
+          <h2>States</h2>
+          <p class="card-about" id="states-about">Choose a state to see the ways out of it and who may do what there.</p>
+          <div class="picks" id="states" role="group" aria-label="Show what holds in"></div>
+        </div>
+
+        <div class="card" id="about-card" aria-live="polite">
+          <h2 id="about-title"></h2>
+          <p class="card-about" id="about-what"></p>
+          <div id="about"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="text" class="card" hidden>
+      <h2>The same class as text</h2>
+      <p class="card-about">What an agent writes, and what the server keeps: the definition of this version, word for word.</p>
+      <pre class="code" id="class-text" tabindex="0" aria-label="The definition of the class"></pre>
+    </div>
+  </section>
+
+  <section data-view="trouble" id="trouble" hidden>
+    <p class="crumbs"><a href="./">Classes</a></p>
+    <h1>This class cannot be shown</h1>
+    <div class="card">
+      <h2>What the server said</h2>
+      <p id="trouble-why"></p>
+    </div>
+  </section>
+</main>
+
+</body>
+</html>

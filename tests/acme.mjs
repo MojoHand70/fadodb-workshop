@@ -1,10 +1,11 @@
 // A real FadoDB server for the tests: the database of Acme, made new
 // for each run in a folder that is thrown away.
 //
-// Its people: Olga, an administrator and a designer; Jan, who files
-// expenses; and Ann, in the group expense_approvers, who signs in on a
-// screen as a person does. The tests send commands with the keys of
-// Olga and of Jan.
+// Its people: Olga, an administrator and a designer; Dan, a designer;
+// Jan, who files expenses; and Ann, in the group expense_approvers, who
+// signs in on a screen as a person does. The tests send commands with
+// the keys of Olga and of Jan. On a screen the designer is Dan: the
+// server asks an administrator for a second step when she signs in.
 //
 // The server hands out Workshop's pages itself, from the folder pages/,
 // as it does for whoever installs Workshop: fadodb serve --pages.
@@ -18,6 +19,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { digits } from './totp.mjs';
 
 /** The folder of Workshop's pages. */
 export const PAGES = fileURLToPath(new URL('../pages/', import.meta.url));
@@ -67,6 +69,7 @@ export async function acme({ name } = {}) {
   const database = join(folder, 'acme.db');
   await run(program, ['init', database]);
   await run(program, ['user', 'add', 'olga', '--kind', 'person', '--name', 'Olga Nowak', '--system', 'administrators', '--system', 'designers', '--db', database]);
+  await run(program, ['user', 'add', 'dan', '--kind', 'person', '--name', 'Dan Mazur', '--system', 'designers', '--db', database]);
   await run(program, ['user', 'add', 'jan', '--kind', 'person', '--name', 'Jan Kowalski', '--db', database]);
   await run(program, ['user', 'add', 'ann', '--kind', 'person', '--name', 'Ann Kowalska', '--group', 'expense_approvers', '--db', database]);
   /** @param {string} user */
@@ -136,6 +139,14 @@ export async function acme({ name } = {}) {
 export const PASSWORD = 'a long password 42';
 
 /**
+ * The key of each person's authenticator app, by server: the server
+ * shows it once, when the second step is set up, as a phone keeps it.
+ *
+ * @type {WeakMap<object, Map<string, string>>}
+ */
+const phones = new WeakMap();
+
+/**
  * A person sets their password with a link an administrator made, as a
  * person does the first time, and signs in from Workshop's first page.
  *
@@ -168,6 +179,26 @@ export async function signIn(page, site, server, user = 'ann') {
   await page.fill('#password', PASSWORD);
   await page.press('#password', 'Enter');
   try {
+    // The server asks a designer and an administrator for a second
+    // step. The first time it shows a key for an authenticator app;
+    // the person adds it and types the six digits the app shows.
+    const second = page.locator('#code');
+    await Promise.race([page.waitForURL(site.url), second.waitFor()]);
+    if (await second.count()) {
+      const phone = phones.get(server) ?? new Map();
+      phones.set(server, phone);
+      const shown = /secret=([A-Z2-7]+)/.exec(await page.locator('body').innerText())?.[1];
+      if (shown) phone.set(user, shown);
+      const key = phone.get(user);
+      if (!key) throw new Error(`the server asks ${user} for a second step and shows no key, and the tests hold none for them`);
+      await second.fill(digits(key));
+      await second.press('Enter');
+      // Then the server shows codes for a lost phone, this once, and
+      // the person goes on.
+      const on = page.getByText('Go on', { exact: true });
+      await Promise.race([page.waitForURL(site.url), on.waitFor()]);
+      if (await on.count()) await on.click();
+    }
     await page.waitForURL(site.url);
   } catch (error) {
     // Say where the person was left, and what that page told them.
