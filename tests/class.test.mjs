@@ -23,6 +23,8 @@ import {
   moveVariable,
   outline,
   pathOfSection,
+  placeOfSection,
+  placeOfVariable,
   placesFor,
   placesOut,
   removeMove,
@@ -47,6 +49,8 @@ import {
   setSectionWord,
   setStateWord,
   setWord,
+  shiftSection,
+  shiftVariable,
   statesOf,
   waysIn,
   waysOut,
@@ -559,4 +563,48 @@ test('a section is read, given words, added, moved and taken out', () => {
   // On a class with no outline, the first section makes one.
   addSection(it, 'first', 'what');
   assert.deepEqual(it.sections, { first: { variables: ['what'] } });
+});
+
+test('a variable and a section are moved a step earlier or later among those beside them', () => {
+  /** @type {any} */
+  const it = structuredClone(expense);
+  assert.deepEqual(placeOfVariable(it, 'note'), { at: 4, of: 4 });
+  assert.deepEqual(placeOfVariable(it, 'net'), { at: 1, of: 5 });
+  assert.deepEqual(placeOfVariable(it, 'nothing'), { at: 0, of: 0 });
+
+  // In a section, the order is the order its list is written in.
+  shiftVariable(it, 'note', -1);
+  assert.deepEqual(it.sections.purchase.variables, ['what', 'bought_on', 'note', 'cost_centre']);
+  shiftVariable(it, 'note', 1);
+  shiftVariable(it, 'note', 1);
+  assert.deepEqual(it.sections.purchase.variables, ['what', 'bought_on', 'cost_centre', 'note'], 'the last stays the last');
+  shiftVariable(it, 'what', -1);
+  assert.deepEqual(it.sections.purchase.variables, ['what', 'bought_on', 'cost_centre', 'note'], 'and the first the first');
+  assert.deepEqual(it.sections.amounts.variables, expense.sections.amounts.variables, 'another section is left alone');
+  assert.deepEqual(Object.keys(it.variables), Object.keys(expense.variables), 'and so is the order the class writes its variables in');
+
+  // In no section, it is the order the class writes its variables in, and only those in no section change places.
+  /** @type {any} */
+  const loose = { variables: { a: {}, s: {}, b: {}, c: {} }, sections: { part: { variables: ['s'] } } };
+  assert.deepEqual(placeOfVariable(loose, 'b'), { at: 2, of: 3 });
+  shiftVariable(loose, 'b', -1);
+  assert.deepEqual(Object.keys(loose.variables), ['b', 's', 'a', 'c'], 'b and a changed places; s, which is in a section, kept its own');
+  shiftVariable(loose, 'b', 1);
+  shiftVariable(loose, 'b', 1);
+  assert.deepEqual(Object.keys(loose.variables), ['a', 's', 'c', 'b']);
+  assert.deepEqual(placeOfVariable(loose, 'b'), { at: 3, of: 3 });
+
+  // A section moves among the sections beside it, with all it holds.
+  assert.deepEqual(placeOfSection(it, 'amounts'), { at: 2, of: 2 });
+  shiftSection(it, 'amounts', -1);
+  assert.deepEqual(Object.keys(it.sections), ['amounts', 'purchase']);
+  assert.deepEqual(it.sections.amounts.variables, expense.sections.amounts.variables);
+  shiftSection(it, 'amounts', -1);
+  assert.deepEqual(Object.keys(it.sections), ['amounts', 'purchase'], 'the first stays the first');
+  /** @type {any} */
+  const nested = { variables: { a: {}, b: {}, c: {} }, sections: { outer: { variables: ['a'], sections: { one: { variables: ['b'] }, two: { variables: ['c'] } } } } };
+  assert.deepEqual(placeOfSection(nested, 'two'), { at: 2, of: 2 });
+  shiftSection(nested, 'two', -1);
+  assert.deepEqual(Object.keys(nested.sections.outer.sections), ['two', 'one']);
+  assert.deepEqual(placeOfSection(nested, 'nothing'), { at: 0, of: 0 });
 });

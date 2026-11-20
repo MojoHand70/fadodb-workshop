@@ -256,6 +256,79 @@ test('a section is removed: its variables stay, in no section, and the sections 
   await context.close();
 });
 
+test('a variable is moved earlier and later among the variables of its section, and a section among those beside it', async () => {
+  await aClass('Ordered');
+  const { context, page, wrong } = await atTheLists('Ordered', '&variable=note');
+  assert.equal(await page.locator('#v-place').innerText(), '4 of 4 in The purchase');
+  assert.equal(await page.locator('#v-later').getAttribute('aria-disabled'), 'true');
+  assert.equal(await page.locator('#v-earlier').getAttribute('aria-disabled'), 'false');
+
+  // The last has nowhere later to go: the page says so, and nothing is changed. (By the keyboard: the test tool
+  // presses no button that says it has nowhere to go, though a person can.)
+  await page.locator('#v-later').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#said').innerText(), 'It is the last already.');
+  assert.ok(await page.locator('#class-changed').isHidden());
+
+  await page.click('#v-earlier');
+  assert.equal(await page.locator('#v-place').innerText(), '3 of 4 in The purchase');
+  assert.deepEqual(await inPart(page, 'purchase'), ['what', 'bought_on', 'note', 'cost_centre']);
+  assert.equal(await page.locator('.var[data-variable="note"] .var-pick').getAttribute('aria-pressed'), 'true', 'it is still the chosen one');
+  assert.equal(await page.locator('#about-title').innerText(), 'Note');
+  assert.equal(await page.locator('#v-later').getAttribute('aria-disabled'), 'false');
+
+  // Pressed to the first place, the button stays where the keyboard left it.
+  await page.locator('#v-earlier').focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#v-place').innerText(), '1 of 4 in The purchase');
+  assert.equal(await page.locator('#v-earlier').getAttribute('aria-disabled'), 'true');
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'v-earlier');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#said').innerText(), 'It is the first already.');
+  assert.equal(await press(page, 'save'), 'Saved as version 2.');
+  assert.deepEqual((await held('Ordered')).definition.sections.purchase.variables, ['note', 'what', 'bought_on', 'cost_centre']);
+
+  // In another section it goes to the end, and its place is told among its new neighbours.
+  await page.selectOption('#v-section', 'amounts');
+  assert.equal(await page.locator('#v-place').innerText(), '6 of 6 in Amounts');
+
+  // A section moves among the sections beside it, with all it holds.
+  await title(page, 'amounts').click();
+  assert.equal(await page.locator('#p-place').innerText(), '2 of 2 at the top');
+  await page.click('#p-earlier');
+  assert.equal(await page.locator('#p-place').innerText(), '1 of 2 at the top');
+  assert.deepEqual(await titles(page), ['Amounts amounts', 'The purchase purchase']);
+  assert.equal(await title(page, 'amounts').getAttribute('aria-pressed'), 'true');
+  assert.equal(await press(page, 'save'), 'Saved as version 3.');
+  const now = (await held('Ordered')).definition;
+  assert.deepEqual(Object.keys(now.sections), ['amounts', 'purchase']);
+  assert.deepEqual(now.sections.amounts.variables, [...expense.sections.amounts.variables, 'note']);
+
+  // Moved inside another section, its place is told there.
+  await page.selectOption('#p-inside', 'purchase');
+  await page.locator('.part[data-section="purchase"] > .part[data-section="amounts"]').waitFor();
+  assert.equal(await page.locator('#p-place').innerText(), '1 of 1 inside The purchase');
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('in a class with no sections, the order of the variables is the order the class writes them in', async () => {
+  await server.exec('define_class', {
+    definition: { name: 'Flat', label: 'Flat', description: 'Three values and no outline.', variables: { a: { type: 'text', label: 'A', description: 'd' }, b: { type: 'text', label: 'B', description: 'd' }, c: { type: 'text', label: 'C', description: 'd' } } },
+  });
+  const { context, page, wrong } = await atTheLists('Flat', '&variable=c');
+  assert.equal(await page.locator('#v-place').innerText(), '3 of 3 in the class');
+  await page.click('#v-earlier');
+  await page.click('#v-earlier');
+  assert.equal(await page.locator('#v-place').innerText(), '1 of 3 in the class');
+  assert.deepEqual(await page.locator('#variables .var').evaluateAll((all) => all.map((one) => one.getAttribute('data-variable'))), ['c', 'a', 'b']);
+  assert.equal(await press(page, 'save'), 'Saved as version 2.');
+  assert.deepEqual(Object.keys((await held('Flat')).definition.variables), ['c', 'a', 'b'], 'and the server keeps the order as it was written');
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
 test('what is typed for a section is taken when Dan presses a variable at once', async () => {
   await aClass('Swift');
   const { context, page, wrong } = await atTheLists('Swift', '&section=amounts');
@@ -298,6 +371,11 @@ test('the card of a section fits a phone and is worked by the keyboard', async (
   await page.keyboard.press('Enter');
   await page.locator('.part[data-section="extras"]').waitFor();
   assert.deepEqual(await inPart(page, 'extras'), ['what'], 'Enter adds it, beginning with the variable the list stood on');
+  assert.ok(await fits(page));
+  assert.equal(await page.locator('#p-place').innerText(), '3 of 3 at the top');
+  await page.locator('#p-earlier').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#p-place').innerText(), '2 of 3 at the top');
   assert.ok(await fits(page));
   assert.deepEqual(wrong, []);
   await context.close();

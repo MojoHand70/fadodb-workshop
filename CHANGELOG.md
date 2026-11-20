@@ -4,6 +4,12 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: the order a document shows its values in is changed
+  through the lists. The card of a variable says its place among the
+  variables of its section, and "Earlier" and "Later" move it a step;
+  the card of a section does the same among the sections beside it.
+  In a class with no sections it is the order the class writes its
+  variables in.
 - Design mode: a designer changes the sections of a class through the
   lists. A section is chosen by its title, and the card at the side
   shows it as fields: its label, what it is for, and where it lies, at

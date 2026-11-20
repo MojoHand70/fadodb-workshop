@@ -559,6 +559,8 @@ h1 {
 .part-pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .part-pick[aria-pressed="true"] { border-color: var(--blue); background: #EEF2FA; }
 .field-value { margin: 0; overflow-wrap: anywhere; }
+.place-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 0; }
+.place-row .button[aria-disabled="true"] { opacity: 0.5; cursor: default; }
 
 .vars { margin: 0; padding: 0; list-style: none; }
 
