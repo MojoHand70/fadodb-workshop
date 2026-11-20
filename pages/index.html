@@ -17,6 +17,9 @@
     <span class="brand-name">FadoDB</span>
     <span class="brand-tag">workshop</span>
   </a>
+  <div class="find" id="find-box" role="search" hidden>
+    <input class="input" id="find" type="search" aria-label="Find an app" placeholder="Find an app" autocomplete="off" spellcheck="false" enterkeyhint="go">
+  </div>
   <div class="who" id="who" hidden>
     <button class="who-open" id="who-open" type="button" popovertarget="who-menu">
       <span class="who-mark" id="who-mark" aria-hidden="true"></span>
@@ -34,15 +37,11 @@
   <nav class="rail" id="rail" aria-label="Workshop" hidden></nav>
 
   <main class="page page-frame">
+    <nav class="crumbs" id="crumbs" aria-label="Where you are" hidden></nav>
+
     <section data-view="home" id="home" hidden>
-      <div class="home-head">
-        <div class="home-title">
-          <h1>Apps</h1>
-        </div>
-        <div class="find" id="find-box" role="search" hidden>
-          <input class="input" id="find" type="search" aria-label="Find an app" placeholder="Find an app" autocomplete="off" spellcheck="false" enterkeyhint="go">
-        </div>
-      </div>
+      <!-- The rail and the way above say where the person is; the heading is for whoever cannot see them. -->
+      <h1 class="unseen">Apps</h1>
 
       <ul class="tiles" id="apps"></ul>
       <p class="home-none" id="none-found" role="status" aria-live="polite" hidden></p>

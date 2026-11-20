@@ -50,9 +50,11 @@ export function show(view) {
  * it has none, is the page itself.
  *
  * @param {{ words: string, href?: string, id?: string }[]} [steps] the steps after Home
+ * @param {boolean} [atHome] whether the page is Home itself, which then leads nowhere
  */
-export function crumbs(steps = []) {
-  const all = [{ words: 'Home', href: './', id: 'to-home' }, ...steps];
+export function crumbs(steps = [], atHome = false) {
+  /** @type {{ words: string, href?: string, id?: string }[]} */
+  const all = [atHome ? { words: 'Home', id: 'to-home' } : { words: 'Home', href: './', id: 'to-home' }, ...steps];
   const list = make('ol', '');
   all.forEach((step, at) => {
     const one = make(step.href ? 'a' : 'span', '', step.words);

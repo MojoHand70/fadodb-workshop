@@ -8,9 +8,12 @@ server.
 server hands out Workshop's pages. A person signs in on the server's
 own page and sees the apps of the server: each a tile with its name,
 what it is for, and the lists a person opens in it, with the apps
-again in a rail at the side. A box finds an app by a part of its name
-or of a list's. From an app a person opens a list, makes a new
-document, and opens one. Every page says where the person is: Home,
+again in a rail at the side, each in a colour of its own. A box in the
+top bar of every page finds an app by a part of its name or of a
+list's. The person stands at the end of that bar; a press there opens
+their account and signing out. Settings, at the foot of the rail, show
+the person what is theirs. From an app a person opens a list, makes a
+new document, and opens one. Every page says where the person is: Home,
 the app, the list. That a list has a class behind it is a designer's
 to know: the pages say the word to a designer alone. A server with no
 app yet asks a designer to create the first one. A designer makes an

@@ -7,9 +7,10 @@
 // class, the way to its design and the making of an app or a class are
 // shown to a designer alone.
 
-import { appAddress, drawRail, listWay, readApps } from './apps.js';
+import { appAddress, appSays, drawRail, listWay, readApps } from './apps.js';
 import { found } from './find.js';
-import { enter, make, part, ready, show } from './shell.js';
+import { finder } from './finder.js';
+import { crumbs, enter, make, part, ready, show } from './shell.js';
 
 /** What the page lists, each with what it says of itself, its place on the page and where Enter takes a person. */
 /** @type {{ says: string[], item: HTMLElement, href: string }[]} */
@@ -20,9 +21,10 @@ let listed = [];
  *
  * @param {import('./apps.js').App} app
  * @param {boolean} designer
+ * @param {number} at the place of the app among the apps, which gives it its colour
  */
-function tile(app, designer) {
-  const item = make('li', 'tile');
+function tile(app, designer, at) {
+  const item = make('li', `tile hue-${at % 6}`);
   item.dataset.app = app.name;
 
   const head = make('div', 'tile-head');
@@ -78,18 +80,13 @@ async function draw(designer) {
 
   const tiles = part('apps');
   tiles.replaceChildren();
-  for (const app of apps) {
-    const item = tile(app, designer);
+  for (const [at, app] of apps.entries()) {
+    const item = tile(app, designer, at);
     tiles.append(item);
-    // An app is found by its own words and by those of its lists; a
-    // designer knows the names behind them too, and finds by those.
-    const says = [app.label, app.about, ...app.lists.flatMap((list) => [list.label, list.one])];
-    if (designer) says.push(app.name, ...app.lists.map((list) => list.name));
-    listed.push({ says, item, href: appAddress(app.name) });
+    listed.push({ says: appSays(app, designer), item, href: appAddress(app.name) });
   }
   if (designer && apps.length > 0) tiles.append(addTile());
   tiles.hidden = apps.length === 0;
-  part('find-box').hidden = apps.length === 0;
 
   // A server with no app yet says what to do first.
   const first = part('first-app');
@@ -101,36 +98,38 @@ async function draw(designer) {
   part('first-go').hidden = !designer;
 }
 
-/** Shows of what is listed only what the person typed a part of. */
-function narrow() {
-  const typed = /** @type {HTMLInputElement} */ (part('find')).value;
-  let left = 0;
+/**
+ * Shows of what is listed only what the person typed a part of, and
+ * answers where Enter leads: to the first that is left.
+ *
+ * @param {string} typed
+ * @returns {string | null}
+ */
+function narrow(typed) {
+  /** @type {string | null} */
+  let first = null;
   for (const one of listed) {
     const is = found(one.says, typed);
     one.item.hidden = !is;
-    if (is) left++;
+    if (is) first ??= one.href;
   }
   const add = document.getElementById('add-app');
   if (add) add.hidden = typed.trim() !== '';
   const none = part('none-found');
-  none.hidden = left > 0 || listed.length === 0;
+  none.hidden = first !== null || listed.length === 0;
   none.textContent = none.hidden ? '' : `Nothing here goes by "${typed.trim()}".`;
+  return first;
 }
 
 const user = await enter();
 if (user) {
   const designer = (user.system_groups ?? []).includes('designers');
+  // Home is where the way begins: the page says so where another says how it was reached.
+  crumbs([], true);
   await draw(designer);
-  const find = /** @type {HTMLInputElement} */ (part('find'));
-  find.addEventListener('input', narrow);
-  // Enter opens the first that is left: a name typed and Enter is the short way in.
-  find.addEventListener('keydown', (key) => {
-    if (key.key !== 'Enter' || key.isComposing || find.value.trim() === '') return;
-    const first = listed.find((one) => !one.item.hidden);
-    if (first) location.assign(first.href);
-  });
+  finder({ designer, narrow });
   // A browser that brings the person back may bring what they had typed too.
-  narrow();
+  narrow(/** @type {HTMLInputElement} */ (part('find')).value);
   show('home');
   ready();
 }

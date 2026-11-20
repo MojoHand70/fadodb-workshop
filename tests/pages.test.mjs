@@ -76,7 +76,7 @@ test('the first page loads from the server with nothing refused, and fits a phon
   assert.deepEqual(answers, [{ status: 401, path: '/v1/whoami' }], 'nobody is signed in yet');
   assert.ok(await page.locator('#signed-out').isVisible());
   const colour = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  assert.equal(colour, 'rgb(247, 245, 240)', 'the style sheet is applied');
+  assert.equal(colour, 'rgb(250, 249, 255)', 'the style sheet is applied');
   // FadoDB's own mark stands beside the name: a picture of the folder, which the header lets through.
   const mark = page.locator('header.top a.brand img.brand-mark');
   assert.equal(await mark.evaluate((img) => /** @type {HTMLImageElement} */ (img).naturalWidth), 96);

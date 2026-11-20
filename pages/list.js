@@ -14,6 +14,7 @@ import { Refused, call } from './fado.js';
 import { kindOf, show as showValue } from './format.js';
 import { Live } from './live.js';
 import { appSteps } from './apps.js';
+import { finder } from './finder.js';
 import { crumbs, enter, make, part, ready, show } from './shell.js';
 
 /** How many documents are asked for at a time. */
@@ -190,6 +191,7 @@ function trouble(/** @type {unknown} */ refusal) {
 
 const user = await enter();
 if (user) {
+  finder({ designer: (user.system_groups ?? []).includes('designers') });
   try {
     if (!className) throw new Refused('unknown_class', 'The address does not say which list to show. Choose one from Home.', 0);
     const bundle = await call('get_bundle', { class: className, language: person.locale });

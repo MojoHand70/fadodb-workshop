@@ -30,6 +30,7 @@ import { control as controlOf } from './fields.js';
 import { show as showValue } from './format.js';
 import { Live } from './live.js';
 import { appSteps } from './apps.js';
+import { finder } from './finder.js';
 import { crumbHere, crumbs, enter, make, part, ready, show } from './shell.js';
 
 const person = { locale: navigator.language || 'en', yes: 'Yes', no: 'No' };
@@ -550,6 +551,7 @@ async function load() {
 
 const user = await enter();
 if (user) {
+  finder({ designer: (user.system_groups ?? []).includes('designers') });
   try {
     if (!className || (!id && !making)) throw new Refused('unknown_document', 'The address does not say which document to show. Open one from its list.', 0);
     const bundle = await call('get_bundle', { class: className, language: person.locale });
