@@ -566,6 +566,8 @@ h1 {
 .rule .rule-when.way-pick { font-weight: 600; }
 .place-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 0; }
 .place-row .button[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.action-place { align-items: center; margin: 0; }
+.place-says { color: var(--ink-2); font-size: 13px; }
 
 .vars { margin: 0; padding: 0; list-style: none; }
 

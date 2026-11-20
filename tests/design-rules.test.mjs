@@ -283,6 +283,47 @@ test('what a rule does: a value set, a value put back, and an action the lists d
   await context.close();
 });
 
+test('the actions of a rule run in their order, and Earlier and Later change it', async () => {
+  await withRules('Sorted', [
+    { on: 'transition', name: 'approve', do: [{ action: 'set', values: { note: '"seen"' } }, { action: 'reset', variables: ['bought_on'] }, { action: 'emit', event: 'approved' }] },
+    { on: 'enter', state: 'approved', do: [{ action: 'set', values: { note: '"one thing"' } }] },
+  ]);
+  const { context, page, wrong } = await atTheLists('Sorted', '&rule=0');
+  /** What the rule does, in the order the card shows: 'sets note', 'puts back', or the words of another action. */
+  const order = () =>
+    page.locator('#u-does .rule-action').evaluateAll((all) => all.map((one) => (one.getAttribute('data-sets') ? `sets ${one.getAttribute('data-sets')}` : one.querySelector('.rule-other') ? (one.querySelector('.rule-other code')?.textContent ?? '') : 'puts back')));
+  assert.deepEqual(await order(), ['sets note', 'puts back', 'emit (event: approved)']);
+  assert.deepEqual(await page.locator('#u-does .place-says').evaluateAll((all) => all.map((one) => one.textContent)), ['Action 1 of 3', 'Action 2 of 3', 'Action 3 of 3']);
+  assert.equal(await page.locator('#u-earlier-0').getAttribute('aria-disabled'), 'true');
+  assert.equal(await page.locator('#u-later-2').getAttribute('aria-disabled'), 'true');
+  assert.equal(await page.locator('#u-earlier-2').getAttribute('aria-label'), 'Earlier: action 3');
+
+  // By the keyboard: the button that was pressed has the cursor again, on the action that moved.
+  await page.locator('#u-earlier-2').focus();
+  await page.keyboard.press('Enter');
+  assert.deepEqual(await order(), ['sets note', 'emit (event: approved)', 'puts back']);
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'u-earlier-1');
+  await page.keyboard.press('Enter');
+  assert.deepEqual(await order(), ['emit (event: approved)', 'sets note', 'puts back']);
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'u-earlier-0');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#said').innerText(), 'It is the first already.');
+  assert.deepEqual(await order(), ['emit (event: approved)', 'sets note', 'puts back']);
+
+  await page.click('#u-later-1');
+  assert.deepEqual(await order(), ['emit (event: approved)', 'puts back', 'sets note']);
+  assert.equal(await formulaOf(page, '#u-set-2-note'), '"seen"', 'the action moved with what it sets');
+  assert.equal(await press(page, 'save'), 'Saved as version 2.');
+  assert.deepEqual((await held('Sorted')).definition.rules[0].do, [{ action: 'emit', event: 'approved' }, { action: 'reset', variables: ['bought_on'] }, { action: 'set', values: { note: '"seen"' } }]);
+
+  // A rule that does one thing has no order to change.
+  await page.goto(`${site.url}design.html?class=Sorted&rule=1`);
+  await ready(page);
+  assert.equal(await page.locator('#u-does .place-row').count(), 0);
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
 test('a rule is removed, the rules after it move up, and Undo puts it back', async () => {
   await withRules('Fewer', [
     { on: 'transition', name: 'approve', do: [{ action: 'set', values: { note: '"approved"' } }] },

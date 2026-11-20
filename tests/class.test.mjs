@@ -68,6 +68,7 @@ import {
   setSetFormula,
   setStateWord,
   setWord,
+  shiftAction,
   shiftSection,
   shiftVariable,
   statesOf,
@@ -720,6 +721,16 @@ test('a rule is added, told where it belongs, changed and taken out; and so is e
   assert.deepEqual(it.rules[0].do[1], { action: 'reset', variables: ['cost_centre', 'note'] });
   setSetFormula(it, 0, 1, 'note', 'x');
   assert.deepEqual(it.rules[0].do[1], { action: 'reset', variables: ['cost_centre', 'note'] }, 'an action that sets nothing is given no formula');
+
+  // An action moves a step earlier or later among what the rule does, and says where it is now.
+  assert.deepEqual(first().do.map((/** @type {any} */ step) => step.action), ['set', 'reset', 'set', 'emit']);
+  assert.equal(shiftAction(it, 0, 3, -1), 2);
+  assert.deepEqual(first().do.map((/** @type {any} */ step) => step.action), ['set', 'reset', 'emit', 'set']);
+  assert.equal(shiftAction(it, 0, 2, 1), 3);
+  assert.equal(shiftAction(it, 0, 3, 1), 3, 'the last stays the last');
+  assert.equal(shiftAction(it, 0, 0, -1), 0, 'and the first the first');
+  assert.equal(shiftAction(it, 9, 0, 1), 0, 'a rule the class has not moves nothing');
+  assert.deepEqual(first().do.map((/** @type {any} */ step) => step.action), ['set', 'reset', 'set', 'emit']);
 
   // One value out of an action that sets two; the last value takes the action with it.
   removeSetValue(it, 0, 0, 'note');
