@@ -100,12 +100,22 @@ function slow(page) {
 }
 
 /**
- * Waits until the page's script has drawn what it had to.
+ * Waits until the page's script has drawn what it had to, and the
+ * typefaces its words need have come: the page is then as a person
+ * sees it. A browser asks for a typeface when it lays the words out,
+ * so the words are laid out first. A test that went on before that
+ * would measure the page in another typeface, and by leaving the page
+ * would cut a typeface off on its way, which Firefox writes down as a
+ * failure.
  *
  * @param {import('playwright').Page} page
  */
 export async function ready(page) {
-  await page.waitForFunction(() => document.documentElement.dataset.ready === 'yes');
+  await page.waitForFunction(() => {
+    if (document.documentElement.dataset.ready !== 'yes') return false;
+    void document.body.offsetHeight;
+    return document.fonts.status === 'loaded';
+  });
 }
 
 /**

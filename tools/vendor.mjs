@@ -7,6 +7,8 @@
 // - CodeMirror 6, under the text boxes of the design mode (ADR-0003):
 //   built into one file from the list in tools/codemirror.entry.mjs,
 //   with the licences of everything that went into it beside it.
+// - Inter and JetBrains Mono, the typefaces of the pages (ADR-0006):
+//   the Latin files of each, copied as they are, each with its licence.
 
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -20,6 +22,20 @@ await mkdir(to, { recursive: true });
 const vm = new URL('../node_modules/fadodb-vm/', import.meta.url);
 for (const file of ['fadodb-vm.js', 'fadodb-vm.d.ts', 'LICENSE']) {
   await copyFile(new URL(file, vm), new URL(file === 'LICENSE' ? 'fadodb-vm.LICENSE.txt' : file, to));
+}
+
+// The typefaces: one file for the letters of western Europe, one for
+// the rest of the Latin alphabet (Polish, Czech, Turkish and others),
+// each holding every weight.
+const fonts = new URL('fonts/', to);
+await mkdir(fonts, { recursive: true });
+for (const face of ['inter', 'jetbrains-mono']) {
+  const from = new URL(`../node_modules/@fontsource-variable/${face}/`, import.meta.url);
+  for (const letters of ['latin', 'latin-ext']) {
+    const file = `${face}-${letters}-wght-normal.woff2`;
+    await copyFile(new URL(`files/${file}`, from), new URL(file, fonts));
+  }
+  await copyFile(new URL('LICENSE', from), new URL(`${face}.LICENSE.txt`, fonts));
 }
 
 const entry = fileURLToPath(new URL('./codemirror.entry.mjs', import.meta.url));
@@ -74,4 +90,4 @@ for (const one of packages) {
 await writeFile(new URL('codemirror.LICENSE.txt', to), licences);
 
 const size = (await stat(new URL('codemirror.js', to))).size;
-console.log(`fadodb-vm and CodeMirror (${packages.length} packages, ${size} bytes) are in ${fileURLToPath(to)}`);
+console.log(`fadodb-vm, the typefaces and CodeMirror (${packages.length} packages, ${size} bytes) are in ${fileURLToPath(to)}`);

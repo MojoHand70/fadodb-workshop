@@ -37,8 +37,18 @@ These bring 8 more with them, all MIT, at the versions
 Sixteen of the seventeen name one author, Marijn Haverbeke;
 `@lezer/json` names Arun Srinivasan.
 
-No font file is shipped yet. The pages name Inter and JetBrains Mono
-and use them where the machine has them.
+### The typefaces
+
+The pages carry their two typefaces, those of fadodb.org
+([ADR-0006](adr/0006-the-pages-carry-their-typefaces.md)).
+`npm run vendor` copies the Latin files of each into
+`pages/vendor/fonts/`, each with its licence, `inter.LICENSE.txt` and
+`jetbrains-mono.LICENSE.txt`. They are not kept in the repository.
+
+| Package | Version | Licence | Why |
+|---|---|---|---|
+| `@fontsource-variable/inter` | 5.3.0, fixed | OFL-1.1 | Inter, the typeface of the words on every page: one file for all weights, 48 KB for the letters of western Europe and 85 KB for the rest of the Latin alphabet. |
+| `@fontsource-variable/jetbrains-mono` | 5.3.0, fixed | OFL-1.1 | JetBrains Mono, for names and numbers written as a program reads them: 40 KB and 15 KB. |
 
 ## Development tools
 
