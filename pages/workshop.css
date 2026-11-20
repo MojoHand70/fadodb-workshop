@@ -512,16 +512,21 @@ h1 {
 .design .card { margin: 0; }
 .design-side { display: grid; gap: 16px; min-width: 0; }
 
-/* Beside a long list the side stays in view, and scrolls by itself. */
+/* Beside a long list the side stays in view: the states at its top,
+   and under them the card of what is chosen, which scrolls by itself. */
 @media (min-width: 901px) {
+  /* Lower than the window by the foot of the page too: at the end of
+     the list the side must still fit above it, or its top is cut. */
   .design-side {
     position: sticky;
     top: 12px;
-    max-height: calc(100vh - 24px);
-    overflow-y: auto;
-    padding: 2px;
-    margin: -2px;
+    max-height: calc(100vh - 96px);
+    display: flex;
+    flex-direction: column;
   }
+
+  .design-side #states-card { flex: none; max-height: 42vh; overflow-y: auto; }
+  .design-side #about-card { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 }
 
 @media (max-width: 900px) {

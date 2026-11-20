@@ -160,6 +160,27 @@ test('Dan chooses a variable, and the side shows its properties as fields', asyn
   await context.close();
 });
 
+test('beside a long list the states stay in view, and the card of what is chosen opens at its top', async () => {
+  await aClass('Tall');
+  const { context, page, wrong } = await atTheLists('Tall', dan, { width: 1280, height: 700 });
+  // Dan scrolls down the list, chooses the last variable, and scrolls down in its card.
+  await choose(page, 'needs_director');
+  assert.ok(await page.locator('#states-card').evaluate((card) => card.getBoundingClientRect().top >= 0 && card.getBoundingClientRect().bottom <= innerHeight), 'the states are in view beside the end of the list');
+  assert.ok(await page.locator('#about-title').evaluate((title) => title.getBoundingClientRect().top >= 0 && title.getBoundingClientRect().bottom <= innerHeight), 'and so is the top of the card');
+  await page.locator('#about-card').evaluate((card) => (card.scrollTop = card.scrollHeight));
+  assert.ok((await page.locator('#about-card').evaluate((card) => card.scrollTop)) > 0, 'the card is longer than the window and scrolls by itself');
+
+  // Another choice opens at the top again, whatever the card showed before.
+  await choose(page, 'vat_rate');
+  assert.equal(await page.locator('#about-card').evaluate((card) => card.scrollTop), 0);
+  await page.locator('#about-card').evaluate((card) => (card.scrollTop = card.scrollHeight));
+  await page.click('.pick[data-state="submitted"]');
+  assert.equal(await page.locator('#about-card').evaluate((card) => card.scrollTop), 0);
+  assert.equal(await page.locator('#about-title').innerText(), 'Waiting for approval');
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
 test('what Dan changes in the fields goes into the text at once, and is saved as the next version', async () => {
   const definition = await aClass('Changed');
   const { context, page, wrong, commands } = await atTheLists('Changed');
