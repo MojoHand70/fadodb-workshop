@@ -202,7 +202,7 @@ test('the page opens on the state a new document starts in, with its ways out', 
   assert.deepEqual(await linesOf(submit), [['may take it', 'CREATEDBY() = USER()'], ['only when', 'total > 0']]);
   assert.match(await page.locator('#ways-in').innerText(), /A new document starts here\./);
   assert.deepEqual(await textsOf(page, '#ways-in li'), ['Take back, from Waiting for approval', 'Send back, from Waiting for approval']);
-  assert.deepEqual(await linesOf(page.locator('[data-rights="draft"]')), [['may set it', 'CREATEDBY() = USER()']]);
+  assert.equal(await formulaOf(page, '#r-draft-0-write'), 'CREATEDBY() = USER()', 'for a designer who may set every variable here is a formula in a box');
   await context.close();
 });
 
@@ -223,7 +223,9 @@ test('choosing a state shows its ways out, who may take each and who may set wha
 
   const rights = page.locator('[data-rights="submitted"]');
   assert.deepEqual(await textsOf(page, '[data-rights="submitted"] .right-what'), ['Every variable', 'Note note']);
-  assert.deepEqual(await linesOf(rights), [['may set it', 'FALSE'], ['may set it', 'anybody in expense_approvers']]);
+  assert.equal(await rights.locator('.formula-box').count(), 4, 'two boxes a line: who may set, who may see');
+  assert.equal(await formulaOf(page, '#r-submitted-0-write'), 'FALSE');
+  assert.equal(await formulaOf(page, '#r-submitted-note-write'), 'INGROUP("expense_approvers")', 'a list of groups, as the formula it means');
 
   const rules = page.locator('[data-rules="submitted"]');
   assert.equal(await rules.locator('.rule-when').innerText(), 'When Approve is taken');
@@ -244,7 +246,7 @@ test('a final state says that nothing leads out of it', async () => {
   assert.equal(await page.locator('#ways-out .way').count(), 0);
   assert.match(await page.locator('#ways-out').innerText(), /None\. This state is final/);
   assert.deepEqual(await textsOf(page, '#ways-in li'), ['Record payment, from Approved']);
-  assert.match(await page.locator('#about').innerText(), /The class keeps no line for single variables/);
+  assert.match(await page.locator('#about').innerText(), /No line here, and none for every state: whoever may change a document may set every value in it\./);
   await context.close();
 });
 

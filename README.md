@@ -40,6 +40,13 @@ that say who may see, make, change and delete a document. Variables,
 states and ways out are added and removed there too. A change goes
 into the text at once, and Undo takes it back.
 
+**Who may set and who may see single variables** is said state by
+state, in the card of a state, and for every state under "The whole
+class". Each line is about a variable, a section or every variable,
+and each half of it is a formula. "Add a line" offers what the class
+has; a new line lets nobody set what it is about, until the designer
+says who may.
+
 **A formula is written in the formula editor**, wherever the lists
 have one: what the class works out, a first value, the title of a
 document, who may, the condition of a transition. Its pieces are
@@ -51,10 +58,10 @@ moment after the typing stops the server is asked about the formula,
 and what it finds is marked at its place.
 
 What is not there yet: a value that is a list, rows or an object is
-shown and cannot be set; in the design mode the rights of single
-variables and what a class does by itself are changed in the text
-only, and a formula cannot be tried on a document yet; and Workshop
-has no packaged release, so it is run from this
+shown and cannot be set; in the design mode what a class does by
+itself, and its sections themselves, are changed in the text only,
+and a formula cannot be tried on a document yet; and Workshop has no
+packaged release, so it is run from this
 repository, with a FadoDB server built from the engine's source, newer
 than its release 0.6.0. This page will say so until that changes.
 

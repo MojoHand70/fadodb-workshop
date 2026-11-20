@@ -603,6 +603,9 @@ h1 {
 
 .right { margin: 4px 0 10px; }
 .card .right-what { margin: 8px 0 0; color: var(--ink); font-weight: 500; }
+.right-line { margin: 6px 0 14px; padding: 0 0 14px; border-bottom: 1px solid var(--line-2); }
+.right-line:last-of-type { border-bottom: 0; }
+.right-line > .button { justify-self: start; }
 
 .line { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 2px 10px; padding: 3px 0; }
 .line-what { color: var(--ink-2); font-size: 14px; }

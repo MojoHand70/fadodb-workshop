@@ -21,16 +21,19 @@ import { show as showValue } from './format.js';
 import {
   TYPES,
   addMove,
+  addRightLine,
   addState,
   addVariable,
   asRangeEnd,
   kindLine,
   linesOf,
+  linesToAdd,
   marksOf,
   moveVariable,
   outline,
   placesOut,
   removeMove,
+  removeRightLine,
   removeState,
   removeVariable,
   rightsIn,
@@ -44,6 +47,7 @@ import {
   setLine,
   setMoveWho,
   setMoveWord,
+  setRight,
   setStateWord,
   setWord,
   starter,
@@ -94,11 +98,54 @@ let functions = [];
  */
 let pending = null;
 
+/**
+ * True while a press of the mouse, or of a finger, is under way. The
+ * bar stands still under a press: see `bar`.
+ */
+let pressing = false;
+document.addEventListener(
+  'pointerdown',
+  () => {
+    pressing = true;
+  },
+  true,
+);
+// The press is over when it is released or given up, and for certain
+// when a key is pressed or the window is left: a release outside the
+// window may never be told to the page.
+for (const over of ['pointerup', 'pointercancel', 'keydown']) {
+  document.addEventListener(
+    over,
+    () => {
+      if (!pressing) return;
+      pressing = false;
+      // After whatever the press did: the click comes with the release.
+      setTimeout(() => {
+        if (editor) bar();
+      }, 0);
+    },
+    true,
+  );
+}
+window.addEventListener('blur', () => {
+  if (!pressing) return;
+  pressing = false;
+  if (editor) bar();
+});
+// A press that ends where it began is a click: once whatever was
+// pressed has done its work, the bar says how things stand.
+document.addEventListener('click', () => {
+  if (editor) bar();
+});
+
 /** Takes into the class what was typed and not given yet. */
 function flush() {
   const take = pending;
   pending = null;
-  if (take) take();
+  if (!take) return;
+  take();
+  // What was typed may be what the class held already: the bar follows what is there now.
+  bar();
 }
 /** 'lists' or 'text'. */
 let shownAs = asked.get('as') === 'text' ? 'text' : 'lists';
@@ -461,28 +508,127 @@ function block(title, about) {
 }
 
 /**
- * The lines of the rights table under one state, as a block.
+ * A way to add something the class already names: a button that
+ * becomes a small form with a list to choose from.
  *
- * @param {string} state
+ * @param {string} words what the button says
+ * @param {string} asks what the list is, for a screen reader
+ * @param {() => { what: string, words: string }[]} options what may be chosen, asked when the form opens
+ * @param {(what: string) => void} add adds what was chosen
+ */
+function chooser(words, asks, options, add) {
+  const box = make('div', 'adder');
+  const open = make('button', 'button button-plain button-small', words);
+  open.setAttribute('type', 'button');
+  open.addEventListener('click', () => {
+    const form = make('form', 'adder-form');
+    form.setAttribute('novalidate', '');
+    const list = /** @type {HTMLSelectElement} */ (make('select', 'input'));
+    list.setAttribute('aria-label', asks);
+    for (const one of options()) {
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', one.words));
+      option.value = one.what;
+      list.append(option);
+    }
+    const go = make('button', 'button button-small', 'Add');
+    go.setAttribute('type', 'submit');
+    const cancel = make('button', 'button button-plain button-small', 'Cancel');
+    cancel.setAttribute('type', 'button');
+    cancel.addEventListener('click', () => box.replaceChildren(open));
+    form.addEventListener('submit', (sent) => {
+      sent.preventDefault();
+      add(list.value);
+    });
+    form.append(list, go, cancel);
+    box.replaceChildren(form);
+    list.focus();
+  });
+  box.append(open);
+  return box;
+}
+
+/** A name as a part of an id: `*`, which no variable and no state is called, is 0, which none is called either. */
+const idOf = (/** @type {string} */ name) => (name === '*' ? '0' : name);
+
+/**
+ * The lines of the rights table under one state, as a block: who may
+ * set and who may see single variables there.
+ *
+ * Where a designer changes them, each half of a line is a formula in a
+ * box. A line written the short way, as a list of groups, is shown as
+ * the formula it means, and stays as it is written until that box is
+ * changed.
+ *
+ * @param {string} state the name of a state, or `*` for every state
  * @param {string} title
  * @param {string} about
+ * @param {boolean} [changing] whether the lines are fields here
  */
-function rightsBlock(state, title, about) {
+function rightsBlock(state, title, about, changing = false) {
   const rights = rightsIn(definition, state);
-  if (rights.length === 0) return null;
+  if (rights.length === 0 && !changing) return null;
   const box = block(title, about);
   box.dataset.rights = state;
+  if (rights.length === 0) {
+    const everywhere = Object.keys(definition.rights?.['*'] ?? {}).length > 0;
+    const none =
+      state === '*'
+        ? 'No line for every state. Where a state says nothing either, whoever may change a document may set every value in it.'
+        : everywhere
+          ? 'No line here: what is said for every state holds.'
+          : 'No line here, and none for every state: whoever may change a document may set every value in it.';
+    box.append(make('p', 'card-about right-none', none));
+  }
   for (const right of rights) {
-    const one = make('dl', 'right');
-    one.dataset.what = right.what;
     const head = make('p', 'right-what', right.label);
     if (right.what !== '*') head.append(' ', make('code', 'pick-name', right.what));
     if (right.about === 'section') head.append(' ', make('span', 'tag', 'a section'));
     if (right.about === 'unknown') head.append(' ', make('span', 'tag', 'not in this class'));
     box.append(head);
-    if (right.write !== null) one.append(line('may set it', formulaOf(right.write)));
-    if (right.read !== null) one.append(line('may see it', formulaOf(right.read)));
+    if (!changing) {
+      const one = make('dl', 'right');
+      one.dataset.what = right.what;
+      if (right.write !== null) one.append(line('may set it', formulaOf(right.write)));
+      if (right.read !== null) one.append(line('may see it', formulaOf(right.read)));
+      box.append(one);
+      continue;
+    }
+    const one = make('div', 'props right-line');
+    one.dataset.what = right.what;
+    const id = `r-${idOf(state)}-${idOf(right.what)}`;
+    const whom = right.what === '*' ? 'every variable' : right.label;
+    one.append(
+      formulaField(`${id}-write`, `May set ${whom}`, right.writeAs, `/rights/${state}/${right.what}/write`, (draft, formula) => setRight(draft, state, right.what, 'write', formula.trim()), ''),
+      formulaField(`${id}-read`, `May see ${whom}`, right.readAs, `/rights/${state}/${right.what}/read`, (draft, formula) => setRight(draft, state, right.what, 'read', formula.trim()), ''),
+    );
+    const remove = make('button', 'button button-plain button-small', 'Remove this line');
+    remove.id = `${id}-remove`;
+    remove.setAttribute('type', 'button');
+    remove.addEventListener('click', () => {
+      flush();
+      change((draft) => removeRightLine(draft, state, right.what));
+      drawAbout();
+      part('said').textContent = `Removed the line about ${whom} from the text. Undo puts it back.`;
+    });
+    one.append(remove);
     box.append(one);
+  }
+  if (changing) {
+    const add = chooser(
+      'Add a line',
+      'What the new line is about',
+      () => linesToAdd(definition, state),
+      (what) => {
+        flush();
+        change((draft) => addRightLine(draft, state, what));
+        drawAbout();
+        const first = document.querySelector(`#r-${idOf(state)}-${idOf(what)}-write .cm-content`);
+        if (first instanceof HTMLElement) first.focus();
+        part('said').textContent = 'Added a line that lets nobody set it. Say who may.';
+      },
+    );
+    add.dataset.addsRight = state;
+    box.append(add);
   }
   return box;
 }
@@ -550,7 +696,14 @@ function drawWholeClass() {
       box.append(title);
     }
   }
-  const rights = rightsBlock('*', 'Single variables, in every state', 'This narrows what the lines above let through, and never widens it. A state that says something of its own comes first.');
+  const rights = rightsBlock(
+    '*',
+    'Single variables, in every state',
+    designer && editable()
+      ? 'Who may set and who may see single variables. This narrows what the lines above let through, and never widens it. A state that says something of its own comes first. An empty box says nothing of that; a line with both boxes empty is not kept.'
+      : 'This narrows what the lines above let through, and never widens it. A state that says something of its own comes first.',
+    designer && editable(),
+  );
   if (rights) box.append(rights);
   const rules = rulesBlock('', 'By itself');
   if (rules) box.append(rules);
@@ -671,9 +824,16 @@ function drawState(state) {
   }
   box.append(into);
 
-  const here = rightsBlock(state.name, 'Single variables, in this state', 'Who may set and see single variables while a document is here. This narrows what the whole class lets through, and never widens it.');
+  const here = rightsBlock(
+    state.name,
+    'Single variables, in this state',
+    changing
+      ? 'Who may set and who may see single variables while a document is here. This narrows what the whole class lets through, and never widens it. The most exact line is asked: a variable by its name, then its section, then every variable. An empty box says nothing of that; a line with both boxes empty is not kept.'
+      : 'Who may set and see single variables while a document is here. This narrows what the whole class lets through, and never widens it.',
+    changing,
+  );
   if (here) box.append(here);
-  const everywhere = rightsBlock('*', 'Single variables, in every state', 'Asked where this state says nothing of its own about a variable.');
+  const everywhere = rightsBlock('*', 'Single variables, in every state', changing ? 'Asked where this state says nothing of its own about a variable. A line here for every variable says something about each, so it comes before these. They are changed under The whole class.' : 'Asked where this state says nothing of its own about a variable.');
   if (everywhere) box.append(everywhere);
   if (!here && !everywhere) {
     const none = block('Single variables', '');
@@ -979,11 +1139,17 @@ function typed(value, then, { mono = false, lines = 1 } = {}) {
   control.setAttribute('spellcheck', mono ? 'false' : 'true');
   control.addEventListener('input', () => {
     pending = () => then(control.value);
+    // What is typed is work from the first letter: Save and Discard are there for it before the field is left.
+    bar();
   });
   control.addEventListener('change', () => {
     pending = null;
     then(control.value);
+    // What was typed may be what the class held already: the bar follows what is there now.
+    bar();
   });
+  // A field left with the words it had when the cursor came says nothing of a change, whatever was typed in between.
+  control.addEventListener('blur', flush);
   return control;
 }
 
@@ -1087,10 +1253,13 @@ function formulaField(id, label, value, path, put, help, after) {
   const commit = () => {
     pending = null;
     const formula = fx.text();
-    if (formula === written) return;
-    written = formula;
-    change((draft) => put(draft, formula));
-    if (after) after();
+    if (formula !== written) {
+      written = formula;
+      change((draft) => put(draft, formula));
+      if (after) after();
+    }
+    // What was typed may be what the class held already: the bar follows what is there now.
+    bar();
   };
 
   /** Shows the help for the function the cursor is in, under the box. */
@@ -1115,6 +1284,7 @@ function formulaField(id, label, value, path, put, help, after) {
     names,
     onType() {
       pending = commit;
+      bar();
       unchecked = true;
       delete holder.dataset.checked;
       clearTimeout(waiting);
@@ -1403,15 +1573,34 @@ function drawShownAs() {
   if (shownAs === 'text') editor.shown();
 }
 
-/** Follows the text: whether it differs from what the server holds, and what may be done about it. */
-function follow() {
+/**
+ * Brings the bar up to date: whether the work differs from what the
+ * server holds, and what may be done about it.
+ *
+ * What is typed in a field and not given to the class yet is work too,
+ * or Save would stay out of reach until the cursor left the field.
+ *
+ * The bar stands still while a press is under way, and is brought up
+ * to date when the press is over. A field gives its text when a press
+ * on a button makes the cursor leave it; a button that changed then,
+ * went out of reach or got other words and another width, would no
+ * longer be under the mouse when it is released, and the press would
+ * end on nothing or on the button beside it.
+ */
+function bar() {
   const draft = read();
-  changed = draft === null || JSON.stringify(draft) !== JSON.stringify(saved);
+  changed = draft === null || JSON.stringify(draft) !== JSON.stringify(saved) || pending !== null;
+  if (pressing) return;
   // A class that is not made yet says so in place of its version.
   part('class-changed').hidden = making || !changed;
   /** @type {HTMLButtonElement} */ (part('discard')).disabled = !changed;
   /** @type {HTMLButtonElement} */ (part('save')).disabled = !making && !changed;
   say(part('save'), making ? 'Make the class' : changed ? `Save as version ${held.version + 1}` : 'Save');
+}
+
+/** Follows the text when it changed: the bar, and what was found in the text as it was. */
+function follow() {
+  bar();
   if (found) part('findings-hint').textContent = 'The text has changed since. Check again.';
 }
 

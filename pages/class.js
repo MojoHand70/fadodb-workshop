@@ -184,13 +184,29 @@ export function whoMay(right) {
 }
 
 /**
+ * A right as the formula it means. The class format has a short way to
+ * write "anybody in one of these groups", a list of their names; as a
+ * formula that is INGROUP of each, joined by OR.
+ *
+ * @param {unknown} right
+ */
+export function asFormula(right) {
+  if (!Array.isArray(right)) return text(right);
+  if (right.length === 0) return 'FALSE';
+  return right.map((group) => `INGROUP("${text(group).replaceAll('"', '""')}")`).join(' OR ');
+}
+
+/**
  * The lines of the rights table under one state: `*` for every state.
  * Each line names a variable, a section or `*`, every variable, and
  * says who may write it, who may see it, or both.
  *
+ * `write` and `read` are in words, for reading; `writeAs` and `readAs`
+ * are the same as a formula, for a box that holds one.
+ *
  * @param {Definition} definition
  * @param {string} state
- * @returns {{ what: string, label: string, about: 'every variable' | 'variable' | 'section' | 'unknown', write: string | null, read: string | null }[]}
+ * @returns {{ what: string, label: string, about: 'every variable' | 'variable' | 'section' | 'unknown', write: string | null, read: string | null, writeAs: string, readAs: string }[]}
  */
 export function rightsIn(definition, state) {
   const lines = definition.rights?.[state] ?? {};
@@ -214,6 +230,8 @@ export function rightsIn(definition, state) {
       about,
       write: right?.write !== undefined ? whoMay(right.write) : null,
       read: right?.read !== undefined ? whoMay(right.read) : null,
+      writeAs: right?.write !== undefined ? asFormula(right.write) : '',
+      readAs: right?.read !== undefined ? asFormula(right.read) : '',
     };
   });
 }
@@ -725,4 +743,87 @@ export function placesOut(definition, state) {
     if (texts(move?.from).includes(state)) places.push(at);
   });
   return places;
+}
+
+/**
+ * What a line about single variables may be about, in one state, and
+ * has no line yet: every variable, each section, each variable.
+ *
+ * @param {Definition} definition
+ * @param {string} state the name of a state, or `*` for every state
+ * @returns {{ what: string, words: string }[]}
+ */
+export function linesToAdd(definition, state) {
+  const has = new Set(Object.keys(definition.rights?.[state] ?? {}));
+  /** @type {{ what: string, words: string }[]} */
+  const all = [{ what: '*', words: 'Every variable' }];
+  /** @param {Part[]} parts */
+  const gather = (parts) => {
+    for (const part of parts) {
+      if (part.name) all.push({ what: part.name, words: `The section ${part.label || part.name}` });
+      gather(part.parts);
+    }
+  };
+  gather(outline(definition));
+  for (const [name, variable] of Object.entries(definition.variables ?? {})) {
+    all.push({ what: name, words: text(variable?.label) ? `${name}, ${text(variable.label)}` : name });
+  }
+  return all.filter((one) => !has.has(one.what));
+}
+
+/**
+ * Adds a line about single variables under a state, where there is
+ * none. It begins by letting nobody set them, FALSE: a line narrows,
+ * and the designer then says who may.
+ *
+ * @param {Definition} definition
+ * @param {string} state the name of a state, or `*` for every state
+ * @param {string} what a variable, a section, or `*` for every variable
+ */
+export function addRightLine(definition, state, what) {
+  if (!definition.rights || typeof definition.rights !== 'object') definition.rights = {};
+  if (!definition.rights[state] || typeof definition.rights[state] !== 'object') definition.rights[state] = {};
+  if (definition.rights[state][what] === undefined) definition.rights[state][what] = { write: 'FALSE' };
+}
+
+/**
+ * Takes a line about single variables out. A state left with no line,
+ * and a table left with no state, go with it.
+ *
+ * @param {Definition} definition
+ * @param {string} state
+ * @param {string} what
+ */
+export function removeRightLine(definition, state, what) {
+  const lines = definition.rights?.[state];
+  if (!lines || typeof lines !== 'object') return;
+  delete lines[what];
+  if (Object.keys(lines).length === 0) delete definition.rights[state];
+  if (Object.keys(definition.rights).length === 0) delete definition.rights;
+}
+
+/**
+ * Says who may set, or who may see, what a line is about, as a
+ * formula. An empty formula takes that half of the line out, and a
+ * line with neither half goes: the server takes no line that says
+ * nothing.
+ *
+ * @param {Definition} definition
+ * @param {string} state
+ * @param {string} what
+ * @param {'write' | 'read'} right
+ * @param {string} formula
+ */
+export function setRight(definition, state, what, right, formula) {
+  if (nothing(formula)) {
+    const line = definition.rights?.[state]?.[what];
+    if (!line || typeof line !== 'object') return;
+    delete line[right];
+    if (Object.keys(line).length === 0) removeRightLine(definition, state, what);
+    return;
+  }
+  if (!definition.rights || typeof definition.rights !== 'object') definition.rights = {};
+  if (!definition.rights[state] || typeof definition.rights[state] !== 'object') definition.rights[state] = {};
+  if (!definition.rights[state][what] || typeof definition.rights[state][what] !== 'object') definition.rights[state][what] = {};
+  definition.rights[state][what][right] = formula;
 }

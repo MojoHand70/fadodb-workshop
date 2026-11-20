@@ -8,16 +8,20 @@ import { readFile } from 'node:fs/promises';
 import {
   TYPES,
   addMove,
+  addRightLine,
   addState,
   addVariable,
+  asFormula,
   asRangeEnd,
   kindLine,
   linesOf,
+  linesToAdd,
   marksOf,
   moveVariable,
   outline,
   placesOut,
   removeMove,
+  removeRightLine,
   removeState,
   removeVariable,
   rightsIn,
@@ -31,6 +35,7 @@ import {
   setLine,
   setMoveWho,
   setMoveWord,
+  setRight,
   setStateWord,
   setWord,
   statesOf,
@@ -139,8 +144,8 @@ test('who a right names: a formula as it is written, or anybody in a list of gro
 
 test('the lines of the rights table under a state', () => {
   assert.deepEqual(rightsIn(expense, 'submitted'), [
-    { what: '*', label: 'Every variable', about: 'every variable', write: 'FALSE', read: null },
-    { what: 'note', label: 'Note', about: 'variable', write: 'anybody in expense_approvers', read: null },
+    { what: '*', label: 'Every variable', about: 'every variable', write: 'FALSE', read: null, writeAs: 'FALSE', readAs: '' },
+    { what: 'note', label: 'Note', about: 'variable', write: 'anybody in expense_approvers', read: null, writeAs: 'INGROUP("expense_approvers")', readAs: '' },
   ]);
   assert.deepEqual(rightsIn(expense, 'paid'), []);
   const withSection = {
@@ -149,9 +154,68 @@ test('the lines of the rights table under a state', () => {
     rights: { '*': { pay: { read: ['hr'], write: 'FALSE' }, gone: { write: 'TRUE' } } },
   };
   assert.deepEqual(rightsIn(withSection, '*'), [
-    { what: 'pay', label: 'Pay', about: 'section', write: 'FALSE', read: 'anybody in hr' },
-    { what: 'gone', label: 'gone', about: 'unknown', write: 'TRUE', read: null },
+    { what: 'pay', label: 'Pay', about: 'section', write: 'FALSE', read: 'anybody in hr', writeAs: 'FALSE', readAs: 'INGROUP("hr")' },
+    { what: 'gone', label: 'gone', about: 'unknown', write: 'TRUE', read: null, writeAs: 'TRUE', readAs: '' },
   ]);
+});
+
+test('a right as the formula it means: a list of groups is INGROUP of each, joined by OR', () => {
+  assert.equal(asFormula('CREATEDBY() = USER()'), 'CREATEDBY() = USER()');
+  assert.equal(asFormula(['expense_approvers']), 'INGROUP("expense_approvers")');
+  assert.equal(asFormula(['finance', 'directors']), 'INGROUP("finance") OR INGROUP("directors")');
+  assert.equal(asFormula(['the "A" team']), 'INGROUP("the ""A"" team")', 'a quote in a name is written twice, as a formula wants it');
+  assert.equal(asFormula([]), 'FALSE', 'anybody in no group is nobody');
+  assert.equal(asFormula(undefined), '');
+});
+
+test('the lines about single variables are added, changed and taken out, state by state', () => {
+  /** @type {any} */
+  const it = structuredClone(expense);
+
+  // What a line may be about, where the state has none for it yet: every variable, a section, a variable.
+  assert.deepEqual(linesToAdd(it, 'submitted').map((one) => one.what), ['purchase', 'amounts', 'what', 'bought_on', 'cost_centre', 'net', 'vat_rate', 'vat', 'total', 'needs_director']);
+  assert.deepEqual(linesToAdd(it, 'approved').slice(0, 4), [
+    { what: '*', words: 'Every variable' },
+    { what: 'purchase', words: 'The section The purchase' },
+    { what: 'amounts', words: 'The section Amounts' },
+    { what: 'what', words: 'what, What was bought' },
+  ]);
+
+  // A new line lets nobody set what it is about, until the designer says who may.
+  addRightLine(it, 'approved', 'amounts');
+  assert.deepEqual(it.rights.approved, { amounts: { write: 'FALSE' } });
+  addRightLine(it, 'approved', 'amounts');
+  assert.deepEqual(it.rights.approved, { amounts: { write: 'FALSE' } }, 'a line that is there is left as it is');
+  assert.equal(linesToAdd(it, 'approved').some((one) => one.what === 'amounts'), false);
+
+  setRight(it, 'approved', 'amounts', 'write', 'INGROUP("accountants")');
+  setRight(it, 'approved', 'amounts', 'read', 'INGROUP("accountants") OR CREATEDBY() = USER()');
+  assert.deepEqual(it.rights.approved.amounts, { write: 'INGROUP("accountants")', read: 'INGROUP("accountants") OR CREATEDBY() = USER()' });
+
+  // A line written the short way keeps it until somebody changes that half.
+  assert.deepEqual(it.rights.submitted.note, { write: ['expense_approvers'] });
+  setRight(it, 'submitted', 'note', 'read', 'TRUE');
+  assert.deepEqual(it.rights.submitted.note, { write: ['expense_approvers'], read: 'TRUE' });
+  setRight(it, 'submitted', 'note', 'write', 'INGROUP("directors")');
+  assert.deepEqual(it.rights.submitted.note, { write: 'INGROUP("directors")', read: 'TRUE' });
+
+  // An empty formula takes that half out; a line with neither half goes, and so does a state with no line.
+  setRight(it, 'approved', 'amounts', 'write', '');
+  assert.deepEqual(it.rights.approved.amounts, { read: 'INGROUP("accountants") OR CREATEDBY() = USER()' });
+  setRight(it, 'approved', 'amounts', 'read', '');
+  assert.equal('approved' in it.rights, false);
+  setRight(it, 'approved', 'amounts', 'read', '');
+  assert.equal('approved' in it.rights, false, 'emptying what is not there makes nothing');
+
+  removeRightLine(it, 'submitted', 'note');
+  assert.deepEqual(Object.keys(it.rights.submitted), ['*']);
+  removeRightLine(it, 'submitted', '*');
+  removeRightLine(it, 'draft', '*');
+  assert.equal('rights' in it, false, 'the last line taken out leaves no table');
+
+  // On a class that keeps none, the first line makes the table.
+  setRight(it, '*', 'total', 'write', 'FALSE');
+  assert.deepEqual(it.rights, { '*': { total: { write: 'FALSE' } } });
 });
 
 test('the four lines of a class; one left out lets nobody through', () => {
