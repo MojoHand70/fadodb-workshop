@@ -108,7 +108,7 @@ const inSection = (page, section) => page.locator(`.part[data-section="${section
 test('Dan chooses a variable, and the side shows its properties as fields', async () => {
   await aClass('Shown');
   const { context, page, wrong, commands } = await atTheLists('Shown');
-  assert.match(await page.locator('#variables-about').innerText(), /Choose a variable to change it at the side/);
+  assert.match(await page.locator('#variables-about').innerText(), /Choose a variable, or a section by its title, to change it at the side/);
   commands.length = 0;
 
   await choose(page, 'note');
@@ -401,7 +401,7 @@ test('the type of a value decides which fields it has', async () => {
 test('Dan adds a variable to a section: its name is asked of the server, and it opens at the side', async () => {
   const definition = await aClass('Grown');
   const { context, page, wrong, commands } = await atTheLists('Grown');
-  assert.deepEqual(await page.locator('#variables .adder > button').evaluateAll((all) => all.map((b) => b.textContent)), ['Add a variable to The purchase', 'Add a variable to Amounts']);
+  assert.deepEqual(await page.locator('#variables .adder > button').evaluateAll((all) => all.map((b) => b.textContent)), ['Add a variable to The purchase', 'Add a variable to Amounts', 'Add a section']);
   const adder = page.locator('[data-adds="purchase"]');
   await adder.locator('button').click();
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'The name of the new variable');
@@ -453,14 +453,14 @@ test('a class with no sections has one place to add a variable, and Cancel adds 
     definition: { name: 'Plain', label: 'Plain', description: 'A class with no sections.', variables: { price: { type: 'number', label: 'Price', description: 'What it costs.' } } },
   });
   const { context, page, wrong } = await atTheLists('Plain');
-  assert.deepEqual(await page.locator('#variables .adder > button').evaluateAll((all) => all.map((b) => b.textContent)), ['Add a variable']);
-  await page.click('#variables .adder > button');
+  assert.deepEqual(await page.locator('#variables .adder > button').evaluateAll((all) => all.map((b) => b.textContent)), ['Add a variable', 'Add a section']);
+  await page.click('#variables [data-adds] > button');
   await page.keyboard.type('cost');
   await page.click('.adder-form button:has-text("Cancel")');
   assert.equal(await page.locator('#variables .var').count(), 1);
-  assert.equal(await page.locator('#variables .adder > button').innerText(), 'Add a variable');
+  assert.equal(await page.locator('#variables [data-adds] > button').innerText(), 'Add a variable');
 
-  await page.click('#variables .adder > button');
+  await page.click('#variables [data-adds] > button');
   await page.keyboard.type('cost');
   await page.keyboard.press('Enter');
   await row(page, 'cost').waitFor();
@@ -512,7 +512,7 @@ test('Dan moves a variable to another section, and to none', async () => {
   await page.selectOption('#v-section', '');
   assert.deepEqual(await page.locator('#variables .part-title').evaluateAll((all) => all.map((t) => t.textContent)), ['In no section', 'The purchase purchase', 'Amounts amounts']);
   assert.equal(await page.locator('#variables .part').first().locator('.var').getAttribute('data-variable'), 'note');
-  assert.deepEqual(await page.locator('#variables .adder > button').evaluateAll((all) => all.map((b) => b.textContent)), ['Add a variable', 'Add a variable to The purchase', 'Add a variable to Amounts']);
+  assert.deepEqual(await page.locator('#variables .adder > button').evaluateAll((all) => all.map((b) => b.textContent)), ['Add a variable', 'Add a variable to The purchase', 'Add a variable to Amounts', 'Add a section']);
 
   assert.equal(await press(page, 'save'), 'Saved as version 2.');
   const next = structuredClone(definition);
@@ -552,14 +552,15 @@ test('while the text cannot be read as a class, the lists offer nothing to chang
   await page.keyboard.insertText('{"name": "Unread", "variables": {"a": {"type": "text"},}}');
   await page.click('#as-lists');
   assert.ok(await page.locator('#lists-stale').isVisible());
-  assert.equal(await page.locator('.adder').count(), 0, 'nothing is added, to the variables, the states or the ways out');
+  assert.equal(await page.locator('.adder').count(), 0, 'nothing is added, to the variables, the sections, the states or the ways out');
+  assert.equal(await page.locator('.part-pick').count(), 0, 'and no section is chosen');
   await choose(page, 'note');
   assert.equal(await page.locator('#v-label').count(), 0, 'a variable shows no fields');
   assert.equal(await page.locator('#about-title').innerText(), 'Draft');
 
   // Put right again, the lists change the class as before.
   assert.equal(await press(page, 'discard'), 'Put back as the server holds it.');
-  assert.equal(await page.locator('#variables .adder').count(), 2);
+  assert.equal(await page.locator('#variables .adder').count(), 3, 'a variable for each of its two sections, and a section');
   await choose(page, 'note');
   assert.equal(await page.inputValue('#v-label'), 'Note');
   assert.deepEqual(wrong, []);

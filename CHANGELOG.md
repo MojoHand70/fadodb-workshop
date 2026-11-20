@@ -4,6 +4,17 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: a designer changes the sections of a class through the
+  lists. A section is chosen by its title, and the card at the side
+  shows it as fields: its label, what it is for, and where it lies, at
+  the top or inside another section. How deep sections may nest is the
+  server's to say, and the page says it in the server's words. "Add a
+  section" asks its name and the variable it begins with: a section
+  holds at least one variable. "Remove this section" leaves its
+  variables in the class, in no section, and the sections inside it
+  take its place.
+- Fixed: the line at the top of the design page still said that the
+  rights of single variables are changed in the text.
 - Design mode: the card of a variable says who may set it and who may
   see it, state by state, and which line about single variables says
   so: its own line, the line for its section or the line for every

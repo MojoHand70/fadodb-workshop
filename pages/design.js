@@ -22,6 +22,7 @@ import {
   TYPES,
   addMove,
   addRightLine,
+  addSection,
   addState,
   addVariable,
   asRangeEnd,
@@ -29,16 +30,21 @@ import {
   linesOf,
   linesToAdd,
   marksOf,
+  moveSection,
   moveVariable,
   outline,
+  pathOfSection,
+  placesFor,
   placesOut,
   removeMove,
   removeRightLine,
+  removeSection,
   removeState,
   removeVariable,
   rightsIn,
   rulesAbout,
   sectionOfVariable,
+  sectionWords,
   sectionsOf,
   setClassWord,
   setComputed,
@@ -48,6 +54,7 @@ import {
   setMoveWho,
   setMoveWord,
   setRight,
+  setSectionWord,
   setStateWord,
   setWord,
   starter,
@@ -80,6 +87,8 @@ let chosen = '';
 let variable = '';
 /** The transition the side of the page shows, by its place in the list of the class, or -1. */
 let move = -1;
+/** The section whose card the side of the page shows, or '' when it shows something else. */
+let shownSection = '';
 /** Whether the person may change a class: a designer. */
 let designer = false;
 /**
@@ -195,8 +204,10 @@ function remember() {
     address.searchParams.delete('new');
     address.searchParams.set('class', held.name);
   }
-  if (chosen && !variable) address.searchParams.set('state', chosen);
+  if (chosen && !variable && !shownSection) address.searchParams.set('state', chosen);
   else address.searchParams.delete('state');
+  if (shownSection) address.searchParams.set('section', shownSection);
+  else address.searchParams.delete('section');
   if (variable) address.searchParams.set('variable', variable);
   else address.searchParams.delete('variable');
   if (move >= 0 && !variable) address.searchParams.set('move', String(move));
@@ -255,10 +266,20 @@ function sectionOf(section, level, sectioned) {
   const box = make('section', level > 3 ? 'part part-inner' : 'part');
   if (section.name) box.dataset.section = section.name;
   if (section.name) {
-    const head = make(`h${Math.min(level, 6)}`, 'part-title', section.label);
-    head.append(' ', make('code', 'part-name', section.name));
+    const head = make(`h${Math.min(level, 6)}`, 'part-title');
+    const words = [make('span', 'part-label', section.label), ' ', make('code', 'part-name', section.name)];
+    if (designer && editable()) {
+      // A designer chooses a section by its title, as a variable by its row.
+      const pick = make('button', 'part-pick');
+      pick.setAttribute('type', 'button');
+      pick.setAttribute('aria-pressed', String(section.name === shownSection));
+      pick.append(...words);
+      pick.addEventListener('click', () => chooseSection(section.name));
+      head.append(pick);
+    } else head.append(...words);
     box.append(head);
-    if (section.description) box.append(make('p', 'part-about', section.description));
+    // The line is there even when it is empty, so that filling it in moves nothing else.
+    box.append(make('p', 'part-about', section.description));
   } else if (sectioned) {
     box.append(make(`h${Math.min(level, 6)}`, 'part-title', 'In no section'));
   }
@@ -278,6 +299,223 @@ function sectionOf(section, level, sectioned) {
 
 /** Whether the lists may change the class: the text has to be one they can read. */
 const editable = () => Boolean(editor) && read() !== null;
+
+/**
+ * Chooses a section: the side of the page shows its card.
+ *
+ * @param {string} name
+ */
+function chooseSection(name) {
+  flush();
+  shownSection = name;
+  variable = '';
+  move = -1;
+  remember();
+  for (const head of document.querySelectorAll('#variables .var-pick')) head.setAttribute('aria-pressed', 'false');
+  for (const head of document.querySelectorAll('#variables .part-pick')) head.setAttribute('aria-pressed', String(head.closest('.part')?.getAttribute('data-section') === name));
+  drawStates();
+  drawAbout();
+  showSide();
+}
+
+/**
+ * A way to add a section: a button that becomes a small form asking
+ * for its name and for the variable it begins with. The server takes
+ * no section with nothing in it, so a section begins with what it is
+ * for.
+ */
+function sectionAdder() {
+  const box = make('div', 'adder');
+  box.dataset.addsSection = '';
+  const open = make('button', 'button button-plain button-small', 'Add a section');
+  open.setAttribute('type', 'button');
+  open.addEventListener('click', () => {
+    const form = make('form', 'adder-form');
+    form.setAttribute('novalidate', '');
+    const name = /** @type {HTMLInputElement} */ (make('input', 'input'));
+    name.setAttribute('aria-label', 'The name of the new section');
+    name.setAttribute('placeholder', 'its name, such as delivery');
+    name.setAttribute('autocomplete', 'off');
+    name.setAttribute('autocapitalize', 'off');
+    name.setAttribute('spellcheck', 'false');
+    const first = /** @type {HTMLSelectElement} */ (make('select', 'input adder-whole'));
+    first.setAttribute('aria-label', 'The variable the section begins with');
+    for (const [variable, it] of Object.entries(definition.variables ?? {})) {
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', it?.label ? `begins with ${variable}, ${it.label}` : `begins with ${variable}`));
+      option.value = variable;
+      first.append(option);
+    }
+    const go = make('button', 'button button-small', 'Add');
+    go.setAttribute('type', 'submit');
+    const cancel = make('button', 'button button-plain button-small', 'Cancel');
+    cancel.setAttribute('type', 'button');
+    const why = make('p', 'field-why');
+    why.setAttribute('role', 'alert');
+    cancel.addEventListener('click', () => box.replaceChildren(open));
+    form.addEventListener('submit', async (sent) => {
+      sent.preventDefault();
+      // What was said of the name before is not said of this one.
+      why.textContent = '';
+      why.textContent = await addSectionNamed(name.value.trim(), first.value);
+    });
+    form.append(name, first, go, cancel);
+    box.replaceChildren(form, why, make('p', 'field-about', 'A section holds at least one variable: it begins with one, which leaves the section it was in.'));
+    name.focus();
+  });
+  box.append(open);
+  return box;
+}
+
+/**
+ * Adds a section of a name, where the name may be one, and opens its
+ * card at the side.
+ *
+ * @param {string} name
+ * @param {string} first the variable it begins with
+ * @returns {Promise<string>} why not, or '' when it was added
+ */
+async function addSectionNamed(name, first) {
+  flush();
+  if (!name) return 'Give the section a name.';
+  const draft = read();
+  if (!draft) return 'The text cannot be read as a class just now. Put it right first.';
+  const taken = sectionsOf(draft).find((one) => one.name.toLowerCase() === name.toLowerCase());
+  if (taken) return `${taken.name} is a section of this class already.`;
+  addSection(draft, name, first);
+  const why = await refusedAt(draft, `/sections/${name}`);
+  if (why) return why;
+  change((it) => addSection(it, name, first));
+  shownSection = name;
+  variable = '';
+  move = -1;
+  remember();
+  drawVariables();
+  drawStates();
+  drawAbout();
+  part('p-label').focus();
+  return '';
+}
+
+/**
+ * Writes again, in the list, what a section says of itself: its label
+ * on its title and on its button for a new variable, and what it is
+ * for. Nothing else of the list is drawn again, so that a press on a
+ * row, made while a field at the side still held the cursor, is not
+ * lost.
+ *
+ * @param {string} name
+ */
+function redrawPart(name) {
+  const it = sectionWords(definition, name);
+  const box = document.querySelector(`#variables .part[data-section="${name}"]`);
+  if (!it || !box) return;
+  const label = it.label || name;
+  for (const one of box.querySelectorAll(':scope > .part-title .part-label')) say(/** @type {HTMLElement} */ (one), label);
+  for (const one of box.querySelectorAll(':scope > .part-about')) say(/** @type {HTMLElement} */ (one), it.description);
+  for (const one of box.querySelectorAll(':scope > .adder > button')) say(/** @type {HTMLElement} */ (one), `Add a variable to ${label}`);
+}
+
+/**
+ * A section, as fields: its label, what it is for, and where it lies.
+ * What a designer changes here goes into the text of the class at
+ * once.
+ *
+ * @param {string} name
+ */
+function drawSection(name) {
+  const it = sectionWords(definition, name);
+  if (!it) return;
+  const box = part('about');
+  part('about-title').textContent = it.label || name;
+  part('about-what').textContent = 'A section of the class: which variables belong together. What you change here goes into the text at once. Nothing is the server\'s until you save.';
+
+  const props = make('div', 'props');
+  const named = make('div', 'field');
+  named.append(make('p', 'field-label', 'Name'), make('code', 'var-name', name), make('p', 'field-about', 'A section keeps its name: a line about single variables names it.'));
+  props.append(named);
+  props.append(
+    field(
+      'p-label',
+      'Label',
+      typed(it.label, (t) => {
+        change((draft) => setSectionWord(draft, name, 'label', t.trim()));
+        redrawPart(name);
+        part('about-title').textContent = sectionWords(definition, name)?.label || name;
+      }),
+      'What a person reads above this part of the document.',
+    ),
+    field(
+      'p-description',
+      'What it is for',
+      typed(
+        it.description,
+        (t) => {
+          change((draft) => setSectionWord(draft, name, 'description', t.trim()));
+          redrawPart(name);
+        },
+        { lines: 2 },
+      ),
+      'For the people who fill it in, and for an agent that reads the class.',
+    ),
+  );
+
+  const places = /** @type {HTMLSelectElement} */ (make('select', 'input'));
+  for (const one of placesFor(definition, name)) {
+    const option = /** @type {HTMLOptionElement} */ (make('option', '', one.name ? `${'  '.repeat(one.depth)}Inside ${one.label}` : one.label));
+    option.value = one.name;
+    option.selected = one.name === it.inside;
+    places.append(option);
+  }
+  const lies = field('p-inside', 'Where it lies', places, 'At the top of the outline, or inside another section. It goes to the end of the sections there, with all it holds.');
+  const why = make('p', 'field-why');
+  why.id = 'p-inside-why';
+  why.setAttribute('role', 'alert');
+  lies.append(why);
+  places.addEventListener('change', async () => {
+    flush();
+    why.textContent = '';
+    const draft = read();
+    if (!draft) return;
+    moveSection(draft, name, places.value);
+    // How deep sections may nest is the server's to say.
+    const refused = await refusedAt(draft, pathOfSection(draft, name));
+    if (refused) {
+      why.textContent = refused;
+      places.value = sectionWords(definition, name)?.inside ?? '';
+      return;
+    }
+    change((to) => moveSection(to, name, places.value));
+    drawVariables();
+  });
+  props.append(lies);
+
+  const holds = make('div', 'field');
+  holds.id = 'p-holds';
+  holds.append(make('p', 'field-label', 'What it holds'));
+  const all = make('p', 'field-value');
+  all.append(it.variables.length > 0 ? it.variables.join(', ') : 'No variable of its own');
+  if (it.sections.length > 0) all.append(`; and the ${it.sections.length === 1 ? 'section' : 'sections'} ${it.sections.join(', ')}`);
+  holds.append(all, make('p', 'field-about', 'A variable is put into a section on its own card, under Section.'));
+  props.append(holds);
+  box.append(props);
+
+  const remove = make('button', 'button button-plain', 'Remove this section');
+  remove.id = 'p-remove';
+  remove.setAttribute('type', 'button');
+  remove.addEventListener('click', () => {
+    flush();
+    change((draft) => removeSection(draft, name));
+    shownSection = '';
+    remember();
+    drawVariables();
+    drawStates();
+    drawAbout();
+    part('said').textContent = `Removed the section ${name} from the text. Its variables are in no section now; Undo puts it back.`;
+  });
+  const end = block('', '');
+  end.append(remove, make('p', 'field-about', 'Its variables stay in the class, in no section, and the sections inside it take its place. A line about single variables that names it is for the check to find.'));
+  box.append(end);
+}
 
 /**
  * A way to add something that has a name: a button that becomes a
@@ -362,6 +600,7 @@ async function addNamed(name, section) {
   change((it) => addVariable(it, name, section));
   variable = name;
   move = -1;
+  shownSection = '';
   remember();
   drawVariables();
   drawStates();
@@ -379,7 +618,9 @@ function choose(name) {
   flush();
   variable = name;
   move = -1;
+  shownSection = '';
   remember();
+  for (const head of document.querySelectorAll('#variables .part-pick')) head.setAttribute('aria-pressed', 'false');
   for (const head of document.querySelectorAll('#variables .var-pick')) {
     head.setAttribute('aria-pressed', String(head.closest('.var')?.getAttribute('data-variable') === name));
   }
@@ -439,8 +680,9 @@ function drawVariables() {
   const none = Object.keys(definition.variables ?? {}).length === 0;
   if (none) box.append(make('p', 'card-about', 'This class has no variable.'));
   for (const section of parts) box.append(sectionOf(section, 3, sectioned));
+  if (designer && editable() && !none) box.append(sectionAdder());
   part('variables-about').textContent = designer
-    ? 'What each document holds, by the sections of the class. Choose a variable to change it at the side. fx marks what the class works out.'
+    ? 'What each document holds, by the sections of the class. Choose a variable, or a section by its title, to change it at the side. fx marks what the class works out.'
     : 'What each document holds, by the sections of the class. fx marks what the class works out.';
 }
 
@@ -456,7 +698,7 @@ function pick(state, label, name, marks) {
   const button = make('button', 'pick');
   button.setAttribute('type', 'button');
   button.dataset.state = state;
-  button.setAttribute('aria-pressed', String(!variable && state === chosen));
+  button.setAttribute('aria-pressed', String(!variable && !shownSection && state === chosen));
   button.append(make('span', 'pick-label', label));
   if (name) button.append(make('code', 'pick-name', name));
   for (const mark of marks) button.append(make('span', 'tag', mark));
@@ -474,8 +716,9 @@ function chooseState(state) {
   chosen = state;
   variable = '';
   move = -1;
+  shownSection = '';
   remember();
-  for (const head of document.querySelectorAll('#variables .var-pick')) head.setAttribute('aria-pressed', 'false');
+  for (const head of document.querySelectorAll('#variables .var-pick, #variables .part-pick')) head.setAttribute('aria-pressed', 'false');
   drawStates();
   drawAbout();
   part('about-card').scrollTop = 0;
@@ -1553,6 +1796,7 @@ function drawAbout() {
   flush();
   part('about').replaceChildren();
   if (variable && designer && editable() && definition.variables?.[variable]) return drawVariable(variable);
+  if (shownSection && designer && editable() && sectionWords(definition, shownSection)) return drawSection(shownSection);
   if (move >= 0 && designer && editable() && definition.transitions?.[move]) return drawMove(move);
   const state = statesOf(definition).find((s) => s.name === chosen);
   if (state) drawState(state);
@@ -1626,6 +1870,7 @@ function drawLists() {
   part('lists-stale').hidden = draft !== null;
   if (chosen !== '' && !statesOf(definition).some((s) => s.name === chosen)) chosen = '';
   if (variable && !definition.variables?.[variable]) variable = '';
+  if (shownSection && !sectionWords(definition, shownSection)) shownSection = '';
   if (move >= 0 && !definition.transitions?.[move]) move = -1;
   drawVariables();
   drawStates();
@@ -1942,8 +2187,10 @@ async function open(mayChange) {
   chosen = wanted !== null && (wanted === '' || states.some((s) => s.name === wanted)) ? wanted : (states.find((s) => s.initial)?.name ?? '');
   const wantedVariable = asked.get('variable') ?? '';
   variable = designer && definition.variables?.[wantedVariable] ? wantedVariable : '';
+  const wantedSection = asked.get('section') ?? '';
+  shownSection = designer && !variable && sectionWords(definition, wantedSection) ? wantedSection : '';
   const wantedMove = /^\d+$/.test(asked.get('move') ?? '') ? Number(asked.get('move')) : -1;
-  move = designer && !variable && definition.transitions?.[wantedMove] ? wantedMove : -1;
+  move = designer && !variable && !shownSection && definition.transitions?.[wantedMove] ? wantedMove : -1;
   if (move >= 0) {
     // The state at the side of a transition is one it leaves.
     const leaves = [definition.transitions[move].from].flat().map(String);

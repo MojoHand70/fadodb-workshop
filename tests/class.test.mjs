@@ -9,6 +9,7 @@ import {
   TYPES,
   addMove,
   addRightLine,
+  addSection,
   addState,
   addVariable,
   asFormula,
@@ -18,16 +19,21 @@ import {
   linesOf,
   linesToAdd,
   marksOf,
+  moveSection,
   moveVariable,
   outline,
+  pathOfSection,
+  placesFor,
   placesOut,
   removeMove,
   removeRightLine,
+  removeSection,
   removeState,
   removeVariable,
   rightsIn,
   rulesAbout,
   sectionOfVariable,
+  sectionWords,
   sectionsAround,
   sectionsOf,
   setClassWord,
@@ -38,6 +44,7 @@ import {
   setMoveWho,
   setMoveWord,
   setRight,
+  setSectionWord,
   setStateWord,
   setWord,
   statesOf,
@@ -489,4 +496,67 @@ test('who may set a variable and who may see it, state by state, with the line t
   assert.equal(whereWords(trap, /** @type {any} */ (decides(trap, 'approved', 'note', 'write'))), 'its own line, for every state');
   assert.equal(whereWords(trap, /** @type {any} */ (decides(trap, 'paid', 'total', 'read'))), 'the line for the section Amounts, for every state');
   assert.equal(whereWords(expense, /** @type {any} */ (decides(expense, 'submitted', 'note', 'write'))), 'its own line, in this state');
+});
+
+test('a section is read, given words, added, moved and taken out', () => {
+  /** @type {any} */
+  const it = structuredClone(expense);
+  assert.deepEqual(sectionWords(it, 'amounts'), {
+    name: 'amounts',
+    label: 'Amounts',
+    description: 'What it cost, and what is paid back.',
+    inside: '',
+    variables: ['net', 'vat_rate', 'vat', 'total', 'needs_director'],
+    sections: [],
+  });
+  assert.equal(sectionWords(it, 'nothing'), null);
+
+  setSectionWord(it, 'amounts', 'label', 'The money');
+  setSectionWord(it, 'amounts', 'description', '');
+  assert.equal(it.sections.amounts.label, 'The money');
+  assert.equal('description' in it.sections.amounts, false, 'an empty word is taken out');
+
+  // A section begins with a variable, which leaves the section it was in: the server takes no section with nothing in it.
+  addSection(it, 'extras', 'note');
+  assert.deepEqual(Object.keys(it.sections), ['purchase', 'amounts', 'extras'], 'at the end of the top level');
+  assert.deepEqual(it.sections.extras, { variables: ['note'] });
+  assert.deepEqual(it.sections.purchase.variables, ['what', 'bought_on', 'cost_centre']);
+  assert.equal(sectionOfVariable(it, 'note'), 'extras');
+
+  // Moved into another, with all it holds; never into itself or into what lies inside it.
+  assert.deepEqual(placesFor(it, 'extras').map((one) => one.name), ['', 'purchase', 'amounts']);
+  moveSection(it, 'extras', 'amounts');
+  assert.deepEqual(Object.keys(it.sections), ['purchase', 'amounts']);
+  assert.deepEqual(it.sections.amounts.sections, { extras: { variables: ['note'] } });
+  assert.equal(sectionWords(it, 'extras')?.inside, 'amounts');
+  assert.equal(pathOfSection(it, 'extras'), '/sections/amounts/sections/extras');
+  assert.equal(pathOfSection(it, 'amounts'), '/sections/amounts');
+  assert.equal(pathOfSection(it, 'nothing'), '');
+  assert.deepEqual(placesFor(it, 'amounts').map((one) => one.name), ['', 'purchase'], 'not into itself, and not into extras, which lies inside it');
+  const before = JSON.stringify(it);
+  moveSection(it, 'amounts', 'extras');
+  moveSection(it, 'amounts', 'amounts');
+  moveSection(it, 'extras', 'amounts');
+  assert.equal(JSON.stringify(it), before, 'what cannot be, and what is so already, changes nothing');
+
+  // Back to the top: the section it left keeps no empty list of sections.
+  moveSection(it, 'extras', '');
+  assert.deepEqual(Object.keys(it.sections), ['purchase', 'amounts', 'extras']);
+  assert.equal('sections' in it.sections.amounts, false);
+
+  // Taken out: its variables are in no section, and the sections inside it take its place, in their order.
+  moveSection(it, 'extras', 'purchase');
+  removeSection(it, 'purchase');
+  assert.deepEqual(Object.keys(it.sections), ['extras', 'amounts'], 'extras stands where purchase stood');
+  assert.equal(sectionOfVariable(it, 'what'), '');
+  assert.equal(sectionOfVariable(it, 'note'), 'extras');
+  assert.ok('what' in it.variables, 'the variables stay in the class');
+  removeSection(it, 'extras');
+  removeSection(it, 'amounts');
+  assert.equal('sections' in it, false, 'the last section taken out leaves no outline');
+  removeSection(it, 'amounts');
+
+  // On a class with no outline, the first section makes one.
+  addSection(it, 'first', 'what');
+  assert.deepEqual(it.sections, { first: { variables: ['what'] } });
 });
