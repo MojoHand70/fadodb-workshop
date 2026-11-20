@@ -5,7 +5,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, plain, ready, watch } from './browser.mjs';
+import { CLOSING_NOT_CHECKED, fits, launch, leaveByClosing, leaveByLink, plain, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -246,24 +246,29 @@ test('a class that keeps making for others offers no New, and says so when asked
   await context.close();
 });
 
-test('Cancel goes back to the list without a question; leaving any other way asks first', async () => {
+test('Cancel goes back to the list without a question; leaving any other way asks first', async (t) => {
   const { context, page } = await janBeginsOne();
   await page.fill('#f-what', 'Not wanted after all');
   let asked = '';
-  page.on('dialog', async (dialog) => {
+  /** @param {import('playwright').Dialog} dialog */
+  const question = async (dialog) => {
     asked = dialog.type();
     await dialog.dismiss();
-  });
+  };
+  page.on('dialog', question);
   await page.click('#discard');
   await page.waitForURL((address) => address.pathname === '/list.html');
   assert.equal(asked, '', 'Cancel is the person\'s own word: nothing is asked');
+  page.off('dialog', question);
 
   await page.click('#new');
   await ready(page);
-  await page.fill('#f-what', 'Typed, then the window is closed');
-  await page.close({ runBeforeUnload: true });
-  await new Promise((wait) => setTimeout(wait, 300));
-  assert.equal(asked, 'beforeunload');
+  await page.fill('#f-what', 'Typed, then left');
+  assert.equal(await leaveByLink(page), 'asked');
+  assert.equal(await page.inputValue('#f-what'), 'Typed, then left', 'who stays has what they typed');
+  await t.test('and so does closing the window', { skip: CLOSING_NOT_CHECKED }, async () => {
+    assert.equal(await leaveByClosing(page), 'asked');
+  });
   await context.close();
 });
 

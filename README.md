@@ -163,6 +163,14 @@ Every pull request runs all three. WebKit here is the build the test
 tool brings, on Linux: the pages have not been opened in Safari
 itself, on a Mac or a phone.
 
+One check is left out in WebKit, and says so when the tests run: that
+closing a window with work not saved asks first. Asked to close a
+window, WebKit waits 50 ms for the page's answer and closes it when
+none came, whatever the page would have answered. Typing keeps a page
+of Workshop busy for a few milliseconds; pasting a whole class at once
+can take longer than the 50, and so can a slow machine. Leaving by a
+link has no such clock, and is checked in all three.
+
 ## Licence
 
 Apache 2.0, as FadoDB itself. See [LICENSE](LICENSE).

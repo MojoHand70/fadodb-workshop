@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, ready, watch } from './browser.mjs';
+import { CLOSING_NOT_CHECKED, fits, launch, leaveByClosing, leaveByLink, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -420,19 +420,20 @@ test('when somebody else saved meanwhile, Dan is told, and saving over it is his
   await context.close();
 });
 
-test('leaving with a class that is not saved asks first', async () => {
+test('leaving with a class that is not saved asks first', async (t) => {
   const definition = await aClass('Leaving');
   const { context, page } = await atTheText('Leaving');
   await write(page, asText({ ...definition, description: 'Not saved yet.' }));
   assert.ok(await page.locator('#class-changed').isVisible());
-  let asked = '';
-  page.once('dialog', async (dialog) => {
-    asked = dialog.type();
-    await dialog.dismiss();
+  assert.equal(await leaveByLink(page), 'asked');
+  assert.equal(await page.evaluate(() => location.pathname), '/design.html', 'who stays is where they were');
+  assert.ok(await page.locator('#class-changed').isVisible());
+  await t.test('and so does closing its window', { skip: CLOSING_NOT_CHECKED }, async () => {
+    assert.equal(await leaveByClosing(page), 'asked');
   });
-  await page.close({ runBeforeUnload: true });
-  await new Promise((wait) => setTimeout(wait, 300));
-  assert.equal(asked, 'beforeunload');
+  assert.equal(await press(page, 'save'), 'Saved as version 2.', 'who stays has their text');
+  assert.equal((await held('Leaving')).definition.description, 'Not saved yet.');
+  assert.equal(await leaveByLink(page), 'left', 'and what is saved is no work to lose');
   await context.close();
 });
 
