@@ -4,6 +4,14 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: the card of a variable says who may set it and who may
+  see it, state by state, and which line about single variables says
+  so: its own line, the line for its section or the line for every
+  variable, in that state or for every state. A state's own line comes
+  before one for every state, as the server asks them. A final state
+  says that nobody sets a value there, and a value the class works out
+  says that nobody sets it at all. Each row leads to its state, where
+  the lines are changed.
 - Design mode: a designer says who may set and who may see single
   variables, state by state, through the lists. Under a state, and for
   every state under "The whole class", each line is about a variable,

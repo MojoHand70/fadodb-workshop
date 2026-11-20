@@ -827,3 +827,93 @@ export function setRight(definition, state, what, right, formula) {
   if (!definition.rights[state][what] || typeof definition.rights[state][what] !== 'object') definition.rights[state][what] = {};
   definition.rights[state][what][right] = formula;
 }
+
+/**
+ * The sections a variable lies in: its own first, then each one
+ * around that one, outwards. Empty for a variable in no section.
+ *
+ * @param {Definition} definition
+ * @param {string} variable
+ * @returns {string[]}
+ */
+export function sectionsAround(definition, variable) {
+  /** @type {string[]} */
+  let found = [];
+  /** @param {Record<string, any> | undefined} sections @param {string[]} around */
+  const look = (sections, around) => {
+    for (const [name, section] of Object.entries(sections ?? {})) {
+      if (!section || typeof section !== 'object') continue;
+      const here = [name, ...around];
+      if (found.length === 0 && texts(section.variables).includes(variable)) found = here;
+      look(section.sections, here);
+    }
+  };
+  look(definition.sections, []);
+  return found;
+}
+
+/**
+ * The line about single variables that is asked for one variable in
+ * one state, for who may set it or for who may see it. Null where no
+ * line says anything: the lines of the whole class decide alone.
+ *
+ * The engine looks in this order and takes the first line that says
+ * something about the right in question (its chapter "Who may"): the
+ * state of the document and the variable by its name; that state and
+ * the variable's section, then each section around it, outwards; that
+ * state and every variable; then the same three for every state. So a
+ * state's own line comes before a line for every state, even one that
+ * names the variable.
+ *
+ * @param {Definition} definition
+ * @param {string} state the name of a state
+ * @param {string} variable
+ * @param {'write' | 'read'} right
+ * @returns {{ state: string, what: string, about: 'variable' | 'section' | 'every variable', formula: string } | null}
+ *   the line: under which state it is written, `*` for every state; what it is about; and who it names, as a formula
+ */
+export function decides(definition, state, variable, right) {
+  const names = [variable, ...sectionsAround(definition, variable), '*'];
+  for (const under of [state, '*']) {
+    const lines = definition.rights?.[under];
+    if (!lines || typeof lines !== 'object') continue;
+    for (const what of names) {
+      const said = lines[what]?.[right];
+      if (said !== undefined) return { state: under, what, about: what === '*' ? 'every variable' : what === variable ? 'variable' : 'section', formula: asFormula(said) };
+    }
+  }
+  return null;
+}
+
+/**
+ * Who may set and who may see one variable, state by state: for each
+ * state of the class, the line that is asked for each right, or null
+ * where none is. A final state is told as such, for nobody sets a
+ * value of a document that is finished.
+ *
+ * @param {Definition} definition
+ * @param {string} variable
+ * @returns {{ state: string, label: string, final: boolean, write: ReturnType<typeof decides>, read: ReturnType<typeof decides> }[]}
+ */
+export function whoDecides(definition, variable) {
+  return statesOf(definition).map((state) => ({
+    state: state.name,
+    label: state.label,
+    final: state.final,
+    write: decides(definition, state.name, variable, 'write'),
+    read: decides(definition, state.name, variable, 'read'),
+  }));
+}
+
+/**
+ * Where a line is, in words: what it is about, and whether it is
+ * written under the state or for every state.
+ *
+ * @param {Definition} definition
+ * @param {NonNullable<ReturnType<typeof decides>>} line
+ */
+export function whereWords(definition, line) {
+  const section = line.about === 'section' ? sectionsOf(definition).find((one) => one.name === line.what) : undefined;
+  const about = line.about === 'every variable' ? 'the line for every variable' : line.about === 'variable' ? 'its own line' : `the line for the section ${section?.label || line.what}`;
+  return `${about}, ${line.state === '*' ? 'for every state' : 'in this state'}`;
+}

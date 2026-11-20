@@ -54,6 +54,8 @@ import {
   statesOf,
   waysIn,
   waysOut,
+  whereWords,
+  whoDecides,
 } from './class.js';
 import { enter, make, part, ready, show } from './shell.js';
 import { callAt, fromBytes, helpFor, pieceAt } from './formula.js';
@@ -458,18 +460,25 @@ function pick(state, label, name, marks) {
   button.append(make('span', 'pick-label', label));
   if (name) button.append(make('code', 'pick-name', name));
   for (const mark of marks) button.append(make('span', 'tag', mark));
-  button.addEventListener('click', () => {
-    flush();
-    chosen = state;
-    variable = '';
-    move = -1;
-    remember();
-    for (const head of document.querySelectorAll('#variables .var-pick')) head.setAttribute('aria-pressed', 'false');
-    drawStates();
-    drawAbout();
-    part('about-card').scrollTop = 0;
-  });
+  button.addEventListener('click', () => chooseState(state));
   return button;
+}
+
+/**
+ * Chooses a state, or the whole class: the side of the page shows it.
+ *
+ * @param {string} state '' for the whole class
+ */
+function chooseState(state) {
+  flush();
+  chosen = state;
+  variable = '';
+  move = -1;
+  remember();
+  for (const head of document.querySelectorAll('#variables .var-pick')) head.setAttribute('aria-pressed', 'false');
+  drawStates();
+  drawAbout();
+  part('about-card').scrollTop = 0;
 }
 
 function drawStates() {
@@ -1306,6 +1315,62 @@ function formulaField(id, label, value, path, put, help, after) {
 }
 
 /**
+ * Who may set a variable and who may see it, state by state: for each
+ * state the line about single variables that is asked, where it is
+ * written, and who it names. The lines themselves are changed under
+ * the state, which each row leads to.
+ *
+ * @param {string} name
+ */
+function whoBlock(name) {
+  const computed = definition.variables?.[name]?.formula !== undefined;
+  const box = block(
+    'Who may set it and see it, state by state',
+    'Which line about single variables is asked for this one in each state: the most exact, and a state\'s own before one for every state. A line narrows who may change, or see, a document at all, and never widens it. Choose a state to change its lines.',
+  );
+  box.id = 'v-who';
+  if (computed) box.append(make('p', 'card-about who-computed', 'The class works this value out: nobody sets it, in any state.'));
+  for (const row of whoDecides(definition, name)) {
+    const one = make('div', 'way who-row');
+    one.dataset.state = row.state;
+    const head = make('button', 'way-head way-pick');
+    head.setAttribute('type', 'button');
+    head.append(make('span', 'way-label', row.label), ' ', make('code', 'pick-name', row.state));
+    if (row.final) head.append(' ', make('span', 'tag', 'final'));
+    head.addEventListener('click', () => {
+      chooseState(row.state);
+      showSide();
+    });
+    one.append(head);
+    const lines = make('dl', 'right');
+    /** @param {NonNullable<typeof row.write>} found */
+    const told = (found) => {
+      const answer = document.createDocumentFragment();
+      answer.append(formulaOf(found.formula), make('span', 'who-from', whereWords(definition, found)));
+      return answer;
+    };
+    if (!computed) {
+      const set = line(
+        'may set it',
+        row.final
+          ? make('span', 'nobody', 'nobody: the state is final, and a document in it changes no more')
+          : row.write
+            ? told(row.write)
+            : make('span', 'nobody', 'whoever may change the document: no line names it, its section or every variable'),
+      );
+      set.dataset.right = 'write';
+      lines.append(set);
+    }
+    const see = line('may see it', row.read ? told(row.read) : make('span', 'nobody', 'whoever may see the document: no line says who may see it'));
+    see.dataset.right = 'read';
+    lines.append(see);
+    one.append(lines);
+    box.append(one);
+  }
+  return box;
+}
+
+/**
  * The properties of a variable, as fields. What a designer changes
  * here goes into the text of the class at once.
  *
@@ -1457,6 +1522,8 @@ function drawVariable(name) {
     select.addEventListener('change', () => {
       change((draft) => moveVariable(draft, name, select.value));
       drawVariables();
+      // The lines for a section are asked for what lies in it: another section, other lines.
+      document.getElementById('v-who')?.replaceWith(whoBlock(name));
     });
     props.append(field('v-section', 'Section', select, 'Which part of the document it belongs to. It goes to the end of that part.'));
   }
@@ -1476,8 +1543,10 @@ function drawVariable(name) {
   });
   const last = make('div', 'field');
   last.append(remove, make('p', 'field-about', 'It leaves the class at the next save. A formula or a right that still reads it is for the check to find.'));
-  props.append(last);
-  box.append(props);
+  box.append(props, whoBlock(name));
+  const end = block('', '');
+  end.append(last);
+  box.append(end);
 }
 
 function drawAbout() {

@@ -45,7 +45,9 @@ state, in the card of a state, and for every state under "The whole
 class". Each line is about a variable, a section or every variable,
 and each half of it is a formula. "Add a line" offers what the class
 has; a new line lets nobody set what it is about, until the designer
-says who may.
+says who may. The card of a variable then says, state by state, who
+may set it and who may see it, and which line says so: the question a
+designer asks most, answered as the server answers it.
 
 **A formula is written in the formula editor**, wherever the lists
 have one: what the class works out, a first value, the title of a
