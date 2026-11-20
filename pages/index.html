@@ -24,10 +24,15 @@
 </header>
 
 <main class="page">
-  <p class="status">Status: you can sign in, read a list, make a document, change it and move it. A designer can read a class in design mode, and cannot change it there yet.</p>
+  <p class="status">Status: you can sign in, read a list, make a document, change it and move it. A designer reads a class as lists, changes it as text and makes a new one. Changing it through the lists, and the formula editor, come next.</p>
 
   <section data-view="home" id="home" hidden>
-    <h1>Classes on this server</h1>
+    <div class="doc-head">
+      <h1>Classes on this server</h1>
+      <div class="doc-do">
+        <a class="button button-plain" id="new-class" href="design.html?new" hidden>New class</a>
+      </div>
+    </div>
     <p class="lead">Every class you may see. Choose one to see its list.</p>
     <ul class="classes" id="classes"></ul>
     <p class="lead" id="no-classes" hidden>There is no class here yet.</p>

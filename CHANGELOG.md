@@ -4,6 +4,19 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: a designer makes a new class. The first page offers
+  "New class" to a designer. The class gets a name, which the server is
+  asked about at once, and begins as a small class that works: a
+  subject, Draft and Done, and each document its author's alone. The
+  designer changes it and makes it; nothing is the server's until then.
+  A name the server has is never put over.
+- Fixed: what the server only notes was shown as refusing a class. A
+  check of a class whose new variable had no description said "the
+  server would refuse this class", though the server takes it. Notes
+  are now told apart: "the server takes it, with one note", in a quiet
+  box, and the place in the text is not marked as wrong.
+- Fixed: the first page still said that a class cannot be changed in
+  the design mode.
 - Design mode: a designer changes a class as text. The text is in a
   box with colours, line numbers, find and undo. Check asks the server
   and writes nothing; what the server finds is listed, and each finding

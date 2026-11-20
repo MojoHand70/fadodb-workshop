@@ -52,6 +52,8 @@
       <p class="alert-what" id="findings-what"></p>
       <p class="alert-hint" id="findings-hint"></p>
       <ol class="findings" id="findings"></ol>
+      <p class="notes-what" id="notes-what" hidden></p>
+      <ol class="findings" id="notes"></ol>
     </div>
 
     <p class="said" id="lists-stale" hidden>The text cannot be read as a class just now: the lists show it as it last could.</p>
@@ -82,6 +84,27 @@
       <p class="card-about" id="text-about">What an agent writes, and what the server keeps. Change it here, check it, and save it as the next version; the lists show the text as it stands.</p>
       <div id="class-text"></div>
     </div>
+  </section>
+
+  <section data-view="begin" id="begin" hidden>
+    <p class="crumbs"><a href="./">Classes</a></p>
+    <h1>A new class</h1>
+    <p class="lead">A class says what a kind of document holds, the states it goes through and who may do what. Give it a name. It begins as a small class that works, for you to change before you make it.</p>
+    <form class="card begin" id="begin-form" novalidate>
+      <div class="field">
+        <p class="field-label"><label for="new-name">Name</label></p>
+        <input class="input" id="new-name" name="name" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="new-name-about begin-why">
+        <p class="field-about" id="new-name-about">As formulas and programs write it: letters, digits and underscores, such as Trip or PurchaseOrder. A class keeps its name: under another name it is another class.</p>
+      </div>
+      <div class="field">
+        <p class="field-label"><label for="new-label">Label</label></p>
+        <input class="input" id="new-label" name="label" autocomplete="off" aria-describedby="new-label-about">
+        <p class="field-about" id="new-label-about">What people read in its place, such as Business trip. The name, where you give none.</p>
+      </div>
+      <p class="field-why" id="begin-why" role="alert"></p>
+      <p class="field-about" id="begin-existing-box" hidden><a id="begin-existing" href="./">Open its design</a></p>
+      <button class="button" id="begin-go" type="submit">Begin</button>
+    </form>
   </section>
 
   <section data-view="trouble" id="trouble" hidden>

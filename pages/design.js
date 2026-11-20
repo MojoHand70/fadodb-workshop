@@ -18,7 +18,7 @@
 
 import { Refused, call } from './fado.js';
 import { show as showValue } from './format.js';
-import { kindLine, linesOf, marksOf, outline, rightsIn, rulesAbout, statesOf, waysIn, waysOut } from './class.js';
+import { kindLine, linesOf, marksOf, outline, rightsIn, rulesAbout, starter, statesOf, waysIn, waysOut } from './class.js';
 import { enter, make, part, ready, show } from './shell.js';
 import { codeView } from './text.js';
 
@@ -48,6 +48,12 @@ let changed = false;
 let found = false;
 /** A newer version the person was told of, so that saving over it is their choice. */
 let toldOf = 0;
+/**
+ * True while the page holds a class that is not made yet: the server
+ * has none of this name, `saved` is what the page began it as, and
+ * saving makes the class.
+ */
+let making = asked.has('new');
 
 /**
  * A formula, shown whole and as it is written.
@@ -73,6 +79,10 @@ function line(what, answer) {
 /** Keeps what the person chose in the address, so that it can be sent to somebody. */
 function remember() {
   const address = new URL(location.href);
+  if (!making && held.name) {
+    address.searchParams.delete('new');
+    address.searchParams.set('class', held.name);
+  }
   if (chosen) address.searchParams.set('state', chosen);
   else address.searchParams.delete('state');
   if (shownAs === 'text') address.searchParams.set('as', 'text');
@@ -387,9 +397,17 @@ async function drawHeld() {
   document.title = `Design: ${label} · FadoDB Workshop`;
   part('class-title').textContent = label;
   part('class-name').textContent = held.name;
-  part('class-version').textContent = `version ${held.version}`;
   part('class-about').textContent = String(saved.description || '');
   const toList = part('to-list');
+  if (making) {
+    // The server has no such class yet: there is no version and no list.
+    part('class-version').textContent = 'not made yet';
+    toList.textContent = 'A new class';
+    toList.removeAttribute('href');
+    part('class-defined').textContent = '';
+    return;
+  }
+  part('class-version').textContent = `version ${held.version}`;
   toList.textContent = label;
   toList.setAttribute('href', `list.html?class=${encodeURIComponent(held.name)}`);
 
@@ -423,10 +441,11 @@ function drawShownAs() {
 function follow() {
   const draft = read();
   changed = draft === null || JSON.stringify(draft) !== JSON.stringify(saved);
-  part('class-changed').hidden = !changed;
+  // A class that is not made yet says so in place of its version.
+  part('class-changed').hidden = making || !changed;
   /** @type {HTMLButtonElement} */ (part('discard')).disabled = !changed;
-  /** @type {HTMLButtonElement} */ (part('save')).disabled = !changed;
-  part('save').textContent = changed ? `Save as version ${held.version + 1}` : 'Save';
+  /** @type {HTMLButtonElement} */ (part('save')).disabled = !making && !changed;
+  part('save').textContent = making ? 'Make the class' : changed ? `Save as version ${held.version + 1}` : 'Save';
   if (found) part('findings-hint').textContent = 'The text has changed since. Check again.';
 }
 
@@ -435,16 +454,23 @@ function clearFindings() {
   found = false;
   part('findings-box').hidden = true;
   part('findings').replaceChildren();
+  part('notes').replaceChildren();
   part('findings-hint').textContent = '';
   editor.mark([]);
 }
 
 /**
- * Puts what was found on the page: a list, each finding a way to its
- * place in the text, and the places marked in the text.
+ * Puts what was found on the page, each finding a way to its place in
+ * the text, and marks the places in the text.
  *
- * @param {string} lead what is said of them all
+ * The server finds two kinds of thing. Some refuse the class. The
+ * others are notes, such as a variable that says nothing of what it is
+ * for: the class is taken with them. The two are never mixed: a class
+ * with notes alone is a class the server takes.
+ *
+ * @param {string} lead what is said of the findings that refuse the class
  * @param {import('./fado.js').Finding[]} findings
+ * @returns {{ refusing: number, notes: number }} how many of each kind
  */
 function showFindings(lead, findings) {
   // The server may say one thing twice; once is enough for a person.
@@ -458,36 +484,63 @@ function showFindings(lead, findings) {
   /** @param {import('./fado.js').Finding} finding */
   const placeOf = (finding) => (finding.code === 'not_json' ? (finding.pos >= 0 ? { from: finding.pos, to: finding.pos + 1 } : null) : finding.path ? editor.placeOf(finding.path, finding.pos) : null);
 
-  const list = part('findings');
-  list.replaceChildren();
   /** @type {import('./text.js').Mark[]} */
   const marks = [];
-  for (const finding of each) {
-    const place = placeOf(finding);
-    if (place) marks.push({ ...place, message: finding.hint ? `${finding.message}. ${finding.hint}` : finding.message });
-    const item = make('li', 'finding');
-    item.dataset.path = finding.path;
-    const go = make('button', 'finding-go', finding.message);
-    go.setAttribute('type', 'button');
-    go.addEventListener('click', () => {
-      // The place is looked up again: the text may have changed since.
-      const now = placeOf(finding);
-      shownAs = 'text';
-      remember();
-      drawShownAs();
-      if (now) editor.show(now.from, now.to);
-    });
-    item.append(go);
-    if (finding.path) item.append(' ', make('code', 'finding-where', finding.path.slice(1).replaceAll('/', ' / ')));
-    if (finding.hint) item.append(make('p', 'finding-hint', finding.hint));
-    list.append(item);
-  }
+  /**
+   * @param {HTMLElement} list
+   * @param {import('./fado.js').Finding[]} these
+   */
+  const fill = (list, these) => {
+    list.replaceChildren();
+    for (const finding of these) {
+      const place = placeOf(finding);
+      if (place) marks.push({ ...place, message: finding.hint ? `${finding.message}. ${finding.hint}` : finding.message, note: finding.note === true });
+      const item = make('li', 'finding');
+      item.dataset.path = finding.path;
+      const go = make('button', 'finding-go', finding.message);
+      go.setAttribute('type', 'button');
+      go.addEventListener('click', () => {
+        // The place is looked up again: the text may have changed since.
+        const now = placeOf(finding);
+        shownAs = 'text';
+        remember();
+        drawShownAs();
+        if (now) editor.show(now.from, now.to);
+      });
+      item.append(go);
+      if (finding.path) item.append(' ', make('code', 'finding-where', finding.path.slice(1).replaceAll('/', ' / ')));
+      if (finding.hint) item.append(make('p', 'finding-hint', finding.hint));
+      list.append(item);
+    }
+  };
+  const refusing = each.filter((f) => f.note !== true);
+  const notes = each.filter((f) => f.note === true);
+  fill(part('findings'), refusing);
+  fill(part('notes'), notes);
   editor.mark(marks);
-  part('findings-what').textContent = lead;
+
+  const box = part('findings-box');
+  box.classList.toggle('alert', refusing.length > 0);
+  box.classList.toggle('notes-only', refusing.length === 0);
+  part('findings-what').textContent = refusing.length > 0 ? lead : '';
+  part('findings-what').hidden = refusing.length === 0;
+  const what = part('notes-what');
+  what.hidden = notes.length === 0;
+  what.textContent = refusing.length > 0 ? 'And the server notes, which holds nothing back:' : 'The server takes this class. It notes, which holds nothing back:';
   part('findings-hint').textContent = '';
-  part('findings-box').hidden = false;
-  found = true;
+  box.hidden = each.length === 0;
+  found = each.length > 0;
+  return { refusing: refusing.length, notes: notes.length };
 }
+
+/**
+ * So many things, in words: "one thing", "3 things".
+ *
+ * @param {number} n
+ * @param {string} one
+ * @param {string} many
+ */
+const count = (n, one, many) => (n === 1 ? `one ${one}` : `${n} ${many}`);
 
 /**
  * The text read as a class for the server, or, where it cannot be
@@ -513,20 +566,70 @@ async function check() {
     const { diagnostics } = await call('validate_class', { definition: draft });
     /** @type {import('./fado.js').Finding[]} */
     const findings = Array.isArray(diagnostics) ? diagnostics : [];
-    if (findings.length === 0) return void (part('said').textContent = 'Checked: the server takes it.');
-    showFindings('The server would refuse this class.', findings);
-    part('said').textContent = `Checked: ${part('findings').children.length === 1 ? 'one thing' : `${part('findings').children.length} things`} to put right.`;
+    const { refusing, notes } = showFindings('The server would refuse this class.', findings);
+    const noted = notes > 0 ? `, with ${count(notes, 'note', 'notes')}` : '';
+    part('said').textContent = refusing > 0 ? `Checked: ${count(refusing, 'thing', 'things')} to put right${noted}.` : `Checked: the server takes it${noted}.`;
   } catch (refusal) {
     part('said').textContent = `Not checked. The server said: ${refusal instanceof Error ? refusal.message : String(refusal)}`;
   }
 }
 
-/** Saves the text as the next version of the class. */
+/**
+ * Makes the class the text describes: the server has none of its name
+ * yet. A name the server has is another class, and nothing is put over
+ * it from here.
+ *
+ * @param {Record<string, any>} draft
+ */
+async function makeClass(draft) {
+  const name = String(draft.name ?? '');
+  try {
+    const taken = await classNamed(name);
+    if (taken) {
+      showFindings('Not made.', [
+        { code: 'duplicate', path: '/name', pos: -1, message: `${taken} is a class on this server already`, hint: 'Give this one another name. That one has a design of its own.' },
+      ]);
+      return void (part('said').textContent = 'Not made: the server has a class of this name.');
+    }
+    const { class: made } = await call('define_class', { definition: draft });
+    making = false;
+    held = made;
+    saved = made.definition ?? {};
+    remember();
+    await drawHeld();
+    follow();
+    if (shownAs === 'lists') drawLists();
+    part('said').textContent = `Made: the class ${String(saved.label || made.name)}, version ${made.version}.`;
+  } catch (refusal) {
+    if (refusal instanceof Refused && refusal.findings.length > 0) {
+      const { refusing } = showFindings('Not made. The server refuses this class.', refusal.findings);
+      part('said').textContent = `Not made: ${count(refusing, 'thing', 'things')} to put right.`;
+    } else {
+      part('said').textContent = `Not made. The server said: ${refusal instanceof Error ? refusal.message : String(refusal)}`;
+    }
+  }
+}
+
+/**
+ * The class of the server that a name names, as the server writes it,
+ * or '' where it has none. The server takes a name in any case.
+ *
+ * @param {string} name
+ */
+async function classNamed(name) {
+  const { classes } = await call('list_classes');
+  /** @type {string[]} */
+  const all = Array.isArray(classes) ? classes : [];
+  return all.find((one) => one.toLowerCase() === name.toLowerCase()) ?? '';
+}
+
+/** Saves the text as the next version of the class, or makes a class that is not made yet. */
 async function save() {
   part('said').textContent = '';
   clearFindings();
   const draft = draftOrSay();
-  if (!draft) return void (part('said').textContent = 'Not saved: the text cannot be read.');
+  if (!draft) return void (part('said').textContent = `Not ${making ? 'made' : 'saved'}: the text cannot be read.`);
+  if (making) return makeClass(draft);
   if (String(draft.name ?? '') !== held.name) {
     showFindings('Not saved.', [
       { code: 'another_class', path: '/name', pos: -1, message: `This page designs ${held.name}, and the text names ${String(draft.name ?? 'no class')}`, hint: 'A class of another name is another class. Put the name back to save this one.' },
@@ -556,8 +659,8 @@ async function save() {
     part('said').textContent = made.version === before ? 'Nothing to save: the server holds this class already.' : `Saved as version ${made.version}.`;
   } catch (refusal) {
     if (refusal instanceof Refused && refusal.findings.length > 0) {
-      showFindings('Not saved. The server refuses this class.', refusal.findings);
-      part('said').textContent = `Not saved: ${part('findings').children.length === 1 ? 'one thing' : `${part('findings').children.length} things`} to put right.`;
+      const { refusing } = showFindings('Not saved. The server refuses this class.', refusal.findings);
+      part('said').textContent = `Not saved: ${count(refusing, 'thing', 'things')} to put right.`;
     } else {
       part('said').textContent = `Not saved. The server said: ${refusal instanceof Error ? refusal.message : String(refusal)}`;
     }
@@ -569,53 +672,109 @@ function trouble(/** @type {unknown} */ refusal) {
   show('trouble');
 }
 
+/**
+ * Opens the designer on the class the page holds: `held`, `saved` and
+ * `making` say which.
+ *
+ * @param {boolean} designer whether the person may change a class
+ */
+async function open(designer) {
+  definition = saved;
+  await drawHeld();
+
+  const states = statesOf(definition);
+  const wanted = asked.get('state');
+  // The page opens on the state a new document starts in, where the
+  // flow begins; a class with no states opens on the whole class.
+  chosen = wanted !== null && (wanted === '' || states.some((s) => s.name === wanted)) ? wanted : (states.find((s) => s.initial)?.name ?? '');
+
+  // Changing a class is for a designer: the server refuses anybody else.
+  editor = codeView(part('class-text'), { text: written(saved), label: 'The definition of the class', readOnly: !designer, onChange: follow });
+  part('design-do').hidden = !designer;
+  if (!designer) part('text-about').textContent = 'What an agent writes, and what the server keeps. Changing a class is for a designer.';
+  part('check').addEventListener('click', check);
+  part('save').addEventListener('click', save);
+  part('discard').addEventListener('click', () => {
+    clearFindings();
+    editor.set(written(saved));
+    if (shownAs === 'lists') drawLists();
+    part('said').textContent = making ? 'Put back as it began.' : 'Put back as the server holds it.';
+  });
+  window.addEventListener('beforeunload', (leaving) => {
+    if (changed) leaving.preventDefault();
+  });
+
+  part('as-lists').addEventListener('click', () => {
+    shownAs = 'lists';
+    remember();
+    drawShownAs();
+  });
+  part('as-text').addEventListener('click', () => {
+    shownAs = 'text';
+    remember();
+    drawShownAs();
+  });
+  follow();
+  drawShownAs();
+  if (shownAs === 'text') drawLists();
+  show('design');
+}
+
+/**
+ * Asks for the name of a new class and begins it: a small class that
+ * works, which the designer changes and then makes. Nothing is the
+ * server's until then.
+ */
+function begin() {
+  const why = part('begin-why');
+  part('begin-form').addEventListener('submit', async (sent) => {
+    sent.preventDefault();
+    why.textContent = '';
+    part('begin-existing-box').hidden = true;
+    const name = /** @type {HTMLInputElement} */ (part('new-name')).value.trim();
+    const label = /** @type {HTMLInputElement} */ (part('new-label')).value.trim();
+    if (!name) return void (why.textContent = 'Give the class a name.');
+    try {
+      const taken = await classNamed(name);
+      if (taken) {
+        why.textContent = `${taken} is a class on this server already.`;
+        part('begin-existing').setAttribute('href', `design.html?class=${encodeURIComponent(taken)}`);
+        part('begin-existing-box').hidden = false;
+        return;
+      }
+      // Whether a name may be a name is the server's to say, in its words.
+      const first = starter(name, label);
+      const { diagnostics } = await call('validate_class', { definition: first });
+      /** @type {import('./fado.js').Finding | undefined} */
+      const about = (Array.isArray(diagnostics) ? diagnostics : []).find((/** @type {import('./fado.js').Finding} */ d) => d.path === '/name');
+      if (about) return void (why.textContent = `The server would not take this name: ${about.message}.`);
+      held = { name, version: 0 };
+      saved = first;
+      await open(true);
+    } catch (refusal) {
+      why.textContent = `The server said: ${refusal instanceof Error ? refusal.message : String(refusal)}`;
+    }
+  });
+  show('begin');
+  part('new-name').focus();
+}
+
 const user = await enter();
 if (user) {
   try {
-    if (!className) throw new Refused('unknown_class', 'The address names no class: it ends in design.html?class= and the name of a class.', 0);
-    const answer = await call('get_class', { name: className });
-    held = answer.class;
-    saved = held && /** @type {any} */ (held).definition ? /** @type {any} */ (held).definition : {};
-    definition = saved;
-    await drawHeld();
-
-    const states = statesOf(definition);
-    const wanted = asked.get('state');
-    // The page opens on the state a new document starts in, where the
-    // flow begins; a class with no states opens on the whole class.
-    chosen = wanted !== null && (wanted === '' || states.some((s) => s.name === wanted)) ? wanted : (states.find((s) => s.initial)?.name ?? '');
-
-    // Changing a class is for a designer: the server refuses anybody else.
     const designer = (user.system_groups ?? []).includes('designers');
-    editor = codeView(part('class-text'), { text: written(saved), label: 'The definition of the class', readOnly: !designer, onChange: follow });
-    part('design-do').hidden = !designer;
-    if (!designer) part('text-about').textContent = 'What an agent writes, and what the server keeps. Changing a class is for a designer.';
-    part('check').addEventListener('click', check);
-    part('save').addEventListener('click', save);
-    part('discard').addEventListener('click', () => {
-      clearFindings();
-      editor.set(written(saved));
-      if (shownAs === 'lists') drawLists();
-      part('said').textContent = 'Put back as the server holds it.';
-    });
-    window.addEventListener('beforeunload', (leaving) => {
-      if (changed) leaving.preventDefault();
-    });
-
-    part('as-lists').addEventListener('click', () => {
-      shownAs = 'lists';
-      remember();
-      drawShownAs();
-    });
-    part('as-text').addEventListener('click', () => {
-      shownAs = 'text';
-      remember();
-      drawShownAs();
-    });
-    follow();
-    drawShownAs();
-    if (shownAs === 'text') drawLists();
-    show('design');
+    if (making) {
+      if (!designer) throw new Refused('forbidden', 'Making a class is for a designer.', 0);
+      // The text is what a new class is worked on: the page opens there.
+      if (!asked.has('as')) shownAs = 'text';
+      begin();
+    } else {
+      if (!className) throw new Refused('unknown_class', 'The address names no class: it ends in design.html?class= and the name of a class.', 0);
+      const answer = await call('get_class', { name: className });
+      held = answer.class;
+      saved = held && /** @type {any} */ (held).definition ? /** @type {any} */ (held).definition : {};
+      await open(designer);
+    }
   } catch (refusal) {
     trouble(refusal);
   }

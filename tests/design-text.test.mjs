@@ -222,6 +222,67 @@ test('what the server finds is listed, each with its place, and marked in the te
   await context.close();
 });
 
+test('what the server only notes holds nothing back: such a class is taken, and saved', async () => {
+  const definition = await aClass('Noted');
+  const { context, page, wrong } = await atTheText('Noted');
+  const next = structuredClone(definition);
+  next.variables.urgent = { type: 'bool', label: 'Urgent' };
+  delete next.access.delete;
+  await write(page, asText(next));
+
+  assert.equal(await press(page, 'check'), 'Checked: the server takes it, with 2 notes.');
+  const box = page.locator('#findings-box');
+  assert.ok(await box.isVisible());
+  assert.equal(await box.evaluate((b) => b.classList.contains('alert')), false, 'nothing is refused: the box is not an alarm');
+  assert.ok(await page.locator('#findings-what').isHidden());
+  assert.equal(await page.locator('#findings .finding').count(), 0);
+  assert.equal(await page.locator('#notes-what').innerText(), 'The server takes this class. It notes, which holds nothing back:');
+  const notes = await page.locator('#notes .finding').evaluateAll((all) => all.map((one) => [one.querySelector('.finding-go')?.textContent ?? '', one.getAttribute('data-path') ?? '']));
+  assert.deepEqual(notes.map((n) => n[1]), ['/access/delete', '/variables/urgent/description']);
+  assert.match(notes[0][0], /^Noted has no delete rule/);
+  assert.match(notes[1][0], /^variable urgent has no description/);
+  assert.match(await page.locator('#notes .finding-hint').last().innerText(), /add "description"/);
+
+  // A note leads to its place too: here to the variable that lacks the word.
+  await page.locator('#notes .finding-go').last().click();
+  assert.equal((await selected(page)).replace(/\s+/g, ' '), '{ "type": "bool", "label": "Urgent" }');
+  assert.equal(await page.locator('#class-text .cm-lintRange-error').count(), 0, 'and no place in the text is marked as wrong');
+
+  assert.equal(await press(page, 'save'), 'Saved as version 2.');
+  assert.deepEqual((await held('Noted')).definition, next);
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('what refuses a class is said first; the notes come once the class is right', async () => {
+  const definition = await aClass('Mixed');
+  const { context, page, wrong } = await atTheText('Mixed');
+  const next = structuredClone(definition);
+  next.variables.urgent = { type: 'bool', label: 'Urgent' };
+  next.transitions[0].to = 'nowhere';
+  await write(page, asText(next));
+
+  // While something refuses the class, the server says that and no note.
+  assert.equal(await press(page, 'check'), 'Checked: one thing to put right.');
+  assert.equal(await page.locator('#findings-box').evaluate((b) => b.classList.contains('alert')), true);
+  assert.equal(await page.locator('#findings-what').innerText(), 'The server would refuse this class.');
+  assert.deepEqual(await findings(page), [['unknown state "nowhere"', '/transitions/0/to']]);
+  assert.ok(await page.locator('#notes-what').isHidden());
+  assert.equal(await page.locator('#notes .finding').count(), 0);
+  assert.equal(await press(page, 'save'), 'Not saved: one thing to put right.');
+  assert.equal((await held('Mixed')).version, 1);
+
+  // Put right, the class is taken, and the note is told.
+  next.transitions[0].to = 'submitted';
+  await write(page, asText(next));
+  assert.equal(await press(page, 'check'), 'Checked: the server takes it, with one note.');
+  assert.equal(await page.locator('#findings-box').evaluate((b) => b.classList.contains('alert')), false);
+  assert.equal(await page.locator('#findings .finding').count(), 0);
+  assert.equal(await page.locator('#notes .finding').count(), 1);
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
 test('a class the server refuses is not saved, and what was typed stays', async () => {
   const definition = await aClass('Refused');
   const { context, page, wrong, commands, answers } = await atTheText('Refused');

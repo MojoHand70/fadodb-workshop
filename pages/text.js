@@ -33,7 +33,8 @@ import {
 /**
  * A place in the text and what is said of it.
  *
- * @typedef {{ from: number, to: number, message: string }} Mark
+ * @typedef {{ from: number, to: number, message: string, note?: boolean }} Mark
+ *   note marks a place that is only remarked on, where nothing is wrong
  */
 
 /**
@@ -237,7 +238,7 @@ export function codeView(parent, { text, label, readOnly = false, onChange }) {
       view.dispatch(
         setDiagnostics(
           view.state,
-          marks.map((mark) => ({ from: Math.min(mark.from, length), to: Math.min(Math.max(mark.to, mark.from), length), severity: 'error', message: mark.message })),
+          marks.map((mark) => ({ from: Math.min(mark.from, length), to: Math.min(Math.max(mark.to, mark.from), length), severity: mark.note ? 'info' : 'error', message: mark.message })),
         ),
       );
     },

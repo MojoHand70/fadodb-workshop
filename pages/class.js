@@ -305,3 +305,43 @@ export function rulesAbout(definition, state) {
     })
     .map((rule) => ruleWords(definition, rule));
 }
+
+/**
+ * What a new class begins as: a small class that works, for a designer
+ * to change. A document of it has a subject, goes from Draft to Done,
+ * and is its author's: its author sees it, changes it while it is a
+ * draft and finishes it. Nobody deletes one.
+ *
+ * It opens nothing to anybody but the author, so a class made in a
+ * hurry shows no document to the wrong person; a designer widens it.
+ *
+ * @param {string} name
+ * @param {string} label
+ * @returns {Definition}
+ */
+export function starter(name, label) {
+  return {
+    name,
+    label: label || name,
+    description: '',
+    title: 'subject',
+    variables: {
+      subject: { type: 'text', required: true, label: 'Subject', description: 'What it is about, in a few words.', list: true },
+    },
+    states: {
+      initial: 'draft',
+      list: ['draft', 'done'],
+      final: ['done'],
+      labels: { draft: 'Draft', done: 'Done' },
+      descriptions: { draft: 'Its author writes it and may change it.', done: 'Finished. It changes no more.' },
+    },
+    transitions: [{ name: 'finish', from: 'draft', to: 'done', label: 'Finish', description: 'Its author says it is done.' }],
+    access: {
+      read: 'CREATEDBY() = USER()',
+      create: 'INGROUP("everyone")',
+      update: 'CREATEDBY() = USER() AND STATE() = "draft"',
+      delete: 'FALSE',
+      transition: { finish: 'CREATEDBY() = USER()' },
+    },
+  };
+}
