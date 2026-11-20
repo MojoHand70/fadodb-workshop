@@ -121,9 +121,9 @@ const textsOf = (page, selector) => page.locator(selector).evaluateAll((all) => 
 const linesOf = (box) => box.locator('.line').evaluateAll((all) => all.map((one) => [one.querySelector('.line-what')?.textContent ?? '', one.querySelector('.line-answer')?.textContent ?? '']));
 
 test('Dan, a designer, is offered Design beside each class and on a list; Jan is not', async () => {
-  const first = await at(dan, '');
-  assert.deepEqual(await textsOf(first.page, '.loose-design'), ['Design', 'Design', 'Design', 'Design'], 'one for each class, none of which is in an app: Substitution, Expense, Margin, Trip');
-  const way = first.page.locator('[data-class="Expense"] .loose-design');
+  const first = await at(dan, 'app.html?unassigned');
+  assert.deepEqual(await textsOf(first.page, '.tile-design-way'), ['Design', 'Design', 'Design', 'Design'], 'one for each class, none of which is in an app: Substitution, Expense, Margin, Trip');
+  const way = first.page.locator('[data-class="Expense"] .tile-design-way');
   assert.equal(await way.getAttribute('href'), 'design.html?class=Expense');
   assert.equal(await way.getAttribute('aria-label'), 'Design Expense');
   assert.deepEqual(first.wrong, []);
@@ -134,9 +134,9 @@ test('Dan, a designer, is offered Design beside each class and on a list; Jan is
   assert.equal(await list.page.locator('#design').getAttribute('href'), 'design.html?class=Expense');
   await list.context.close();
 
-  const plain = await at(jan, '');
-  assert.equal(await plain.page.locator('.loose-design').count(), 0);
-  assert.equal(await plain.page.locator('.loose-way').count(), 4, 'and the ways to the lists are there');
+  const plain = await at(jan, 'app.html?unassigned');
+  assert.equal(await plain.page.locator('.tile-design-way').count(), 0);
+  assert.equal(await plain.page.locator('#lists .tile-name').count(), 4, 'and the ways to the lists are there');
   await plain.context.close();
   const janList = await at(jan, 'list.html?class=Expense');
   assert.ok(await janList.page.locator('#design').isHidden());
@@ -144,10 +144,10 @@ test('Dan, a designer, is offered Design beside each class and on a list; Jan is
   await janList.context.close();
 });
 
-test('Dan opens the design of Expense from the first page: its name, its version and who defined it', async () => {
-  const { context, page, wrong, answers, commands } = await at(dan, '');
+test('Dan opens the design of Expense from Unassigned: its name, its version and who defined it', async () => {
+  const { context, page, wrong, answers, commands } = await at(dan, 'app.html?unassigned');
   commands.length = 0;
-  await page.locator('[data-class="Expense"] .loose-design').click();
+  await page.locator('[data-class="Expense"] .tile-design-way').click();
   await page.waitForURL((address) => address.pathname === '/design.html');
   await ready(page);
 
@@ -158,7 +158,7 @@ test('Dan opens the design of Expense from the first page: its name, its version
   assert.equal(await page.locator('#class-about').innerText(), expense.description);
   assert.match(await page.locator('#class-defined').innerText(), /^Defined by Olga Nowak, \d{1,2} \w{3} \d{4}, \d{2}:\d{2}$/);
   assert.equal(await page.locator('#to-list').getAttribute('href'), 'list.html?class=Expense');
-  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Expense', 'Design']);
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Unassigned', 'Expense', 'Design']);
   // The line says what is so today: a part of the class that has got its lists since is no longer named as text only.
   assert.equal(await page.locator('.status').innerText(), 'Design mode: a designer changes a class as text and through the lists, writes its formulas with help, and tries it on a document before saving. Of what a class does by itself, setting a value and putting one back have their fields; any other action is changed in the text.');
   assert.deepEqual(commands, ['whoami', 'get_class', 'list_functions', 'get_user'], 'the page asks the server for the class, for what a formula can call, and for nothing else');

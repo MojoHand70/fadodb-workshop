@@ -11,9 +11,12 @@ What a user of Workshop would see, newest first.
   "Create your first FadoDB application" to a designer. A designer
   makes an app with the name people read, the name formulas write,
   which follows the first, and a sentence on what it is for; and
-  makes a class from the page of its app, so that the class belongs
-  to it. A list that belongs to no app stands after the apps. It
-  needs a FadoDB server that knows apps (the engine's ADR-0077).
+  makes a class from the page of its app, by the last tile there as
+  an app is added on the first page, so that the class belongs to
+  it. The lists that belong to no app stand together under
+  "Unassigned", last in the rail, and a page about one of them names
+  Unassigned on the way back. It needs a FadoDB server that knows
+  apps (the engine's ADR-0077).
 - The first page no longer carries a line on how far Workshop is; the
   README says it. A box finds an app by a part of its name, of what it
   is for or of a list in it, typed without capitals or the marks over

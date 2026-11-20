@@ -1,12 +1,13 @@
 // The first page: the apps of the server. An app is a tile with its
-// name, what it is for, and the lists a person opens in it.
+// name, what it is for, and the lists a person opens in it. The lists
+// that belong to no app stand together under Unassigned, in the rail.
 //
 // A person opens a list by the name its documents go by. That there is
 // a class behind each list is the designer's to know: the name of a
 // class, the way to its design and the making of an app or a class are
 // shown to a designer alone.
 
-import { appAddress, counted, designAddress, drawRail, listAddress, listWay, readApps } from './apps.js';
+import { appAddress, drawRail, listWay, readApps } from './apps.js';
 import { found } from './find.js';
 import { enter, make, part, ready, show } from './shell.js';
 
@@ -66,38 +67,13 @@ function addTile() {
 }
 
 /**
- * A list that belongs to no app, as a row.
- *
- * @param {import('./apps.js').List} list
- * @param {boolean} designer
- */
-function looseRow(list, designer) {
-  const item = make('li', 'loose-list');
-  item.dataset.class = list.name;
-  const way = make('a', 'loose-way');
-  way.setAttribute('href', listAddress(list.name));
-  way.append(make('span', 'loose-name', list.label));
-  const count = counted(list.count);
-  if (count) way.append(make('span', 'tile-count', count));
-  item.append(way);
-  if (designer) {
-    item.append(make('code', 'class-name', list.name));
-    const design = make('a', 'loose-design', 'Design');
-    design.setAttribute('href', designAddress(list.name));
-    design.setAttribute('aria-label', `Design ${list.one}`);
-    item.append(design);
-  }
-  return item;
-}
-
-/**
  * Draws the page from what the server holds.
  *
  * @param {boolean} designer
  */
 async function draw(designer) {
   const { apps, loose } = await readApps();
-  drawRail(part('rail'), apps, '');
+  drawRail(part('rail'), apps, loose.length > 0, './');
   listed = [];
 
   const tiles = part('apps');
@@ -113,7 +89,7 @@ async function draw(designer) {
   }
   if (designer && apps.length > 0) tiles.append(addTile());
   tiles.hidden = apps.length === 0;
-  part('find-box').hidden = apps.length + loose.length === 0;
+  part('find-box').hidden = apps.length === 0;
 
   // A server with no app yet says what to do first.
   const first = part('first-app');
@@ -123,16 +99,6 @@ async function draw(designer) {
     ? 'An app holds what belongs together: the expenses of a company, its help desk.'
     : 'A designer makes the first one.';
   part('first-go').hidden = !designer;
-
-  const rows = part('loose-lists');
-  rows.replaceChildren();
-  for (const list of loose) {
-    const item = looseRow(list, designer);
-    rows.append(item);
-    listed.push({ says: designer ? [list.label, list.one, list.about, list.name] : [list.label, list.one, list.about], item, href: listAddress(list.name) });
-  }
-  part('loose').hidden = loose.length === 0;
-  part('loose-title').textContent = designer ? 'Not in an app yet' : 'Other lists';
 }
 
 /** Shows of what is listed only what the person typed a part of. */
