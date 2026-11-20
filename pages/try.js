@@ -1,10 +1,13 @@
-// The class as the text stands, tried on a new document.
+// The class as the text stands, tried on a document: a new one, or one
+// the server holds.
 //
 // A designer gives the document values, and the server answers what
 // would come of it: what the class works out, the state the document
 // is in, the ways out then open, what the class does by itself, and
-// what it would refuse. The server writes nothing: the command is
-// preview_draft, which takes a definition that is not stored.
+// what it would refuse. On a document the server holds he may take a
+// way out too, and see where the document goes and what the class does
+// on the way. The server writes nothing: the command is preview_draft,
+// which takes a definition that is not stored.
 //
 // The page judges nothing here either. It sends what was typed, as a
 // document's own page would, and shows the answer.
@@ -71,13 +74,28 @@ function didWords(step) {
  * @param {HTMLElement} how.result where the answer goes
  * @param {HTMLElement} how.said one line: what came of the last try
  * @param {() => Record<string, any> | null} how.draft the class as the text stands, null when it cannot be read
+ * @param {() => Promise<any[]>} how.documents the documents of the class the server holds that the person may see, the last made first; none for a class that is not stored
  * @param {{ locale: string, yes?: string, no?: string }} how.person
  * @returns {{ draw: () => void }}
  */
-export function tryView({ root, form, result, said, draft, person }) {
-  /** What the person gave the document, by variable, as the wire carries it. */
-  /** @type {Record<string, any>} */
-  const tried = {};
+export function tryView({ root, form, result, said, draft, documents, person }) {
+  /** The document the class is tried on: the id of one the server holds, or '' for a new one. */
+  let on = '';
+  /** The way out taken in the try, by the name of its transition, or '' for none. */
+  let taking = '';
+  /** The documents the person may choose from, as the server last listed them. */
+  /** @type {any[]} */
+  let known = [];
+  /** What the person gave each document, by variable, as the wire carries it: kept apart for a new document and for each the server holds. */
+  /** @type {Map<string, Record<string, any>>} */
+  const typedFor = new Map();
+  /** What the person gave the document the class is tried on now. */
+  let tried = /** @type {Record<string, any>} */ ({});
+  /** The number of the last drawing: a list of documents that comes back for an older one is left alone. */
+  let drawn = 0;
+
+  /** What the document holds before the person gives it anything: the values of one the server holds, nothing for a new one. */
+  const base = () => /** @type {Record<string, any>} */ (known.find((one) => one?.id === on)?.values ?? {});
   /** The fields the page cannot read, each with why. */
   /** @type {Map<string, string>} */
   const unread = new Map();
@@ -100,7 +118,7 @@ export function tryView({ root, form, result, said, draft, person }) {
 
   /** The currency another amount of the document already has, for an amount that has none yet. */
   const currency = () => {
-    for (const value of Object.values(tried)) {
+    for (const value of [...Object.values(tried), ...Object.values(base())]) {
       const found = /^-?\d+(?:\.\d+)? ([A-Z]{3})$/.exec(String(value));
       if (found) return found[1];
     }
@@ -136,7 +154,7 @@ export function tryView({ root, form, result, said, draft, person }) {
     box.dataset.variable = name;
     const label = make('dt', 'field-label');
     const computed = variable.formula !== undefined;
-    const set = computed ? null : control({ id: `t-${name}`, variable, type: variable.type, value: tried[name] ?? null, locale: person.locale, label: labelOf(definition, name), currency });
+    const set = computed ? null : control({ id: `t-${name}`, variable, type: variable.type, value: Object.hasOwn(tried, name) ? tried[name] : (base()[name] ?? null), locale: person.locale, label: labelOf(definition, name), currency });
     if (computed) {
       const mark = make('span', 'fx', 'fx');
       mark.setAttribute('title', 'Worked out by the class');
@@ -169,8 +187,9 @@ export function tryView({ root, form, result, said, draft, person }) {
           } else {
             unread.delete(name);
             tell(name, '');
-            // A value taken away is no value given: the class gives its own first value again.
-            if (read.wire === null) delete tried[name];
+            // What is as the document holds it already is no value given. For a new document that is
+            // a field left empty, and the class gives its own first value again.
+            if (JSON.stringify(read.wire) === JSON.stringify(base()[name] ?? null)) delete tried[name];
             else tried[name] = read.wire;
           }
           delete root.dataset.tried;
@@ -228,7 +247,8 @@ export function tryView({ root, form, result, said, draft, person }) {
     }
     for (const [name, first] of firsts) {
       const variable = definition.variables?.[name] ?? {};
-      const given = Object.hasOwn(tried, name);
+      // A field of a new document that is left empty begins as the class makes it; one the server holds has what it holds.
+      const given = on !== '' || Object.hasOwn(tried, name);
       const shown = given ? '' : show(values[name], { type: variable.type, format: variable.format }, person);
       first.textContent = shown === '' ? '' : `Left empty, it begins as ${shown}.`;
       tell(name, '');
@@ -243,15 +263,32 @@ export function tryView({ root, form, result, said, draft, person }) {
       result.append(box);
       return box;
     };
+    const states = statesOf(definition);
+    /** @param {unknown} name */
+    const stateLabel = (name) => states.find((one) => one.name === name)?.label ?? String(name ?? '');
+    /** @type {any[]} */
+    const transitions = Array.isArray(definition.transitions) ? definition.transitions : [];
+    /** @param {unknown} name */
+    const wayLabel = (name) => String(transitions.find((one) => one?.name === name)?.label || name || 'with no name');
+
+    if (taking) {
+      const taken = block('try-taken', 'The way taken');
+      taken.append(make('p', 'card-about', `${wayLabel(taking)}. What follows is the document after it.`), untake());
+    }
+
     /** @type {any[]} */
     const errors = Array.isArray(preview?.errors) ? preview.errors : [];
     if (errors.length > 0) {
-      const missing = block('try-missing', 'What it lacks');
+      const missing = block('try-missing', 'What stands in the way');
       const list = make('ul', 'plain');
       for (const error of errors) {
         const one = make('li', '', String(error?.message ?? error?.code ?? ''));
         if (error?.variable) one.dataset.variable = String(error.variable);
+        // Where the server says which line decided, a designer reads it here: it is the line to change.
+        if (error?.hint) one.append(make('span', 'try-hint', String(error.hint)));
         list.append(one);
+        // A value that is needed is said here alone; a value that is refused is said at its field too.
+        if (error?.variable && error?.code !== 'required') tell(String(error.variable), String(error?.message ?? ''));
       }
       missing.append(make('p', 'card-about', 'The server would not keep the document as it is.'), list);
     }
@@ -266,30 +303,41 @@ export function tryView({ root, form, result, said, draft, person }) {
       row.append(make('dt', 'line-what', what), value);
       lines.append(row);
     };
-    const states = statesOf(definition);
-    /** @param {unknown} name */
-    const stateLabel = (name) => states.find((one) => one.name === name)?.label ?? String(name ?? '');
     line('try-title', 'its title', String(preview?.document?.title ?? '') || '—');
     line('try-state', 'its state', stateLabel(preview?.document?.state) || '—');
+    /** @type {unknown[]} */
+    const path = Array.isArray(preview?.path) ? preview.path : [];
+    if (path.length > 1) line('try-path', 'it went', path.map(stateLabel).join(', then '));
     facts.append(lines);
 
     /** @type {any[]} */
     const open = Array.isArray(preview?.transitions) ? preview.transitions : [];
-    const ways = block('try-ways', 'Ways out, for you, now');
+    const ways = block('try-ways', taking ? 'Ways out after it, for you' : 'Ways out, for you, now');
     if (open.length === 0) ways.append(make('p', 'card-about', 'None.'));
     else {
       const list = make('ul', 'plain');
-      /** @type {any[]} */
-      const transitions = Array.isArray(definition.transitions) ? definition.transitions : [];
       for (const way of open) {
-        const label = String(transitions.find((one) => one?.name === way?.name)?.label || way?.name || 'with no name');
-        const one = make('li', 'try-way', `${label}, to ${stateLabel(way?.to)}: `);
+        const one = make('li', 'try-way', `${wayLabel(way?.name)}, to ${stateLabel(way?.to)}: `);
         one.dataset.transition = String(way?.name ?? '');
         one.dataset.open = String(way?.enabled === true);
         one.append(make('span', way?.enabled === true ? 'try-open' : 'nobody', way?.enabled === true ? 'open' : `closed, ${whyClosed(String(way?.code ?? ''))}`));
+        // A way out is taken by a document the server holds, one way a try.
+        if (on !== '' && !taking && way?.enabled === true && way?.name) {
+          const take = make('button', 'button button-plain button-small try-take', 'Take it');
+          take.setAttribute('type', 'button');
+          take.setAttribute('aria-label', `Take ${wayLabel(way.name)}`);
+          take.addEventListener('click', () => {
+            taking = String(way.name);
+            delete root.dataset.tried;
+            void ask();
+          });
+          one.append(' ', take);
+        }
         list.append(one);
       }
       ways.append(list);
+      if (on === '') ways.append(make('p', 'card-about try-no-taking', 'A way out is taken by a document the server holds: choose one above to try it.'));
+      else if (taking) ways.append(make('p', 'card-about', 'One way out a try: these are shown, not taken.'));
     }
 
     /** @type {any[]} */
@@ -309,7 +357,21 @@ export function tryView({ root, form, result, said, draft, person }) {
         did.append(one);
       }
     }
-    said.textContent = errors.length > 0 ? 'Tried. The server would not keep this document yet; it wrote nothing.' : 'Tried: the server would take this document. It wrote nothing.';
+    if (taking) said.textContent = errors.length > 0 ? `Tried, with ${wayLabel(taking)} taken. The server would not keep the document so; it wrote nothing.` : `Tried: ${wayLabel(taking)} would be taken. The server wrote nothing.`;
+    else said.textContent = errors.length > 0 ? 'Tried. The server would not keep this document yet; it wrote nothing.' : 'Tried: the server would take this document. It wrote nothing.';
+  }
+
+  /** A button that takes the way out back: the document is tried again as it stood before it. */
+  function untake() {
+    const back = make('button', 'button button-plain button-small', 'Try it without');
+    back.id = 'try-untake';
+    back.setAttribute('type', 'button');
+    back.addEventListener('click', () => {
+      taking = '';
+      delete root.dataset.tried;
+      void ask();
+    });
+    return back;
   }
 
   /** Takes away what an earlier try answered: it is not what would come of the document as it stands now. */
@@ -333,6 +395,15 @@ export function tryView({ root, form, result, said, draft, person }) {
       return;
     }
     const message = refusal instanceof Error ? refusal.message : String(refusal);
+    if (taking) {
+      // The way out is not one the server lets this document take, as things stand: said, with the way back.
+      const taken = make('section', 'inner');
+      taken.id = 'try-taken';
+      taken.append(make('h3', '', 'The way not taken'), make('p', 'card-about', refusal instanceof Refused && refusal.hint ? `${message}. ${refusal.hint}` : message), untake());
+      result.append(taken);
+      said.textContent = 'Not taken: the server would not let the document go this way.';
+      return;
+    }
     if (refusal instanceof Refused && refusal.variable && whys.has(refusal.variable)) {
       tell(refusal.variable, refusal.hint ? `${message}. ${refusal.hint}` : message);
       said.textContent = 'Not tried: the server does not take one of the values.';
@@ -346,7 +417,8 @@ export function tryView({ root, form, result, said, draft, person }) {
     const mine = ++asked;
     const definition = draft();
     if (!definition) return;
-    const sent = JSON.stringify(tried);
+    // What the page asks about: the values given, the document, and the way out taken.
+    const sent = `${JSON.stringify(tried)}${on ? ` on ${on}` : ''}${taking ? ` taking ${taking}` : ''}`;
     if (unread.size > 0) {
       blank();
       said.textContent = `Not tried: ${unread.size === 1 ? 'one field' : `${unread.size} fields`} cannot be read.`;
@@ -354,7 +426,11 @@ export function tryView({ root, form, result, said, draft, person }) {
       return;
     }
     try {
-      const { preview } = await call('preview_draft', { definition, values: { ...tried } });
+      /** @type {Record<string, any>} */
+      const what = { definition, values: { ...tried } };
+      if (on) what.id = on;
+      if (taking) what.transition = taking;
+      const { preview } = await call('preview_draft', what);
       if (mine !== asked) return;
       render(definition, preview);
     } catch (refusal) {
@@ -365,30 +441,94 @@ export function tryView({ root, form, result, said, draft, person }) {
     root.dataset.tried = sent;
   }
 
+  /**
+   * The choice of the document the class is tried on.
+   *
+   * @param {Record<string, any>} definition
+   */
+  function chooser(definition) {
+    const box = make('div', 'field try-on');
+    const label = make('p', 'field-label');
+    const forField = make('label', '', 'Try it on');
+    forField.setAttribute('for', 'try-on');
+    label.append(forField);
+    const select = /** @type {HTMLSelectElement} */ (make('select', 'input'));
+    select.id = 'try-on';
+    const states = statesOf(definition);
+    const first = /** @type {HTMLOptionElement} */ (make('option', '', 'A new document'));
+    first.value = '';
+    select.append(first);
+    for (const one of known) {
+      const state = states.find((it) => it.name === one?.state)?.label ?? String(one?.state ?? '');
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', `${String(one?.title || one?.id)}, ${state}${one?.created_by ? `, made by ${one.created_by}` : ''}`));
+      option.value = String(one?.id ?? '');
+      select.append(option);
+    }
+    select.value = on;
+    select.addEventListener('change', () => {
+      on = select.value;
+      taking = '';
+      build();
+    });
+    box.append(
+      label,
+      select,
+      make(
+        'p',
+        'field-about',
+        known.length > 0
+          ? 'A new document, or one of the last made that the server holds and you may see. It is tried as you: what you may set and take is what the class lets you.'
+          : 'A new document, tried as you. The server holds no document of this class that you may see.',
+      ),
+    );
+    return box;
+  }
+
+  /** Draws the fields for the document the class is tried on, and asks the server about it. */
+  function build() {
+    clearTimeout(waiting);
+    delete root.dataset.tried;
+    cells.clear();
+    firsts.clear();
+    whys.clear();
+    unread.clear();
+    form.replaceChildren();
+    result.replaceChildren();
+    const definition = draft();
+    if (!definition) {
+      said.textContent = 'The text cannot be read as a class just now. Put it right under Text first.';
+      return;
+    }
+    if (on !== '' && !known.some((one) => one?.id === on)) on = '';
+    if (on === '') taking = '';
+    if (!typedFor.has(on)) typedFor.set(on, {});
+    tried = /** @type {Record<string, any>} */ (typedFor.get(on));
+    // What was typed for a variable the class no longer has, or now works out, is no value to give.
+    for (const name of Object.keys(tried)) {
+      const variable = definition.variables?.[name];
+      if (!variable || variable.formula !== undefined) delete tried[name];
+    }
+    said.textContent = '';
+    form.append(chooser(definition));
+    for (const part of outline(definition)) form.append(partOf(definition, part, 0));
+    if (Object.keys(definition.variables ?? {}).length === 0) form.append(make('p', 'card-about', 'This class has no variable.'));
+    void ask();
+  }
+
   return {
     draw() {
-      clearTimeout(waiting);
+      const mine = ++drawn;
       delete root.dataset.tried;
-      cells.clear();
-      firsts.clear();
-      whys.clear();
-      unread.clear();
-      form.replaceChildren();
-      result.replaceChildren();
-      const definition = draft();
-      if (!definition) {
-        said.textContent = 'The text cannot be read as a class just now. Put it right under Text first.';
-        return;
-      }
-      // What was typed for a variable the class no longer has, or now works out, is no value to give.
-      for (const name of Object.keys(tried)) {
-        const variable = definition.variables?.[name];
-        if (!variable || variable.formula !== undefined) delete tried[name];
-      }
-      said.textContent = '';
-      for (const part of outline(definition)) form.append(partOf(definition, part, 0));
-      if (Object.keys(definition.variables ?? {}).length === 0) form.append(make('p', 'card-about', 'This class has no variable.'));
-      void ask();
+      // A text that cannot be read is said at once: there is nothing to ask the server about.
+      if (!draft()) return build();
+      // The documents to choose from are asked for each time the view is shown: one may have been made since.
+      documents()
+        .catch(() => [])
+        .then((all) => {
+          if (mine !== drawn) return;
+          known = Array.isArray(all) ? all : [];
+          build();
+        });
     },
   };
 }

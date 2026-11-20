@@ -67,11 +67,13 @@ and "Later" change. "Add a rule" asks the event and the value the
 rule sets, for a rule does at least one thing.
 
 **A class is tried before it is saved**, under "Try", beside the lists
-and the text. The view shows a new document of the class as the text
-stands: the designer gives it values, as on the page of a document,
-and the server answers what the class works out, the state the
-document is in, the ways out then open, what the class does by itself,
-and what it would refuse. The server writes nothing.
+and the text. The view shows a document of the class as the text
+stands, a new one or one the server holds: the designer gives it
+values, as on the page of a document, and the server answers what the
+class works out, the state the document is in, the ways out then
+open, what the class does by itself, and what it would refuse, with
+the line that decides. On a document the server holds he takes a way
+out too, and sees where the document goes. The server writes nothing.
 
 **A formula is written in the formula editor**, wherever the lists
 have one: what the class works out, a first value, the title of a
@@ -87,9 +89,9 @@ What is not there yet: a value that is a list, rows or an object is
 shown and cannot be set; in the design mode, of what a class does by
 itself, only setting a value and putting one back have fields, and
 every other action of a rule, such as calling another system, is
-changed in the text; a class is tried on a new document only, not yet
-on one the server holds nor by taking a transition; and Workshop has
-no packaged release, so it is run from this
+changed in the text; a class is tried as the designer himself, not
+yet as another person, and with one transition a try; and Workshop
+has no packaged release, so it is run from this
 repository, with a FadoDB server built from the engine's source, newer
 than its release 0.6.0. This page will say so until that changes.
 

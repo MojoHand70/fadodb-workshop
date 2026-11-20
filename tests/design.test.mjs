@@ -159,7 +159,7 @@ test('Dan opens the design of Expense from the first page: its name, its version
   assert.match(await page.locator('#class-defined').innerText(), /^Defined by Olga Nowak, \d{1,2} \w{3} \d{4}, \d{2}:\d{2}$/);
   assert.equal(await page.locator('#to-list').getAttribute('href'), 'list.html?class=Expense');
   // The line says what is so today: a part of the class that has got its lists since is no longer named as text only.
-  assert.equal(await page.locator('.status').innerText(), 'Design mode: a designer changes a class as text and through the lists, writes its formulas with help, and tries it on a new document before saving. Of what a class does by itself, setting a value and putting one back have their fields; any other action is changed in the text.');
+  assert.equal(await page.locator('.status').innerText(), 'Design mode: a designer changes a class as text and through the lists, writes its formulas with help, and tries it on a document before saving. Of what a class does by itself, setting a value and putting one back have their fields; any other action is changed in the text.');
   assert.deepEqual(commands, ['whoami', 'get_class', 'list_functions', 'get_user'], 'the page asks the server for the class, for what a formula can call, and for nothing else');
   assert.deepEqual(answers, []);
   assert.deepEqual(wrong, []);

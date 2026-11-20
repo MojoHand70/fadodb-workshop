@@ -570,6 +570,9 @@ h1 {
 .card .try-first:empty { display: none; }
 .try-way { padding: 2px 0; }
 .try-open { color: var(--ink); font-weight: 600; }
+.try-hint { display: block; color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
+.try-on { margin: 0 0 16px; padding: 0 0 16px; border-bottom: 1px solid var(--line-2); }
+.try-take { margin-left: 6px; }
 .place-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 0; }
 .place-row .button[aria-disabled="true"] { opacity: 0.5; cursor: default; }
 .action-place { align-items: center; margin: 0; }

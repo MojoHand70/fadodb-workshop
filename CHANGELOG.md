@@ -4,6 +4,17 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: a class is tried on a document the server holds as
+  well, and a way out is taken in the try. "Try it on" offers a new
+  document and the last made of the class that the designer may see.
+  A document the server holds shows the values it holds; what the
+  designer changes is tried, as he himself would change it, and a
+  value he may not set is said at its field with the line of the
+  class that decides. An open way out has "Take it": the view then
+  shows where the document goes, what the class does by itself on the
+  way, and the ways out after it. A way the document cannot take as it
+  stands is said in the server's words, with the way back. The server
+  writes nothing, and one way out is taken a try.
 - Design mode: a class is tried before it is saved. "Try", beside
   Lists and Text, shows a new document of the class as the text
   stands. The designer gives it values, in the fields a document's own
