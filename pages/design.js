@@ -1214,8 +1214,26 @@ function follow() {
   part('class-changed').hidden = making || !changed;
   /** @type {HTMLButtonElement} */ (part('discard')).disabled = !changed;
   /** @type {HTMLButtonElement} */ (part('save')).disabled = !making && !changed;
-  part('save').textContent = making ? 'Make the class' : changed ? `Save as version ${held.version + 1}` : 'Save';
+  say(part('save'), making ? 'Make the class' : changed ? `Save as version ${held.version + 1}` : 'Save');
   if (found) part('findings-hint').textContent = 'The text has changed since. Check again.';
+}
+
+/**
+ * Writes the words of an element, and leaves it alone when they are
+ * its words already.
+ *
+ * This runs while a press of the mouse is under way: a field at the
+ * side gives its text when the cursor leaves it, which a press on a
+ * button makes it do. A button whose words are written again between
+ * the press and the release is, to WebKit, no longer the button that
+ * was pressed, and the press is lost: a designer in Safari would type
+ * in a field, press Save, and see nothing happen.
+ *
+ * @param {HTMLElement} element
+ * @param {string} words
+ */
+function say(element, words) {
+  if (element.textContent !== words) element.textContent = words;
 }
 
 /** Takes what was found off the page. */
