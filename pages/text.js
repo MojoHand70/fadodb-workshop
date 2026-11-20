@@ -427,9 +427,13 @@ export function formulaBox(parent, { text, label, describedBy = '', readOnly = f
           ...historyKeymap,
           ...defaultKeymap,
         ]),
-        // What is pasted in several lines becomes one.
-        EditorView.clipboardInputFilter.of((pasted) => pasted.replace(/\s*\n\s*/g, ' ')),
-        EditorState.transactionFilter.of((tr) => (tr.docChanged && tr.newDoc.lines > 1 ? [] : tr)),
+        // A formula is one line. What comes in as several, pasted or put
+        // in by a tool, becomes one, with a space where a line ended.
+        EditorState.transactionFilter.of((tr) => {
+          if (!tr.docChanged || tr.newDoc.lines === 1) return tr;
+          const one = tr.newDoc.toString().replace(/\s*\n\s*/g, ' ');
+          return { changes: { from: 0, to: tr.startState.doc.length, insert: one }, selection: { anchor: one.length } };
+        }),
         EditorState.readOnly.of(readOnly),
         EditorView.contentAttributes.of(describedBy ? { 'aria-label': label, 'aria-describedby': describedBy } : { 'aria-label': label }),
         EditorView.updateListener.of((update) => {

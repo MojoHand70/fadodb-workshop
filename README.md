@@ -40,11 +40,21 @@ that say who may see, make, change and delete a document. Variables,
 states and ways out are added and removed there too. A change goes
 into the text at once, and Undo takes it back.
 
+**A formula is written in the formula editor**, wherever the lists
+have one: what the class works out, a first value, the title of a
+document, who may, the condition of a transition. Its pieces are
+coloured. As the designer types, the names that may be written are
+offered: the variables of the class, and the functions of the engine,
+which the server hands out itself. Under the box stands the function
+the cursor is in, with its arguments and the one being written. A
+moment after the typing stops the server is asked about the formula,
+and what it finds is marked at its place.
+
 What is not there yet: a value that is a list, rows or an object is
 shown and cannot be set; in the design mode the rights of single
 variables and what a class does by itself are changed in the text
-only, and there is no formula editor, so a formula is typed in a plain
-field; and Workshop has no packaged release, so it is run from this
+only, and a formula cannot be tried on a document yet; and Workshop
+has no packaged release, so it is run from this
 repository, with a FadoDB server built from the engine's source, newer
 than its release 0.6.0. This page will say so until that changes.
 
@@ -66,7 +76,7 @@ The decisions and the reasons for them are in
 
 | | |
 |---|---|
-| `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, the design of a class, Workshop's door to the server (`fado.js`), the live document (`live.js`), how a value is shown to a person and read from their typing (`format.js`, `input.js`), how a class is read for the designer's lists (`class.js`), and the text box of the design mode (`text.js`). |
+| `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, the design of a class, Workshop's door to the server (`fado.js`), the live document (`live.js`), how a value is shown to a person and read from their typing (`format.js`, `input.js`), how a class is read and changed for the designer's lists (`class.js`), how a formula is read for its editor (`formula.js`), and the two text boxes of the design mode (`text.js`). |
 | `pages/vendor/` | Made by `npm run vendor`, not kept here: the engine's file for the browser, and CodeMirror, which stands under the text box, built into one file with its licences beside it. |
 | `tools/vendor.mjs`, `tools/codemirror.entry.mjs` | What makes `pages/vendor/`, and the list of what Workshop takes from CodeMirror. |
 | `tools/serve.mjs` | A helper that hands out `pages/` with no FadoDB server behind them, to look at a page as it is drawn. |

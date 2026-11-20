@@ -267,6 +267,19 @@ test('a moment after the typing stops the server is asked, and what it finds is 
   await context.close();
 });
 
+test('typed letter by letter, a formula is asked of the server once, when the typing stops', async () => {
+  await aClass('Patient');
+  const { context, page, wrong, commands } = await atTheLists('Patient', '&variable=total');
+  await into(page, '#v-formula');
+  commands.length = 0;
+  await page.keyboard.type('net + vat + 1', { delay: 15 });
+  await checked(page, '#v-formula', 'net + vat + 1');
+  assert.deepEqual(commands, ['validate_class'], 'thirteen letters, one question');
+  assert.equal(await page.locator('#v-formula-why').innerText(), '');
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
 test('Enter, or leaving the box, puts the formula into the class as one step', async () => {
   const definition = await aClass('Entered');
   const { context, page, wrong } = await atTheLists('Entered', '&variable=vat');
@@ -293,13 +306,9 @@ test('Enter, or leaving the box, puts the formula into the class as one step', a
   assert.equal(await page.locator('.var[data-variable="vat"] .var-kind').innerText(), 'fx ROUND(net * vat_rate, 3)');
   assert.equal(await formulaOf(page, '#v-formula'), 'ROUND(net * vat_rate, 3)');
 
-  // What is pasted in several lines becomes one.
+  // A formula is one line: what comes in as several becomes one.
   await into(page, '#v-formula');
-  await page.evaluate(() => {
-    const data = new DataTransfer();
-    data.setData('text/plain', 'IF(net > 0,\n   net,\n   0)');
-    document.querySelector('#v-formula .cm-content')?.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
-  });
+  await page.keyboard.insertText('IF(net > 0,\n   net,\n   0)');
   assert.equal(await formulaOf(page, '#v-formula'), 'IF(net > 0, net, 0)');
   assert.deepEqual(wrong, []);
   await context.close();
