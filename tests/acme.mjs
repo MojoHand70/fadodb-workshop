@@ -194,8 +194,10 @@ export async function signIn(page, site, server, user = 'ann') {
       await second.fill(digits(key));
       await second.press('Enter');
       // Then the server shows codes for a lost phone, this once, and
-      // the person goes on.
-      const on = page.getByText('Go on', { exact: true });
+      // the person goes on by a link. The page of the six digits has a
+      // button of the same words, "Go on": it is the link that is
+      // waited for, or the button would be pressed a second time.
+      const on = page.getByRole('link', { name: 'Go on', exact: true });
       await Promise.race([page.waitForURL(site.url), on.waitFor()]);
       if (await on.count()) await on.click();
     }
