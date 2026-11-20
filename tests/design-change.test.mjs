@@ -230,8 +230,15 @@ test('a field typed in and not left is taken when Dan presses something else', a
   assert.equal(await page.locator('#about-title').innerText(), 'Approved');
   assert.equal(await row(page, 'note').locator('.var-about').innerText(), 'Typed, then a state.');
 
-  // He types and presses Save.
+  // He types and presses Save. The button must be the same button when
+  // the mouse is released as when it was pressed: its words are not
+  // written again while they stay the same. WebKit loses the press
+  // otherwise, and only WebKit shows it; this holds it in every browser.
   await choose(page, 'what');
+  await page.evaluate(() => (/** @type {any} */ (window).words = document.getElementById('save')?.firstChild));
+  await page.fill('#v-label', 'Typed, then left');
+  await page.press('#v-label', 'Tab');
+  assert.ok(await page.evaluate(() => document.getElementById('save')?.firstChild === /** @type {any} */ (window).words), 'the words of Save were left alone');
   await page.fill('#v-label', 'Typed, then Save');
   assert.equal(await press(page, 'save'), 'Saved as version 2.');
   const now = (await held('Pressed')).definition;
