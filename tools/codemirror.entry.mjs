@@ -4,7 +4,7 @@
 
 export { EditorState } from '@codemirror/state';
 export { EditorView, highlightActiveLine, keymap, lineNumbers } from '@codemirror/view';
-export { defaultKeymap, history, historyKeymap, isolateHistory } from '@codemirror/commands';
+export { defaultKeymap, history, historyKeymap, isolateHistory, undo } from '@codemirror/commands';
 export { HighlightStyle, bracketMatching, ensureSyntaxTree, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 export { search, searchKeymap } from '@codemirror/search';
 export { setDiagnostics } from '@codemirror/lint';

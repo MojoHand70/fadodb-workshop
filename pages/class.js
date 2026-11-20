@@ -345,3 +345,160 @@ export function starter(name, label) {
     },
   };
 }
+
+// Changing a class through the lists. Each of these takes a class as
+// it is read from its text and changes it in place; the page then
+// writes the text again. None of them judges: whether the class is
+// still right is the server's to say.
+
+/** The types the lists offer for a value people give. Any other is written in the text. */
+export const TYPES = ['text', 'number', 'int', 'decimal', 'money', 'bool', 'date', 'datetime'];
+
+/**
+ * Every section of a class, those inside others after them, each with
+ * how deep it lies.
+ *
+ * @param {Definition} definition
+ * @returns {{ name: string, label: string, depth: number }[]}
+ */
+export function sectionsOf(definition) {
+  /** @type {{ name: string, label: string, depth: number }[]} */
+  const all = [];
+  /** @param {Part[]} parts @param {number} depth */
+  const walk = (parts, depth) => {
+    for (const part of parts) {
+      if (part.name) all.push({ name: part.name, label: part.label, depth });
+      walk(part.parts, part.name ? depth + 1 : depth);
+    }
+  };
+  walk(outline(definition), 0);
+  return all;
+}
+
+/**
+ * Does something with every section of a class as it is written, the
+ * ones inside others too.
+ *
+ * @param {Record<string, any> | undefined} sections
+ * @param {(name: string, section: Record<string, any>) => void} visit
+ */
+function eachSection(sections, visit) {
+  for (const [name, section] of Object.entries(sections ?? {})) {
+    if (!section || typeof section !== 'object') continue;
+    visit(name, section);
+    eachSection(section.sections, visit);
+  }
+}
+
+/**
+ * The section a variable is in, or '' when it is in none.
+ *
+ * @param {Definition} definition
+ * @param {string} variable
+ */
+export function sectionOfVariable(definition, variable) {
+  let found = '';
+  eachSection(definition.sections, (name, section) => {
+    if (!found && texts(section.variables).includes(variable)) found = name;
+  });
+  return found;
+}
+
+/**
+ * Sets one word of a variable, or takes it out: an empty text, false,
+ * an empty list and nothing at all take it out, so that the text of
+ * the class says only what is so.
+ *
+ * @param {Definition} definition
+ * @param {string} variable
+ * @param {string} word label, description, type, required, default and so on
+ * @param {unknown} value
+ */
+export function setWord(definition, variable, word, value) {
+  const it = definition.variables?.[variable];
+  if (!it || typeof it !== 'object') return;
+  const empty = value === undefined || value === null || value === false || value === '' || (Array.isArray(value) && value.length === 0);
+  if (empty) delete it[word];
+  else it[word] = value;
+}
+
+/**
+ * Makes a variable one the class works out by a formula, or one that
+ * people give a value. The words that belong to the other kind are
+ * taken out: a worked-out variable is not required and has no first
+ * value, and a given one has no formula.
+ *
+ * @param {Definition} definition
+ * @param {string} variable
+ * @param {boolean} computed
+ */
+export function setComputed(definition, variable, computed) {
+  const it = definition.variables?.[variable];
+  if (!it || typeof it !== 'object') return;
+  if (computed) {
+    if (it.formula === undefined) it.formula = '';
+    for (const word of ['type', 'required', 'default', 'values', 'min', 'max', 'scale']) delete it[word];
+  } else {
+    for (const word of ['formula', 'mode', 'on']) delete it[word];
+    if (!it.type) it.type = 'text';
+  }
+}
+
+/**
+ * Adds a variable to a class: a text, for the designer to change. In a
+ * section, it goes to the end of that section.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @param {string} section '' for no section
+ */
+export function addVariable(definition, name, section) {
+  if (!definition.variables || typeof definition.variables !== 'object') definition.variables = {};
+  definition.variables[name] = { type: 'text' };
+  if (section) moveVariable(definition, name, section);
+}
+
+/**
+ * Takes a variable out of a class and out of its sections. What still
+ * reads it, a formula or a right, is left as it is: the server says so
+ * when the class is checked.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ */
+export function removeVariable(definition, name) {
+  if (definition.variables) delete definition.variables[name];
+  eachSection(definition.sections, (_, section) => {
+    if (Array.isArray(section.variables)) section.variables = section.variables.filter((/** @type {unknown} */ one) => one !== name);
+  });
+}
+
+/**
+ * Puts a variable into a section, at its end, or into none.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @param {string} section '' for no section
+ */
+export function moveVariable(definition, name, section) {
+  eachSection(definition.sections, (at, it) => {
+    if (Array.isArray(it.variables)) it.variables = it.variables.filter((/** @type {unknown} */ one) => one !== name);
+    if (at === section) it.variables = [...texts(it.variables), name];
+  });
+}
+
+/**
+ * A range end as the class writes it: a number for a number and an
+ * int, and the digits as text for a decimal and a money, which are
+ * exact. What is no number is kept as typed, for the server to refuse
+ * in its words.
+ *
+ * @param {string} typed
+ * @param {string} type
+ */
+export function asRangeEnd(typed, type) {
+  const written = typed.trim();
+  if (written === '') return '';
+  if ((type === 'number' || type === 'int') && /^-?\d+(\.\d+)?$/.test(written)) return Number(written);
+  return written;
+}

@@ -28,6 +28,7 @@ import {
   setDiagnostics,
   syntaxHighlighting,
   tags,
+  undo,
 } from './vendor/codemirror.js';
 
 /**
@@ -51,6 +52,7 @@ import {
  *   holds no such value
  * @property {() => number | null} fault where the text first stops being well-formed JSON, or null
  * @property {() => void} shown tells the box that it came into view: a box made while hidden has not measured itself
+ * @property {() => boolean} undo takes back the last change of the text, typed or put in by the page; false when there is none
  */
 
 /** The colours of a class as text, from the palette of the pages. */
@@ -262,6 +264,10 @@ export function codeView(parent, { text, label, readOnly = false, onChange }) {
 
     shown() {
       view.requestMeasure();
+    },
+
+    undo() {
+      return undo(view);
     },
 
     fault() {

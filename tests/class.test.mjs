@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { kindLine, linesOf, marksOf, outline, rightsIn, rulesAbout, statesOf, waysIn, waysOut, whoMay } from '../pages/class.js';
+import { TYPES, addVariable, asRangeEnd, kindLine, linesOf, marksOf, moveVariable, outline, removeVariable, rightsIn, rulesAbout, sectionOfVariable, sectionsOf, setComputed, setWord, statesOf, waysIn, waysOut, whoMay } from '../pages/class.js';
 
 const expense = JSON.parse(await readFile(new URL('./fixtures/expense.json', import.meta.url), 'utf8'));
 
@@ -152,4 +152,92 @@ test('the rules about a state, and the rules about none', () => {
     { when: 'When net or vat_rate changes', only: '', does: ['http.call (url: "https://books.acme.example", retries: 3)'] },
   ]);
   assert.deepEqual(rulesAbout(expense, 'draft'), []);
+});
+
+// Changing a class through the lists.
+
+/** @returns {any} */
+const fresh = () => structuredClone(expense);
+
+test('a word of a variable is set, and an empty one is taken out', () => {
+  const it = fresh();
+  setWord(it, 'note', 'required', true);
+  setWord(it, 'note', 'label', 'A note');
+  assert.deepEqual(it.variables.note, { type: 'text', label: 'A note', description: 'Anything the approver should know.', required: true });
+  assert.deepEqual(Object.keys(it.variables.note), ['type', 'label', 'description', 'required'], 'a word that was there keeps its place, a new one goes to the end');
+  setWord(it, 'note', 'required', false);
+  setWord(it, 'note', 'description', '');
+  setWord(it, 'what', 'list', false);
+  setWord(it, 'note', 'values', []);
+  assert.deepEqual(it.variables.note, { type: 'text', label: 'A note' });
+  assert.equal('list' in it.variables.what, false);
+  setWord(it, 'nothing', 'label', 'x');
+  assert.equal(it.variables.nothing, undefined, 'a variable the class does not have is not made by the way');
+});
+
+test('a variable becomes worked out, or given, and loses the words of the other kind', () => {
+  const it = fresh();
+  setComputed(it, 'vat_rate', true);
+  assert.deepEqual(it.variables.vat_rate, { label: 'VAT rate', format: '0%', description: 'The rate on the receipt, 23% unless it says otherwise.', formula: '' });
+  assert.equal(kindLine(it.variables.vat_rate), 'fx ');
+  setComputed(it, 'vat', false);
+  assert.deepEqual(it.variables.vat, { label: 'VAT', format: '#,##0.00', description: 'The VAT on the net amount, to the cent.', type: 'text' });
+  setComputed(it, 'total', true);
+  assert.equal(it.variables.total.formula, 'net + vat', 'one that is worked out already keeps its formula');
+});
+
+test('a variable is added to a section or to none, moved, and taken out', () => {
+  const it = fresh();
+  addVariable(it, 'urgent', 'purchase');
+  assert.deepEqual(it.variables.urgent, { type: 'text' });
+  assert.deepEqual(it.sections.purchase.variables, ['what', 'bought_on', 'cost_centre', 'note', 'urgent']);
+  assert.equal(sectionOfVariable(it, 'urgent'), 'purchase');
+
+  addVariable(it, 'loose', '');
+  assert.equal(sectionOfVariable(it, 'loose'), '');
+  assert.deepEqual(outline(it)[0].variables, ['loose']);
+
+  moveVariable(it, 'urgent', 'amounts');
+  assert.deepEqual(it.sections.purchase.variables, ['what', 'bought_on', 'cost_centre', 'note']);
+  assert.deepEqual(it.sections.amounts.variables.at(-1), 'urgent');
+  moveVariable(it, 'urgent', '');
+  assert.equal(sectionOfVariable(it, 'urgent'), '');
+  assert.equal(it.sections.amounts.variables.includes('urgent'), false);
+
+  removeVariable(it, 'net');
+  assert.equal(it.variables.net, undefined);
+  assert.equal(it.sections.amounts.variables.includes('net'), false);
+  assert.equal(it.variables.vat.formula, 'ROUND(net * vat_rate, 2)', 'what reads it is left for the server to find');
+
+  const bare = { name: 'Bare' };
+  addVariable(bare, 'first', '');
+  assert.deepEqual(bare, { name: 'Bare', variables: { first: { type: 'text' } } });
+});
+
+test('sections inside sections are found, each with how deep it lies', () => {
+  const nested = {
+    variables: { a: {}, b: {}, c: {} },
+    sections: { one: { label: 'One', variables: ['a'], sections: { inner: { label: 'Inner', variables: ['b'] } } }, two: { variables: ['c'] } },
+  };
+  assert.deepEqual(sectionsOf(nested), [
+    { name: 'one', label: 'One', depth: 0 },
+    { name: 'inner', label: 'Inner', depth: 1 },
+    { name: 'two', label: 'two', depth: 0 },
+  ]);
+  assert.equal(sectionOfVariable(nested, 'b'), 'inner');
+  moveVariable(nested, 'b', 'two');
+  assert.deepEqual(nested.sections.one.sections.inner.variables, []);
+  assert.deepEqual(nested.sections.two.variables, ['c', 'b']);
+  assert.deepEqual(sectionsOf(expense).map((s) => s.name), ['purchase', 'amounts']);
+  assert.deepEqual(sectionsOf({}), []);
+});
+
+test('the end of a range is written as the type of the variable asks', () => {
+  assert.equal(asRangeEnd('5', 'int'), 5);
+  assert.equal(asRangeEnd(' 2.5 ', 'number'), 2.5);
+  assert.equal(asRangeEnd('0.23', 'decimal'), '0.23', 'an exact number keeps its digits');
+  assert.equal(asRangeEnd('100.00', 'money'), '100.00');
+  assert.equal(asRangeEnd('', 'int'), '');
+  assert.equal(asRangeEnd('five', 'int'), 'five', 'what is no number is kept, for the server to refuse');
+  assert.ok(TYPES.includes('money') && !TYPES.includes('ref'));
 });

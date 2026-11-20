@@ -4,6 +4,18 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: a designer changes the variables of a class through the
+  list. Choosing a variable shows its properties as fields in the card
+  at the side: label, what it is for, whether people give it or the
+  class works it out by a formula, type, required, first value, the
+  values it may take, range, decimal places, whether The List shows
+  it, how it is shown, and its section. A change goes into the text at
+  once; nothing is the server's until Save. "Add a variable" at the
+  end of a section asks its name, which the server is asked about, and
+  opens it at the side. "Remove this variable" takes it out, and the
+  check says what still reads it. Undo takes back one change at a
+  time, whether it was made in the lists or in the text.
+- Beside a long list the card at the side stays in view.
 - Design mode: a designer makes a new class. The first page offers
   "New class" to a designer. The class gets a name, which the server is
   asked about at once, and begins as a small class that works: a
