@@ -4,6 +4,9 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- The pages carry FadoDB's own mark, the one of fadodb.org, beside the
+  words "FadoDB workshop", in place of a blue square with an F that
+  was a stand-in.
 - Design mode: a class is tried on a document the server holds as
   well, and a way out is taken in the try. "Try it on" offers a new
   document and the last made of the class that the designer may see.
