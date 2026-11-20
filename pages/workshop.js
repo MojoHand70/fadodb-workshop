@@ -63,8 +63,6 @@ async function showClasses(designer) {
   const none = part('no-classes');
   none.hidden = names.length > 0;
   none.textContent = designer ? 'There is no class here yet. "New class" makes the first one.' : 'There is nothing here for you yet.';
-  part('home-lead').textContent = designer ? 'Choose a list to open it, or design the class behind it.' : 'Choose a list to open it.';
-  part('home-lead').hidden = names.length === 0;
   part('find-box').hidden = names.length === 0;
 }
 

@@ -63,6 +63,7 @@ test('Ann signs in on the server\'s page and sees her name and the lists she may
   assert.match(await expense.locator('.class-about').innerText(), /What an employee paid for the company/);
   assert.equal(await expense.locator('.class-way').getAttribute('href'), 'list.html?class=Expense');
   assert.equal(await page.locator('.status').count(), 0, 'the page says nothing of how far Workshop is: the README does');
+  assert.equal(await page.locator('#home .lead:visible').count(), 0, 'and no sentence explains the page: a person sees what to open');
   assert.equal(await page.locator('#crumbs').count(), 0, 'the first page is where the way begins');
   assert.deepEqual(wrong, []);
 
