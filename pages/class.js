@@ -502,3 +502,227 @@ export function asRangeEnd(typed, type) {
   if ((type === 'number' || type === 'int') && /^-?\d+(\.\d+)?$/.test(written)) return Number(written);
   return written;
 }
+
+/**
+ * Whether a value is nothing to write: an empty text, false, an empty
+ * list, or nothing at all.
+ *
+ * @param {unknown} value
+ */
+const nothing = (value) => value === undefined || value === null || value === false || value === '' || (Array.isArray(value) && value.length === 0);
+
+/**
+ * Sets one word of the class itself, label, plural, description or
+ * title, or takes it out when it is empty.
+ *
+ * @param {Definition} definition
+ * @param {string} word
+ * @param {unknown} value
+ */
+export function setClassWord(definition, word, value) {
+  if (nothing(value)) delete definition[word];
+  else definition[word] = value;
+}
+
+/**
+ * Sets one of the four lines that say who may do what with a document
+ * as a whole, read, create, update or delete, or takes it out: a line
+ * left out lets nobody through.
+ *
+ * @param {Definition} definition
+ * @param {string} line
+ * @param {string} formula
+ */
+export function setLine(definition, line, formula) {
+  if (!definition.access || typeof definition.access !== 'object') {
+    if (nothing(formula)) return;
+    definition.access = {};
+  }
+  if (nothing(formula)) delete definition.access[line];
+  else definition.access[line] = formula;
+}
+
+/**
+ * Sets the label or the description of a state, or takes it out. The
+ * class keeps both by the name of the state.
+ *
+ * @param {Definition} definition
+ * @param {string} state
+ * @param {'label' | 'description'} word
+ * @param {string} value
+ */
+export function setStateWord(definition, state, word, value) {
+  if (!definition.states || typeof definition.states !== 'object') return;
+  const where = word === 'label' ? 'labels' : 'descriptions';
+  const words = definition.states[where];
+  if (nothing(value)) {
+    if (words && typeof words === 'object') {
+      delete words[state];
+      if (Object.keys(words).length === 0) delete definition.states[where];
+    }
+    return;
+  }
+  if (!words || typeof words !== 'object') definition.states[where] = {};
+  definition.states[where][state] = value;
+}
+
+/**
+ * Makes a state the one a new document starts in.
+ *
+ * @param {Definition} definition
+ * @param {string} state
+ */
+export function setInitial(definition, state) {
+  if (definition.states && typeof definition.states === 'object') definition.states.initial = state;
+}
+
+/**
+ * Makes a state final, one in which a document is finished, or not.
+ * The final states are kept in the order of the states.
+ *
+ * @param {Definition} definition
+ * @param {string} state
+ * @param {boolean} final
+ */
+export function setFinal(definition, state, final) {
+  if (!definition.states || typeof definition.states !== 'object') return;
+  const now = new Set(texts(definition.states.final));
+  if (final) now.add(state);
+  else now.delete(state);
+  const ordered = texts(definition.states.list).filter((one) => now.has(one));
+  if (ordered.length > 0) definition.states.final = ordered;
+  else delete definition.states.final;
+}
+
+/**
+ * Adds a state, after the others. The first state of a class is the
+ * one a new document starts in.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ */
+export function addState(definition, name) {
+  if (!definition.states || typeof definition.states !== 'object') definition.states = { initial: name, list: [] };
+  definition.states.list = [...texts(definition.states.list), name];
+}
+
+/**
+ * Takes a state out of a class, with what is the state's own: its
+ * label, its description, its place among the final states and the
+ * rights written for it. A transition that leaves it or leads to it is
+ * left as it is: where such a move should go now is the designer's to
+ * say, and the server names each when the class is checked.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ */
+export function removeState(definition, name) {
+  const states = definition.states;
+  if (!states || typeof states !== 'object') return;
+  states.list = texts(states.list).filter((one) => one !== name);
+  setFinal(definition, name, false);
+  setStateWord(definition, name, 'label', '');
+  setStateWord(definition, name, 'description', '');
+  if (definition.rights && typeof definition.rights === 'object') {
+    delete definition.rights[name];
+    if (Object.keys(definition.rights).length === 0) delete definition.rights;
+  }
+}
+
+/**
+ * The transitions of a class as they are written, each with its place
+ * in the list. A transition is told by its place: one made by the
+ * engine itself may have no name.
+ *
+ * @param {Definition} definition
+ * @returns {Record<string, any>[]}
+ */
+const moves = (definition) => (Array.isArray(definition.transitions) ? definition.transitions : []);
+
+/**
+ * Sets one word of a transition, label, description, to, guard, after
+ * or at, or takes it out when it is empty.
+ *
+ * @param {Definition} definition
+ * @param {number} at its place in the list
+ * @param {string} word
+ * @param {unknown} value
+ */
+export function setMoveWord(definition, at, word, value) {
+  const move = moves(definition)[at];
+  if (!move || typeof move !== 'object') return;
+  if (nothing(value)) delete move[word];
+  else move[word] = value;
+}
+
+/**
+ * Sets who may take a transition: the line the class keeps for it. An
+ * empty one takes the line out, and the transition then asks the line
+ * of the class for changing a document.
+ *
+ * @param {Definition} definition
+ * @param {number} at its place in the list
+ * @param {string} formula
+ */
+export function setMoveWho(definition, at, formula) {
+  const name = moves(definition)[at]?.name;
+  if (name === undefined) return;
+  if (nothing(formula)) {
+    const lines = definition.access?.transition;
+    if (lines && typeof lines === 'object') {
+      delete lines[name];
+      if (Object.keys(lines).length === 0) delete definition.access.transition;
+    }
+    return;
+  }
+  if (!definition.access || typeof definition.access !== 'object') definition.access = {};
+  if (!definition.access.transition || typeof definition.access.transition !== 'object') definition.access.transition = {};
+  definition.access.transition[name] = formula;
+}
+
+/**
+ * Adds a transition out of a state, after the others, and answers its
+ * place in the list.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @param {string} from the state it leaves
+ * @param {string} to the state it enters
+ * @returns {number}
+ */
+export function addMove(definition, name, from, to) {
+  if (!Array.isArray(definition.transitions)) definition.transitions = [];
+  definition.transitions.push({ name, from, to });
+  return definition.transitions.length - 1;
+}
+
+/**
+ * Takes a transition out of a class, with the line that says who may
+ * take it.
+ *
+ * @param {Definition} definition
+ * @param {number} at its place in the list
+ */
+export function removeMove(definition, at) {
+  if (!moves(definition)[at]) return;
+  setMoveWho(definition, at, '');
+  definition.transitions.splice(at, 1);
+  if (definition.transitions.length === 0) delete definition.transitions;
+}
+
+/**
+ * The ways out of a state with the place of each in the list of
+ * transitions, for the lists that change them.
+ *
+ * @param {Definition} definition
+ * @param {string} state
+ * @returns {number[]}
+ */
+export function placesOut(definition, state) {
+  /** @type {number[]} */
+  const places = [];
+  moves(definition).forEach((move, at) => {
+    if (texts(move?.from).includes(state)) places.push(at);
+  });
+  return places;
+}

@@ -718,6 +718,27 @@ h1 {
 .how { margin: 0; padding: 0; border: 0; display: grid; gap: 8px; min-width: 0; }
 .how legend { padding: 0; margin: 0 0 6px; }
 
+/* A way out of a state is chosen by its head, as a variable is. */
+
+.way-pick {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.way-pick:hover { background: var(--bg-2); }
+.way-pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.card .starts-here { color: var(--ink); font-weight: 500; font-size: 14px; }
+.picks .adder { margin-top: 2px; }
+
 /* Beginning a new class. */
 
 .begin { display: grid; gap: 16px; max-width: 560px; }
