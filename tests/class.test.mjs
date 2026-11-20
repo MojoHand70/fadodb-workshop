@@ -5,7 +5,39 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { TYPES, addVariable, asRangeEnd, kindLine, linesOf, marksOf, moveVariable, outline, removeVariable, rightsIn, rulesAbout, sectionOfVariable, sectionsOf, setComputed, setWord, statesOf, waysIn, waysOut, whoMay } from '../pages/class.js';
+import {
+  TYPES,
+  addMove,
+  addState,
+  addVariable,
+  asRangeEnd,
+  kindLine,
+  linesOf,
+  marksOf,
+  moveVariable,
+  outline,
+  placesOut,
+  removeMove,
+  removeState,
+  removeVariable,
+  rightsIn,
+  rulesAbout,
+  sectionOfVariable,
+  sectionsOf,
+  setClassWord,
+  setComputed,
+  setFinal,
+  setInitial,
+  setLine,
+  setMoveWho,
+  setMoveWord,
+  setStateWord,
+  setWord,
+  statesOf,
+  waysIn,
+  waysOut,
+  whoMay,
+} from '../pages/class.js';
 
 const expense = JSON.parse(await readFile(new URL('./fixtures/expense.json', import.meta.url), 'utf8'));
 
@@ -240,4 +272,111 @@ test('the end of a range is written as the type of the variable asks', () => {
   assert.equal(asRangeEnd('', 'int'), '');
   assert.equal(asRangeEnd('five', 'int'), 'five', 'what is no number is kept, for the server to refuse');
   assert.ok(TYPES.includes('money') && !TYPES.includes('ref'));
+});
+
+test('the words of the class itself, and its four lines', () => {
+  const it = fresh();
+  setClassWord(it, 'label', 'Expense claim');
+  setClassWord(it, 'plural', 'Expense claims');
+  setClassWord(it, 'title', '');
+  assert.equal(it.label, 'Expense claim');
+  assert.equal(it.plural, 'Expense claims');
+  assert.equal('title' in it, false, 'an empty title is no title');
+  assert.deepEqual(Object.keys(it).slice(0, 3), ['name', 'label', 'description'], 'a word that was there keeps its place');
+
+  setLine(it, 'delete', 'INGROUP("accountants")');
+  assert.equal(it.access.delete, 'INGROUP("accountants")');
+  setLine(it, 'read', '');
+  assert.equal('read' in it.access, false, 'an empty line is a line left out');
+  assert.deepEqual(linesOf(it).map((l) => l.formula), [null, 'INGROUP("everyone")', it.access.update, 'INGROUP("accountants")']);
+
+  const bare = { name: 'Bare' };
+  setLine(bare, 'read', '');
+  assert.deepEqual(bare, { name: 'Bare' }, 'an empty line makes no block');
+  setLine(bare, 'read', 'TRUE');
+  assert.deepEqual(bare, { name: 'Bare', access: { read: 'TRUE' } });
+});
+
+test('the words of a state, where a document starts and where it ends', () => {
+  const it = fresh();
+  setStateWord(it, 'approved', 'label', 'Accepted');
+  setStateWord(it, 'approved', 'description', '');
+  assert.equal(it.states.labels.approved, 'Accepted');
+  assert.equal('approved' in it.states.descriptions, false);
+  setInitial(it, 'submitted');
+  assert.equal(statesOf(it).find((s) => s.initial)?.name, 'submitted');
+  setFinal(it, 'approved', true);
+  assert.deepEqual(it.states.final, ['approved', 'paid'], 'in the order of the states');
+  setFinal(it, 'approved', false);
+  setFinal(it, 'paid', false);
+  assert.equal('final' in it.states, false, 'no final state, no list of them');
+
+  const plain = { states: { initial: 'a', list: ['a'] } };
+  setStateWord(plain, 'a', 'label', 'First');
+  assert.deepEqual(plain.states, { initial: 'a', list: ['a'], labels: { a: 'First' } });
+  setStateWord(plain, 'a', 'label', '');
+  assert.deepEqual(plain.states, { initial: 'a', list: ['a'] }, 'the last label taken out takes the block with it');
+});
+
+test('a state is added and taken out, with what is its own', () => {
+  const it = fresh();
+  addState(it, 'archived');
+  assert.deepEqual(it.states.list, ['draft', 'submitted', 'approved', 'paid', 'archived']);
+  assert.equal(it.states.initial, 'draft');
+
+  removeState(it, 'submitted');
+  assert.deepEqual(it.states.list, ['draft', 'approved', 'paid', 'archived']);
+  assert.equal('submitted' in it.states.labels, false);
+  assert.equal('submitted' in it.states.descriptions, false);
+  assert.equal('submitted' in it.rights, false, 'the rights written for it go with it');
+  assert.ok('draft' in it.rights);
+  assert.equal(it.transitions.length, 5, 'a move that leaves it or leads to it is left for the designer');
+  removeState(it, 'paid');
+  assert.equal('final' in it.states, false);
+
+  const bare = { name: 'Bare' };
+  addState(bare, 'open');
+  assert.deepEqual(bare, { name: 'Bare', states: { initial: 'open', list: ['open'] } }, 'the first state is where a new document starts');
+  addState(bare, 'shut');
+  assert.equal(bare.states.initial, 'open');
+});
+
+test('a transition is changed by its place, added and taken out with its line', () => {
+  const it = fresh();
+  assert.deepEqual(placesOut(it, 'submitted'), [1, 2, 3]);
+  assert.deepEqual(placesOut(it, 'paid'), []);
+
+  setMoveWord(it, 3, 'label', 'Accept');
+  setMoveWord(it, 3, 'guard', 'total < 100000');
+  setMoveWord(it, 0, 'guard', '');
+  setMoveWord(it, 4, 'after', '30d');
+  assert.equal(it.transitions[3].label, 'Accept');
+  assert.equal(it.transitions[3].guard, 'total < 100000');
+  assert.equal('guard' in it.transitions[0], false);
+  assert.equal(it.transitions[4].after, '30d');
+
+  setMoveWho(it, 4, 'INGROUP("finance")');
+  assert.equal(it.access.transition.pay, 'INGROUP("finance")');
+  setMoveWho(it, 0, '');
+  assert.equal('submit' in it.access.transition, false, 'with no line of its own it asks the line for changing');
+  assert.equal(waysOut(it, 'draft')[0].who, null);
+
+  const at = addMove(it, 'archive', 'paid', 'paid');
+  assert.equal(at, 5);
+  assert.deepEqual(it.transitions[5], { name: 'archive', from: 'paid', to: 'paid' });
+  setMoveWho(it, at, 'INGROUP("accountants")');
+
+  removeMove(it, 4);
+  assert.deepEqual(it.transitions.map((/** @type {any} */ t) => t.name), ['submit', 'take_back', 'send_back', 'approve', 'archive']);
+  assert.equal('pay' in it.access.transition, false, 'its line goes with it');
+  assert.equal(it.access.transition.archive, 'INGROUP("accountants")');
+
+  /** @type {any} */
+  const bare = { name: 'Bare', states: { initial: 'a', list: ['a', 'b'] } };
+  assert.equal(addMove(bare, 'go', 'a', 'b'), 0);
+  setMoveWho(bare, 0, 'TRUE');
+  assert.deepEqual(bare.access, { transition: { go: 'TRUE' } });
+  removeMove(bare, 0);
+  assert.equal('transitions' in bare, false);
+  assert.deepEqual(bare.access, {}, 'the last line taken out leaves no list of lines');
 });

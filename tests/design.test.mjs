@@ -195,7 +195,7 @@ test('the page opens on the state a new document starts in, with its ways out', 
   assert.deepEqual(await textsOf(page, '.pick[data-state="paid"] .tag'), ['final']);
 
   assert.equal(await page.locator('#about-title').innerText(), 'Draft');
-  assert.equal(await page.locator('#about-what').innerText(), 'Its author writes it and may change it.');
+  assert.equal(await page.inputValue('#s-description'), 'Its author writes it and may change it.', 'for a designer what the state says is in a field');
   assert.deepEqual(await page.locator('#ways-out .way').evaluateAll((all) => all.map((w) => w.getAttribute('data-transition'))), ['submit']);
   const submit = page.locator('.way[data-transition="submit"]');
   assert.equal(await submit.locator('.way-head').innerText(), 'Submit submit to Waiting for approval');
@@ -252,13 +252,12 @@ test('the whole class: who may see, make, change and delete a document, each for
   const { context, page } = await at(dan, 'design.html?class=Expense');
   await page.click('.pick[data-state=""]');
   assert.equal(await page.locator('#about-title').innerText(), 'The whole class');
-  assert.deepEqual(await linesOf(page.locator('#about .inner').first()), [
-    ['See a document', expense.access.read],
-    ['Make a new one', 'INGROUP("everyone")'],
-    ['Change its values', expense.access.update],
-    ['Delete it', 'FALSE'],
-  ]);
-  assert.match(await page.locator('#about').innerText(), /The title of a document/);
+  // For a designer each line is a field that holds the formula whole.
+  assert.equal(await page.inputValue('#c-read'), expense.access.read);
+  assert.equal(await page.inputValue('#c-create'), 'INGROUP("everyone")');
+  assert.equal(await page.inputValue('#c-update'), expense.access.update);
+  assert.equal(await page.inputValue('#c-delete'), 'FALSE');
+  assert.equal(await page.inputValue('#c-title'), 'what');
   const rules = page.locator('[data-rules=""]');
   assert.equal(await rules.locator('.rule-when').innerText(), 'When a document is made');
   assert.deepEqual(await linesOf(rules), [['only when', 'net > 10000'], ['it does', 'emit (event: large_expense)']]);
@@ -306,14 +305,19 @@ test('a class with no states and no sections is shown as what it is', async () =
   assert.deepEqual(await textsOf(page, '#states .pick .pick-label'), ['The whole class']);
   assert.match(await page.locator('#states-about').innerText(), /no states: it stores no documents/);
   assert.equal(await page.locator('#about-title').innerText(), 'The whole class');
-  assert.deepEqual(await linesOf(page.locator('#about .inner').first()), [
+  for (const line of ['read', 'create', 'update', 'delete']) assert.equal(await page.inputValue(`#c-${line}`), '', `the class leaves the line ${line} out`);
+  assert.deepEqual(wrong, []);
+  await context.close();
+
+  // Somebody who only reads is told in words what an empty line means.
+  const reader = await at(jan, 'design.html?class=Margin');
+  assert.deepEqual(await linesOf(reader.page.locator('#about .inner').first()), [
     ['See a document', 'nobody: the class leaves this line out'],
     ['Make a new one', 'nobody: the class leaves this line out'],
     ['Change its values', 'nobody: the class leaves this line out'],
     ['Delete it', 'nobody: the class leaves this line out'],
   ]);
-  assert.deepEqual(wrong, []);
-  await context.close();
+  await reader.context.close();
 });
 
 test('a section inside a section, a pointer, a list of values and the rights of a section', async () => {
@@ -334,7 +338,7 @@ test('a section inside a section, a pointer, a list of values and the rights of 
   assert.deepEqual(await linesOf(page.locator('[data-rights="*"]')), [['may set it', 'FALSE'], ['may see it', 'anybody in travel_office']]);
 
   await page.click('.pick[data-state=""]');
-  assert.deepEqual((await linesOf(page.locator('#about .inner').first())).at(-1), ['Delete it', 'nobody: the class leaves this line out']);
+  assert.equal(await page.inputValue('#c-delete'), '', 'the class leaves the line for deleting out');
   assert.deepEqual(wrong, []);
   await context.close();
 });
@@ -420,6 +424,22 @@ test('Jan, who is no designer, may read a design he opens by its address, and ca
   assert.equal(await page.locator('#class-title').innerText(), 'Expense');
   assert.equal(await page.locator('#variables .var').count(), 9);
   assert.ok(await page.locator('#design-do').isHidden(), 'no Check, no Discard, no Save');
+
+  // He reads a state and the whole class in words; nothing is a field or a button to change.
+  assert.equal(await page.locator('#about-what').innerText(), 'Its author writes it and may change it.');
+  assert.equal(await page.locator('#about input, #about textarea, #about select, #about button').count(), 0);
+  assert.equal(await page.locator('.way[data-transition="submit"] .way-head').evaluate((head) => head.tagName), 'P');
+  await page.click('.pick[data-state=""]');
+  assert.deepEqual(await linesOf(page.locator('#about .inner').first()), [
+    ['See a document', expense.access.read],
+    ['Make a new one', 'INGROUP("everyone")'],
+    ['Change its values', expense.access.update],
+    ['Delete it', 'FALSE'],
+  ]);
+  assert.match(await page.locator('#about').innerText(), /The title of a document/);
+  assert.equal(await page.locator('#about input, #about textarea, #about select, #about button').count(), 0);
+  assert.equal(await page.locator('.adder').count(), 0);
+  await page.click('.pick[data-state="draft"]');
   await page.click('#as-text');
   assert.match(await page.locator('#text-about').innerText(), /Changing a class is for a designer/);
   await page.locator('#class-text .cm-content').click();

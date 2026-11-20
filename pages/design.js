@@ -20,6 +20,8 @@ import { Refused, call } from './fado.js';
 import { show as showValue } from './format.js';
 import {
   TYPES,
+  addMove,
+  addState,
   addVariable,
   asRangeEnd,
   kindLine,
@@ -27,12 +29,22 @@ import {
   marksOf,
   moveVariable,
   outline,
+  placesOut,
+  removeMove,
+  removeState,
   removeVariable,
   rightsIn,
   rulesAbout,
   sectionOfVariable,
   sectionsOf,
+  setClassWord,
   setComputed,
+  setFinal,
+  setInitial,
+  setLine,
+  setMoveWho,
+  setMoveWord,
+  setStateWord,
   setWord,
   starter,
   statesOf,
@@ -59,6 +71,8 @@ let definition = {};
 let chosen = '';
 /** The variable whose properties the side of the page shows, or '' when it shows a state or the whole class. */
 let variable = '';
+/** The transition the side of the page shows, by its place in the list of the class, or -1. */
+let move = -1;
 /** Whether the person may change a class: a designer. */
 let designer = false;
 /**
@@ -127,6 +141,8 @@ function remember() {
   else address.searchParams.delete('state');
   if (variable) address.searchParams.set('variable', variable);
   else address.searchParams.delete('variable');
+  if (move >= 0 && !variable) address.searchParams.set('move', String(move));
+  else address.searchParams.delete('move');
   if (shownAs === 'text') address.searchParams.set('as', 'text');
   else address.searchParams.delete('as');
   history.replaceState(null, '', address);
@@ -193,7 +209,11 @@ function sectionOf(section, level, sectioned) {
     for (const name of section.variables) list.append(variableRow(name));
     box.append(list);
   }
-  if (designer && editable()) box.append(adder(section.name, section.name ? `Add a variable to ${section.label}` : 'Add a variable'));
+  if (designer && editable()) {
+    const add = adder(section.name ? `Add a variable to ${section.label}` : 'Add a variable', 'The name of the new variable', 'its name, such as paid_on', (name) => addNamed(name, section.name));
+    add.dataset.adds = section.name;
+    box.append(add);
+  }
   for (const inner of section.parts) box.append(sectionOf(inner, level + 1, sectioned));
   return box;
 }
@@ -202,28 +222,29 @@ function sectionOf(section, level, sectioned) {
 const editable = () => Boolean(editor) && read() !== null;
 
 /**
- * A way to add a variable to a part of the outline: a button that
- * becomes a small form asking for its name.
+ * A way to add something that has a name: a button that becomes a
+ * small form asking for the name.
  *
- * @param {string} section '' for no section
  * @param {string} words what the button says
+ * @param {string} asks what the field is, for a screen reader
+ * @param {string} hint what the field shows while it is empty
+ * @param {(name: string) => Promise<string>} add adds it; answers why not, or '' when it was added
  */
-function adder(section, words) {
+function adder(words, asks, hint, add) {
   const box = make('div', 'adder');
-  box.dataset.adds = section;
   const open = make('button', 'button button-plain button-small', words);
   open.setAttribute('type', 'button');
   open.addEventListener('click', () => {
     const form = make('form', 'adder-form');
     form.setAttribute('novalidate', '');
     const name = /** @type {HTMLInputElement} */ (make('input', 'input'));
-    name.setAttribute('aria-label', 'The name of the new variable');
-    name.setAttribute('placeholder', 'its name, such as paid_on');
+    name.setAttribute('aria-label', asks);
+    name.setAttribute('placeholder', hint);
     name.setAttribute('autocomplete', 'off');
     name.setAttribute('autocapitalize', 'off');
     name.setAttribute('spellcheck', 'false');
-    const add = make('button', 'button button-small', 'Add');
-    add.setAttribute('type', 'submit');
+    const go = make('button', 'button button-small', 'Add');
+    go.setAttribute('type', 'submit');
     const cancel = make('button', 'button button-plain button-small', 'Cancel');
     cancel.setAttribute('type', 'button');
     const why = make('p', 'field-why');
@@ -231,14 +252,35 @@ function adder(section, words) {
     cancel.addEventListener('click', () => box.replaceChildren(open));
     form.addEventListener('submit', async (sent) => {
       sent.preventDefault();
-      why.textContent = await addNamed(name.value.trim(), section);
+      why.textContent = await add(name.value.trim());
     });
-    form.append(name, add, cancel);
+    form.append(name, go, cancel);
     box.replaceChildren(form, why);
     name.focus();
   });
   box.append(open);
   return box;
+}
+
+/**
+ * Whether the server would refuse a class for what was just added to
+ * it, and in which words. Whether a name may be a name is the server's
+ * to say.
+ *
+ * @param {Record<string, any>} draft the class with the new thing in it
+ * @param {string} place where the new thing is, as a JSON pointer
+ * @returns {Promise<string>} the server's words, or '' when it takes it
+ */
+async function refusedAt(draft, place) {
+  try {
+    const { diagnostics } = await call('validate_class', { definition: draft });
+    /** @type {import('./fado.js').Finding[]} */
+    const findings = Array.isArray(diagnostics) ? diagnostics : [];
+    const about = findings.find((f) => f.note !== true && (f.path === place || f.path.startsWith(`${place}/`)));
+    return about ? `The server would not take it: ${about.message}.` : '';
+  } catch (refusal) {
+    return `The server said: ${refusal instanceof Error ? refusal.message : String(refusal)}`;
+  }
 }
 
 /**
@@ -256,19 +298,12 @@ async function addNamed(name, section) {
   if (!draft) return 'The text cannot be read as a class just now. Put it right first.';
   const taken = Object.keys(draft.variables ?? {}).find((one) => one.toLowerCase() === name.toLowerCase());
   if (taken) return `${taken} is a variable of this class already.`;
-  // Whether a name may be a name is the server's to say, in its words.
   addVariable(draft, name, section);
-  try {
-    const { diagnostics } = await call('validate_class', { definition: draft });
-    /** @type {import('./fado.js').Finding[]} */
-    const findings = Array.isArray(diagnostics) ? diagnostics : [];
-    const about = findings.find((f) => f.note !== true && (f.path === `/variables/${name}` || f.path.startsWith(`/variables/${name}/`)));
-    if (about) return `The server would not take it: ${about.message}.`;
-  } catch (refusal) {
-    return `The server said: ${refusal instanceof Error ? refusal.message : String(refusal)}`;
-  }
+  const why = await refusedAt(draft, `/variables/${name}`);
+  if (why) return why;
   change((it) => addVariable(it, name, section));
   variable = name;
+  move = -1;
   remember();
   drawVariables();
   drawStates();
@@ -285,6 +320,7 @@ async function addNamed(name, section) {
 function choose(name) {
   flush();
   variable = name;
+  move = -1;
   remember();
   for (const head of document.querySelectorAll('#variables .var-pick')) {
     head.setAttribute('aria-pressed', String(head.closest('.var')?.getAttribute('data-variable') === name));
@@ -367,8 +403,10 @@ function pick(state, label, name, marks) {
   if (name) button.append(make('code', 'pick-name', name));
   for (const mark of marks) button.append(make('span', 'tag', mark));
   button.addEventListener('click', () => {
+    flush();
     chosen = state;
     variable = '';
+    move = -1;
     remember();
     for (const head of document.querySelectorAll('#variables .var-pick')) head.setAttribute('aria-pressed', 'false');
     drawStates();
@@ -388,6 +426,11 @@ function drawStates() {
     if (state.initial) marks.push('a new document starts here');
     if (state.final) marks.push('final');
     box.append(pick(state.name, state.label, state.name, marks));
+  }
+  if (designer && editable()) {
+    const add = adder('Add a state', 'The name of the new state', 'its name, such as archived', addStateNamed);
+    add.dataset.addsState = '';
+    box.append(add);
   }
   part('states-about').textContent =
     states.length > 0
@@ -463,19 +506,40 @@ function drawWholeClass() {
   const box = part('about');
   part('about-title').textContent = 'The whole class';
   part('about-what').textContent = 'What holds in every state: who may do what with a document as a whole. Each line is a formula asked for the person and the document.';
-  const who = block('Who may', '');
-  const lines = make('dl', 'right');
-  for (const { line: name, what, formula } of linesOf(definition)) {
-    const row = line(what, formula === null ? make('span', 'nobody', 'nobody: the class leaves this line out') : formulaOf(formula));
-    row.dataset.line = name;
-    lines.append(row);
-  }
-  who.append(lines);
-  box.append(who);
-  if (definition.title) {
-    const title = block('The title of a document', 'A formula that names each document.');
-    title.append(formulaOf(String(definition.title)));
-    box.append(title);
+  if (designer && editable()) {
+    // A designer changes the class's own words and its four lines here.
+    /** @param {string} word @param {string} value */
+    const set = (word, value) => void change((draft) => setClassWord(draft, word, value));
+    const words = make('div', 'props');
+    words.append(
+      field('c-label', 'Label', typed(definition.label, (t) => set('label', t.trim())), 'What people call one document of the class.'),
+      field('c-plural', 'Label for many', typed(definition.plural, (t) => set('plural', t.trim())), 'What a list of them is called. Empty: the label.'),
+      field('c-description', 'What it is for', typed(definition.description, (t) => set('description', t.trim()), { lines: 2 }), 'For the people who work with it, and for an agent that reads the class.'),
+      field('c-title', 'The title of a document', typed(definition.title, (t) => set('title', t), { mono: true }), 'A formula that names each document: what, or "Invoice " & number. Empty: its id.'),
+    );
+    box.append(words);
+    const who = block('Who may', 'Each is a formula: INGROUP("everyone"), CREATEDBY() = USER(), FALSE. An empty line lets nobody through.');
+    const lines = make('div', 'props');
+    for (const { line: name, what, formula } of linesOf(definition)) {
+      lines.append(field(`c-${name}`, what, typed(formula ?? '', (t) => void change((draft) => setLine(draft, name, t.trim())), { mono: true })));
+    }
+    who.append(lines);
+    box.append(who);
+  } else {
+    const who = block('Who may', '');
+    const lines = make('dl', 'right');
+    for (const { line: name, what, formula } of linesOf(definition)) {
+      const row = line(what, formula === null ? make('span', 'nobody', 'nobody: the class leaves this line out') : formulaOf(formula));
+      row.dataset.line = name;
+      lines.append(row);
+    }
+    who.append(lines);
+    box.append(who);
+    if (definition.title) {
+      const title = block('The title of a document', 'A formula that names each document.');
+      title.append(formulaOf(String(definition.title)));
+      box.append(title);
+    }
   }
   const rights = rightsBlock('*', 'Single variables, in every state', 'This narrows what the lines above let through, and never widens it. A state that says something of its own comes first.');
   if (rights) box.append(rights);
@@ -491,19 +555,81 @@ function drawWholeClass() {
  */
 function drawState(state) {
   const box = part('about');
+  const changing = designer && editable();
   part('about-title').textContent = state.label;
-  part('about-what').textContent = state.description;
+  part('about-what').textContent = changing ? 'A state of the class. What you change here goes into the text at once. Nothing is the server\'s until you save.' : state.description;
+
+  if (changing) {
+    const props = make('div', 'props');
+    const named = make('div', 'field');
+    named.append(make('p', 'field-label', 'Name'), make('code', 'var-name', state.name), make('p', 'field-about', 'A state keeps its name: a document is in it by its name.'));
+    props.append(named);
+    props.append(
+      field(
+        's-label',
+        'Label',
+        typed(definition.states?.labels?.[state.name], (t) => {
+          change((draft) => setStateWord(draft, state.name, 'label', t.trim()));
+          redrawPick(state.name);
+          part('about-title').textContent = statesOf(definition).find((one) => one.name === state.name)?.label ?? state.name;
+        }),
+        'What a person reads in place of the name.',
+      ),
+      field('s-description', 'What a document waits for here', typed(state.description, (t) => void change((draft) => setStateWord(draft, state.name, 'description', t.trim())), { lines: 2 }), 'For the people who see a document in this state, and for an agent.'),
+    );
+    const starts = make('div', 'field');
+    if (state.initial) {
+      starts.append(make('p', 'field-about starts-here', 'A new document starts here.'));
+    } else {
+      const here = make('button', 'button button-plain button-small', 'Start new documents here');
+      here.id = 's-initial';
+      here.setAttribute('type', 'button');
+      here.addEventListener('click', () => {
+        change((draft) => setInitial(draft, state.name));
+        drawStates();
+        drawAbout();
+      });
+      starts.append(here);
+    }
+    props.append(starts);
+    props.append(
+      tick(
+        's-final',
+        'Final',
+        state.final,
+        (on) => {
+          change((draft) => setFinal(draft, state.name, on));
+          redrawPick(state.name);
+          // What the card says of the ways out depends on it.
+          drawAbout();
+        },
+        'A document that reaches a final state is finished: its values change no more.',
+      ),
+    );
+    box.append(props);
+  }
 
   const ways = waysOut(definition, state.name);
-  const out = block('Ways out of this state', '');
+  const places = placesOut(definition, state.name);
+  const out = block('Ways out of this state', changing && ways.length > 0 ? 'Each is a transition. Choose one to change it.' : '');
   out.id = 'ways-out';
   if (ways.length === 0) {
     out.append(make('p', 'card-about', state.final ? 'None. This state is final: a document that reaches it is finished and changes no more.' : 'None: a document that reaches this state stays in it.'));
   }
-  for (const way of ways) {
+  ways.forEach((way, n) => {
     const one = make('div', 'way');
     one.dataset.transition = way.name;
-    const head = make('p', 'way-head');
+    const head = make(changing ? 'button' : 'p', changing ? 'way-head way-pick' : 'way-head');
+    if (changing) {
+      head.setAttribute('type', 'button');
+      head.addEventListener('click', () => {
+        flush();
+        move = places[n];
+        remember();
+        drawAbout();
+        showSide();
+      });
+    }
     head.append(make('span', 'way-label', way.label), ' ');
     if (way.name) head.append(make('code', 'pick-name', way.name), ' ');
     head.append(make('span', 'way-to', `to ${way.toLabel}`));
@@ -516,6 +642,11 @@ function drawState(state) {
     if (way.at) lines.append(line('by itself, at', formulaOf(way.at)));
     one.append(lines);
     out.append(one);
+  });
+  if (changing) {
+    const add = adder('Add a way out', 'The name of the new transition', 'its name, such as send_back', (name) => addMoveNamed(name, state.name));
+    add.dataset.addsMove = state.name;
+    out.append(add);
   }
   box.append(out);
 
@@ -542,6 +673,235 @@ function drawState(state) {
   }
   const rules = rulesBlock(state.name, 'By itself');
   if (rules) box.append(rules);
+
+  if (changing) {
+    const remove = make('button', 'button button-plain', 'Remove this state');
+    remove.id = 's-remove';
+    remove.setAttribute('type', 'button');
+    remove.addEventListener('click', () => {
+      change((draft) => removeState(draft, state.name));
+      chosen = '';
+      remember();
+      drawStates();
+      drawAbout();
+      part('said').textContent = `Removed the state ${state.name} from the text. Check says which transitions still name it; Undo puts it back.`;
+    });
+    const last = block('', '');
+    last.append(remove, make('p', 'field-about', 'Its label, its description and the rights written for it go with it. A transition that leaves it or leads to it stays, for you to say where it goes now.'));
+    box.append(last);
+  }
+}
+
+/**
+ * Draws one state of the list of states again, in its place, so that
+ * a press on another, made while a field at the side still held the
+ * cursor, is not lost.
+ *
+ * @param {string} name
+ */
+function redrawPick(name) {
+  const state = statesOf(definition).find((one) => one.name === name);
+  if (!state) return;
+  /** @type {string[]} */
+  const marks = [];
+  if (state.initial) marks.push('a new document starts here');
+  if (state.final) marks.push('final');
+  for (const button of document.querySelectorAll('#states .pick')) {
+    if (button.getAttribute('data-state') === name) button.replaceWith(pick(state.name, state.label, state.name, marks));
+  }
+}
+
+/**
+ * Adds a state of a name, where the name may be one, and opens it at
+ * the side.
+ *
+ * @param {string} name
+ * @returns {Promise<string>} why not, or '' when it was added
+ */
+async function addStateNamed(name) {
+  flush();
+  if (!name) return 'Give the state a name.';
+  const draft = read();
+  if (!draft) return 'The text cannot be read as a class just now. Put it right first.';
+  const taken = statesOf(draft).find((one) => one.name.toLowerCase() === name.toLowerCase());
+  if (taken) return `${taken.name} is a state of this class already.`;
+  addState(draft, name);
+  const why = await refusedAt(draft, `/states/list/${statesOf(draft).length - 1}`);
+  if (why) return why;
+  change((it) => addState(it, name));
+  chosen = name;
+  variable = '';
+  move = -1;
+  remember();
+  for (const head of document.querySelectorAll('#variables .var-pick')) head.setAttribute('aria-pressed', 'false');
+  drawStates();
+  drawAbout();
+  part('s-label').focus();
+  return '';
+}
+
+/**
+ * Adds a way out of a state, a transition of a name, and opens it at
+ * the side. It leads to the next state of the class, for the designer
+ * to change; out of a final state it leads back into that state, since
+ * a final state is left only for a final one.
+ *
+ * @param {string} name
+ * @param {string} from the state it leaves
+ * @returns {Promise<string>} why not, or '' when it was added
+ */
+async function addMoveNamed(name, from) {
+  flush();
+  if (!name) return 'Give the transition a name.';
+  const draft = read();
+  if (!draft) return 'The text cannot be read as a class just now. Put it right first.';
+  /** @type {any[]} */
+  const all = Array.isArray(draft.transitions) ? draft.transitions : [];
+  const taken = all.find((one) => String(one?.name ?? '').toLowerCase() === name.toLowerCase());
+  if (taken) return `${taken.name} is a transition of this class already.`;
+  const states = statesOf(draft);
+  const here = states.findIndex((one) => one.name === from);
+  const to = states[here]?.final ? from : (states[here + 1] ?? states.find((one) => one.name !== from) ?? states[here])?.name ?? from;
+  const at = addMove(draft, name, from, to);
+  const why = await refusedAt(draft, `/transitions/${at}`);
+  if (why) return why;
+  change((it) => void addMove(it, name, from, to));
+  move = at;
+  remember();
+  drawAbout();
+  part('m-label').focus();
+  return '';
+}
+
+/**
+ * The properties of a transition, as fields. It is told by its place
+ * in the list of the class.
+ *
+ * @param {number} at
+ */
+function drawMove(at) {
+  const it = definition.transitions[at];
+  const box = part('about');
+  const states = statesOf(definition);
+  const from = Array.isArray(it.from) ? it.from.map(String) : [String(it.from ?? '')];
+  /** @param {string} name */
+  const labelOf = (name) => states.find((one) => one.name === name)?.label ?? name;
+  part('about-title').textContent = String(it.label || it.name || 'A transition with no name');
+  part('about-what').textContent = `A transition: a way out of ${from.map(labelOf).join(' and ')}. What you change here goes into the text at once. Nothing is the server's until you save.`;
+
+  const back = make('button', 'button button-plain button-small', `Back to ${labelOf(chosen && from.includes(chosen) ? chosen : from[0])}`);
+  back.id = 'm-back';
+  back.setAttribute('type', 'button');
+  back.addEventListener('click', () => {
+    flush();
+    if (!from.includes(chosen)) chosen = from[0];
+    move = -1;
+    remember();
+    drawStates();
+    drawAbout();
+    showSide();
+  });
+
+  /**
+   * @param {string} word
+   * @param {unknown} value
+   * @param {boolean} [again] whether the side changes with it
+   */
+  const set = (word, value, again = false) => {
+    change((draft) => setMoveWord(draft, at, word, value));
+    if (word === 'label') part('about-title').textContent = String(definition.transitions[at]?.label || it.name || 'A transition with no name');
+    if (again) drawAbout();
+  };
+  /**
+   * A choice among the states of the class.
+   *
+   * @param {string} now
+   * @param {(state: string) => void} then
+   */
+  const stateChoice = (now, then) => {
+    const select = /** @type {HTMLSelectElement} */ (make('select', 'input'));
+    for (const one of states) {
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', one.label));
+      option.value = one.name;
+      option.selected = one.name === now;
+      select.append(option);
+    }
+    if (!states.some((one) => one.name === now)) {
+      // What the text names and the class does not have is shown as it is written.
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', `${now} (not a state of this class)`));
+      option.value = now;
+      option.selected = true;
+      select.append(option);
+    }
+    select.addEventListener('change', () => then(select.value));
+    return select;
+  };
+
+  const props = make('div', 'props');
+  const top = make('div', 'field');
+  top.append(back);
+  props.append(top);
+  const named = make('div', 'field');
+  named.append(
+    make('p', 'field-label', 'Name'),
+    make('code', 'var-name', it.name === undefined ? '(none)' : String(it.name)),
+    make('p', 'field-about', it.name === undefined ? 'It has no name: the engine makes this move by itself when its condition holds.' : 'A transition keeps its name: the history tells each move by it.'),
+  );
+  props.append(named);
+  props.append(field('m-label', 'Label', typed(it.label, (t) => set('label', t.trim())), 'The caption of its button.'));
+  if (from.length === 1) {
+    props.append(
+      field(
+        'm-from',
+        'Leaves',
+        stateChoice(from[0], (state) => {
+          change((draft) => setMoveWord(draft, at, 'from', state));
+          chosen = state;
+          remember();
+          drawStates();
+          drawAbout();
+        }),
+        'The state it is a way out of.',
+      ),
+    );
+  } else {
+    const several = make('div', 'field');
+    several.id = 'm-from-several';
+    several.append(make('p', 'field-label', 'Leaves'), make('p', '', from.map(labelOf).join(', ')), make('p', 'field-about', 'It leaves several states. That list is changed in the text.'));
+    props.append(several);
+  }
+  props.append(field('m-to', 'Leads to', stateChoice(String(it.to ?? ''), (state) => set('to', state, true)), 'The state a document is in afterwards.'));
+  props.append(field('m-description', 'What taking it means', typed(it.description, (t) => set('description', t.trim()), { lines: 2 }), 'For the person who presses the button, and for an agent.'));
+  if (it.name !== undefined) {
+    props.append(
+      field(
+        'm-who',
+        'Who may take it',
+        typed(definition.access?.transition?.[it.name], (t) => void change((draft) => setMoveWho(draft, at, t.trim())), { mono: true }),
+        'A formula asked for the person and the document: CREATEDBY() = USER(), INGROUP("accountants"). Empty: whoever may change the document.',
+      ),
+    );
+  }
+  props.append(field('m-guard', 'Only when', typed(it.guard, (t) => set('guard', t), { mono: true }), 'A condition about the document: total > 0. Empty: always.'));
+  props.append(field('m-after', 'By itself, after', typed(it.after, (t) => set('after', t.trim()), { mono: true }), 'So long after the document entered the state: 30d, 12h, 90m. Empty: only when somebody takes it.'));
+  props.append(field('m-at', 'By itself, at', typed(it.at, (t) => set('at', t), { mono: true }), 'At a day or a moment the document holds: ADDDAYS(bought_on, 60). Empty: not by a date.'));
+
+  const remove = make('button', 'button button-plain', 'Remove this transition');
+  remove.id = 'm-remove';
+  remove.setAttribute('type', 'button');
+  remove.addEventListener('click', () => {
+    change((draft) => removeMove(draft, at));
+    if (!from.includes(chosen)) chosen = from[0];
+    move = -1;
+    remember();
+    drawStates();
+    drawAbout();
+    part('said').textContent = `Removed the transition ${it.name ?? 'with no name'} from the text, with the line that says who may take it. Undo puts it back.`;
+  });
+  const last = make('div', 'field');
+  last.append(remove);
+  props.append(last);
+  box.append(props);
 }
 
 /**
@@ -755,6 +1115,7 @@ function drawVariable(name) {
   remove.addEventListener('click', () => {
     change((draft) => removeVariable(draft, name));
     variable = '';
+    move = -1;
     remember();
     drawVariables();
     drawStates();
@@ -771,6 +1132,7 @@ function drawAbout() {
   flush();
   part('about').replaceChildren();
   if (variable && designer && editable() && definition.variables?.[variable]) return drawVariable(variable);
+  if (move >= 0 && designer && editable() && definition.transitions?.[move]) return drawMove(move);
   const state = statesOf(definition).find((s) => s.name === chosen);
   if (state) drawState(state);
   else drawWholeClass();
@@ -843,6 +1205,7 @@ function drawLists() {
   part('lists-stale').hidden = draft !== null;
   if (chosen !== '' && !statesOf(definition).some((s) => s.name === chosen)) chosen = '';
   if (variable && !definition.variables?.[variable]) variable = '';
+  if (move >= 0 && !definition.transitions?.[move]) move = -1;
   drawVariables();
   drawStates();
   drawAbout();
@@ -1131,6 +1494,13 @@ async function open(mayChange) {
   chosen = wanted !== null && (wanted === '' || states.some((s) => s.name === wanted)) ? wanted : (states.find((s) => s.initial)?.name ?? '');
   const wantedVariable = asked.get('variable') ?? '';
   variable = designer && definition.variables?.[wantedVariable] ? wantedVariable : '';
+  const wantedMove = /^\d+$/.test(asked.get('move') ?? '') ? Number(asked.get('move')) : -1;
+  move = designer && !variable && definition.transitions?.[wantedMove] ? wantedMove : -1;
+  if (move >= 0) {
+    // The state at the side of a transition is one it leaves.
+    const leaves = [definition.transitions[move].from].flat().map(String);
+    if (!leaves.includes(chosen)) chosen = leaves[0] ?? chosen;
+  }
 
   // Changing a class is for a designer: the server refuses anybody else.
   editor = codeView(part('class-text'), { text: written(saved), label: 'The definition of the class', readOnly: !designer, onChange: follow });

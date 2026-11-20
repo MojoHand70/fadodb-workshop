@@ -27,18 +27,24 @@ refuses a class. A designer makes a new class too: it gets a name,
 begins as a small class that works, and is the server's once the
 designer makes it.
 
-**Variables are changed through the list as well.** A designer
-chooses a variable and the card at the side shows its properties as
-fields: its label, what it is for, whether people give it or the class
-works it out, its type, its first value, its range, the section it is
-in. A change goes into the text at once, and Undo takes it back. A
-variable is added to a section and removed there too.
+**A class is changed through the lists as well.** A designer chooses
+a variable, a state or a way out of a state, and the card at the side
+shows it as fields. For a variable: its label, what it is for, whether
+people give it or the class works it out, its type, its first value,
+its range, its section. For a state: its label, what a document waits
+for there, whether a new document starts in it and whether it is
+final. For a transition: its label, where it leads, who may take it,
+on what condition, and whether the engine takes it by itself after a
+time. "The whole class" holds the class's own words and the four lines
+that say who may see, make, change and delete a document. Variables,
+states and ways out are added and removed there too. A change goes
+into the text at once, and Undo takes it back.
 
 What is not there yet: a value that is a list, rows or an object is
-shown and cannot be set; in the design mode the states, the moves
-between them and who may do what are changed in the text only, and
-there is no formula editor; and Workshop has no packaged release, so
-it is run from this
+shown and cannot be set; in the design mode the rights of single
+variables and what a class does by itself are changed in the text
+only, and there is no formula editor, so a formula is typed in a plain
+field; and Workshop has no packaged release, so it is run from this
 repository, with a FadoDB server built from the engine's source, newer
 than its release 0.6.0. This page will say so until that changes.
 
@@ -146,6 +152,14 @@ Edge are built on, Firefox, and WebKit, which Safari is built on.
 Every pull request runs all three. WebKit here is the build the test
 tool brings, on Linux: the pages have not been opened in Safari
 itself, on a Mac or a phone.
+
+One check is left out in WebKit, and says so when the tests run: that
+closing a window with work not saved asks first. Asked to close a
+window, WebKit waits 50 ms for the page's answer and closes it when
+none came, whatever the page would have answered. Typing keeps a page
+of Workshop busy for a few milliseconds; pasting a whole class at once
+can take longer than the 50, and so can a slow machine. Leaving by a
+link has no such clock, and is checked in all three.
 
 ## Licence
 
