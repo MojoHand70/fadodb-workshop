@@ -1,0 +1,64 @@
+# Temporary, on this branch only: the suite in WebKit again and again,
+# to see whether anything else in it reads too early. It goes before
+# the branch is merged.
+name: hunt
+
+on:
+  push:
+    branches: [design-states]
+
+permissions:
+  contents: read
+
+jobs:
+  hunt:
+    name: hunt ${{ matrix.n }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install the browser
+        id: browser
+        timeout-minutes: 6
+        continue-on-error: true
+        run: npx playwright install --with-deps webkit
+      - name: Install it again, where the first try did not finish
+        if: steps.browser.outcome != 'success'
+        timeout-minutes: 8
+        run: |
+          sudo killall -q apt-get dpkg || true
+          sudo dpkg --configure -a || true
+          npx playwright install --with-deps webkit
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+      - name: Build the FadoDB server
+        run: |
+          engine="$(node -p "require('./package.json').config.engine")"
+          go install "github.com/MojoHand70/fadodb/cmd/fadodb@${engine}"
+          echo "FADODB_BIN=$(go env GOPATH)/bin/fadodb" >> "$GITHUB_ENV"
+      - name: The suite in WebKit, six times
+        env:
+          TEST_BROWSER: webkit
+        run: |
+          failed=0
+          for i in 1 2 3 4 5 6; do
+            echo "=== run $i"
+            if ! npm test > run.txt 2>&1; then
+              failed=$((failed+1))
+              sed -n '/failing tests/,$p' run.txt | head -120
+            fi
+            grep -E "^ℹ (pass|fail|duration_ms)" run.txt | tr '\n' ' '; echo
+          done
+          echo "failed runs: $failed of 6"
+          exit "$failed"
