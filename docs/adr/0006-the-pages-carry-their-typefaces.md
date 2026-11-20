@@ -1,6 +1,6 @@
 # ADR-0006: The pages carry their typefaces
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-20
 
 ## Context
@@ -50,6 +50,9 @@ day was a look of Workshop's own.
 
 Settled by me, his to veto: that the files are shipped with the pages
 rather than left to the machine; items 2 to 4.
+
+Accepted by him on 2026-11-20, after the pull request that built it
+was merged: "Mark ADR's as accepted."
 
 ## Consequences
 
