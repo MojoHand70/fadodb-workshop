@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { show } from '../pages/format.js';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, leave, ready, watch } from './browser.mjs';
+import { CLOSING_NOT_CHECKED, fits, launch, leaveByClosing, leaveByLink, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -322,11 +322,15 @@ test('a value the server works out is asked of the server, and what reads it fol
   await context.close();
 });
 
-test('leaving with something not saved asks first', async () => {
+test('leaving with something not saved asks first', async (t) => {
   const id = await janDraftsATaxi();
   const { context, page } = await opened('jan', id);
   await page.fill('#f-net', '4200');
-  assert.equal(await leave(page), 'asked');
+  assert.equal(await leaveByLink(page), 'asked');
+  assert.equal(await page.inputValue('#f-net'), '4200', 'who stays has what they typed');
+  await t.test('and so does closing the window', { skip: CLOSING_NOT_CHECKED }, async () => {
+    assert.equal(await leaveByClosing(page), 'asked');
+  });
   await context.close();
 });
 

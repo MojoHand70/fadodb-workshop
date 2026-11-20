@@ -47,12 +47,9 @@ jobs:
           engine="$(node -p "require('./package.json').config.engine")"
           go install "github.com/MojoHand70/fadodb/cmd/fadodb@${engine}"
           echo "FADODB_BIN=$(go env GOPATH)/bin/fadodb" >> "$GITHUB_ENV"
-      - name: A test that leaves a designer's page in four ways and writes down what happened
-        run: cp .github/hunt.test.mjs tests/hunt.test.mjs
       - name: The suite in WebKit, four times
         env:
           TEST_BROWSER: webkit
-          HUNT_OUT: ${{ runner.temp }}
         run: |
           failed=0
           for i in 1 2 3 4; do
@@ -61,8 +58,7 @@ jobs:
               failed=$((failed+1))
               sed -n '/failing tests/,$p' run.txt | head -60
             fi
-            grep -E "^ℹ (pass|fail|duration_ms)" run.txt | tr '\n' ' '; echo
+            grep -E "^ℹ (pass|fail|skipped|duration_ms)" run.txt | tr '\n' ' '; echo
+            grep -E "SKIP" run.txt | sort | uniq -c
           done
-          echo "=== what the hunt wrote down"
-          cat "$RUNNER_TEMP/tally.txt" || echo nothing
           echo "failed runs: $failed of 4"

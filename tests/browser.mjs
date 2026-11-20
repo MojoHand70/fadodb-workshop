@@ -128,9 +128,10 @@ export function fits(page) {
 }
 
 /**
- * Leaves a page as a person does who closes its tab, and answers what
- * came of it: 'asked' when the browser asked first, and the person
- * then stays; 'left' when the page went without a question.
+ * Leaves a page as a person does who follows a link away from it, the
+ * name of Workshop at the top of every page, and answers what came of
+ * it: 'asked' when the browser asked first, and the person then stays
+ * on the page; 'left' when the page went without a question.
  *
  * It waits for the one or the other to happen, however long the
  * browser takes: never for a moment in between.
@@ -138,7 +139,60 @@ export function fits(page) {
  * @param {import('playwright').Page} page
  * @returns {Promise<'asked' | 'left'>}
  */
-export async function leave(page) {
+export async function leaveByLink(page) {
+  const from = page.url();
+  /** @type {(dialog: import('playwright').Dialog) => void} */
+  let question = () => {};
+  /** @type {(frame: import('playwright').Frame) => void} */
+  let gone = () => {};
+  /** @type {Promise<'asked' | 'left'>} */
+  const came = new Promise((answer) => {
+    question = async (dialog) => {
+      const about = dialog.type();
+      await dialog.dismiss();
+      if (about === 'beforeunload') answer('asked');
+    };
+    gone = (frame) => {
+      if (frame === page.mainFrame() && frame.url() !== from) answer('left');
+    };
+  });
+  page.on('dialog', question);
+  page.on('framenavigated', gone);
+  await page.locator('header.top a.brand').click();
+  const what = await came;
+  page.off('dialog', question);
+  page.off('framenavigated', gone);
+  return what;
+}
+
+/**
+ * Why closing a window is not checked in WebKit; false in the browsers
+ * where it is checked.
+ *
+ * Asked to close a window, WebKit gives the page 50 ms to answer and
+ * closes it when no answer came in that time, whatever the page would
+ * have said (`tryCloseTimeoutDelay` in its `WebPageProxy.cpp`). A busy
+ * page, or a machine that runs several browsers at once, is sometimes
+ * slower than that; the window then goes without a question, and
+ * nothing a page does changes it. Leaving by a link has no such clock:
+ * `leaveByLink` holds the question in every browser.
+ */
+export const CLOSING_NOT_CHECKED =
+  BROWSER === 'webkit' ? 'WebKit closes a window whose page has not answered within 50 ms, whatever the page would have answered' : false;
+
+/**
+ * Leaves a page as a person does who closes its window, and answers
+ * what came of it: 'asked' when the browser asked first, and the
+ * person then stays; 'left' when the page went without a question.
+ *
+ * It waits for the one or the other to happen, however long the
+ * browser takes: never for a moment in between. Not for WebKit: see
+ * `CLOSING_NOT_CHECKED`.
+ *
+ * @param {import('playwright').Page} page
+ * @returns {Promise<'asked' | 'left'>}
+ */
+export async function leaveByClosing(page) {
   /** @type {Promise<'asked'>} */
   const asked = new Promise((answer) => {
     page.once('dialog', async (dialog) => {

@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { starter } from '../pages/class.js';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, leave, ready, watch } from './browser.mjs';
+import { CLOSING_NOT_CHECKED, fits, launch, leaveByClosing, leaveByLink, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -281,18 +281,28 @@ test('a new class the server refuses is not made, and Discard puts it back as it
   await context.close();
 });
 
-test('leaving a new class asks first only when something was changed', async () => {
+test('leaving a new class asks first only when something was changed', async (t) => {
   const untouched = await at(dan, 'design.html?new');
   await begin(untouched.page, 'Untouched');
   await untouched.page.locator('#design').waitFor();
-  assert.equal(await leave(untouched.page), 'left', 'what it began as is no work to lose');
+  assert.equal(await leaveByLink(untouched.page), 'left', 'what it began as is no work to lose');
   await untouched.context.close();
 
   const touched = await at(dan, 'design.html?new');
   await begin(touched.page, 'Touched');
   await touched.page.locator('#design').waitFor();
   await write(touched.page, { ...starter('Touched', 'Touched'), description: 'Something of Dan\'s.' });
-  assert.equal(await leave(touched.page), 'asked');
+  assert.equal(await leaveByLink(touched.page), 'asked');
+  assert.ok(await touched.page.locator('#design').isVisible(), 'who stays is where they were');
+
+  await t.test('and closing the window does the same', { skip: CLOSING_NOT_CHECKED }, async () => {
+    assert.equal(await leaveByClosing(touched.page), 'asked');
+    const again = await at(dan, 'design.html?new');
+    await begin(again.page, 'Untouched');
+    await again.page.locator('#design').waitFor();
+    assert.equal(await leaveByClosing(again.page), 'left');
+    await again.context.close();
+  });
   await touched.context.close();
 });
 
