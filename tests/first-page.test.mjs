@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { acme, signIn } from './acme.mjs';
 import { fits, launch, open, ready, watch } from './browser.mjs';
+import { initials } from '../pages/shell.js';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -92,12 +93,64 @@ test('Ann signs in on the server\'s page and sees her name and the apps, each wi
   await context.close();
 });
 
+test('the letters in a person\'s round mark are the first of their first word and of their last', () => {
+  assert.equal(initials('Ann Kowalska'), 'AK');
+  assert.equal(initials('  jan   van der  berg '), 'JB');
+  assert.equal(initials('olga'), 'O');
+  assert.equal(initials('\u0141ucja \u017b\u00f3\u0142kiewska'), '\u0141\u017b');
+  assert.equal(initials(''), '');
+});
+
+test('the person stands at the end of the top bar, and a press opens their account and signing out', async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  const { wrong } = watch(page);
+  await annSignsIn(page);
+
+  const person = page.locator('#who-open');
+  const menu = page.locator('#who-menu');
+  assert.equal(await page.locator('#who-mark').innerText(), 'AK');
+  assert.equal(await page.locator('#who-name').innerText(), 'Ann Kowalska');
+  assert.ok(await menu.isHidden(), 'signing out is no button of the bar: it is behind the person');
+  assert.equal(await page.locator('.top .button').count(), 0);
+
+  // By the keyboard: Enter opens it, Escape closes it and leaves her where she was.
+  await person.focus();
+  await page.keyboard.press('Enter');
+  await menu.waitFor();
+  assert.equal(await page.locator('#who-full').innerText(), 'Ann Kowalska');
+  assert.equal(await page.locator('#who-id').innerText(), 'ann');
+  assert.equal(await page.locator('#who-account').innerText(), 'Account');
+  assert.equal(await page.locator('#who-account').getAttribute('href'), '/auth/account');
+  assert.equal(await page.locator('#sign-out').innerText(), 'Sign out');
+  /** Whether the menu lies under the person and inside a window of the given width. */
+  const placed = async (/** @type {number} */ width) => {
+    const [under, box] = [await person.boundingBox(), await menu.boundingBox()];
+    return !!under && !!box && box.y >= under.y + under.height && box.x >= 0 && box.x + box.width <= width;
+  };
+  assert.ok(await placed(1280), 'the menu opens under her, inside the window');
+  await page.keyboard.press('Escape');
+  await menu.waitFor({ state: 'hidden' });
+  assert.ok(await person.evaluate((one) => one === document.activeElement), 'she is back where she was');
+
+  // On a phone the mark alone stands for her; her name is still said.
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await fits(page), 'the top bar fits a phone');
+  assert.equal(await page.getByRole('button', { name: 'Ann Kowalska' }).count(), 1);
+  await person.click();
+  await menu.waitFor();
+  assert.ok(await placed(390), 'and so does the menu');
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
 test('signing out ends the session on the server', async () => {
   const context = await browser.newContext();
   const page = await context.newPage();
   const { wrong } = watch(page);
   await annSignsIn(page);
 
+  await page.click('#who-open');
   await page.click('#sign-out');
   await page.waitForFunction(() => !document.getElementById('signed-out')?.hidden);
   assert.ok(await page.locator('#who').isHidden());

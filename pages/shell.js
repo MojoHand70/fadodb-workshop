@@ -80,6 +80,19 @@ export function crumbHere(words) {
   if (here && here.textContent !== words) here.textContent = words;
 }
 
+/**
+ * The letters that stand for a person in the round mark: the first of
+ * the first word of their name and the first of the last.
+ *
+ * @param {string} name
+ */
+export function initials(name) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const first = Array.from(words[0] ?? '')[0] ?? '';
+  const last = words.length > 1 ? (Array.from(words[words.length - 1])[0] ?? '') : '';
+  return (first + last).toUpperCase();
+}
+
 /** Says that the page has drawn what it had to. The checks wait for it. */
 export function ready() {
   document.documentElement.dataset.ready = 'yes';
@@ -137,10 +150,20 @@ export async function enter() {
   shared();
   try {
     const { user } = await call('whoami');
-    const name = part('who-name');
-    name.textContent = user.name || user.id;
-    name.setAttribute('href', ACCOUNT);
+    const name = String(user.name || user.id);
+    part('who-name').textContent = name;
+    part('who-mark').textContent = initials(name);
+    part('who-full').textContent = name;
+    part('who-id').textContent = String(user.id);
+    part('who-account').setAttribute('href', ACCOUNT);
     part('who').hidden = false;
+    // The menu opens under the person, wherever the top bar has put them.
+    const menu = part('who-menu');
+    menu.addEventListener('toggle', () => {
+      const under = part('who-open').getBoundingClientRect();
+      menu.style.top = `${Math.round(under.bottom + 6)}px`;
+      menu.style.right = `${Math.max(8, Math.round(document.documentElement.clientWidth - under.right))}px`;
+    });
     part('sign-out').addEventListener('click', async () => {
       await signOut();
       location.reload();
