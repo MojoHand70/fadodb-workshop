@@ -6,8 +6,18 @@ server.
 
 **Status: the use mode works for a class of plain values.** A FadoDB
 server hands out Workshop's pages. A person signs in on the server's
-own page, sees the classes on the server, opens the list of a class,
-makes a new document, and opens one. There they read it by the
+own page and sees the apps of the server: each a tile with its name,
+what it is for, and the lists a person opens in it, with the apps
+again in a rail at the side. A box finds an app by a part of its name
+or of a list's. From an app a person opens a list, makes a new
+document, and opens one. Every page says where the person is: Home,
+the app, the list. That a list has a class behind it is a designer's
+to know: the pages say the word to a designer alone. A server with no
+app yet asks a designer to create the first one. A designer makes an
+app with a name and a sentence on what it is for, and makes a class
+from the page of its app, so that the class belongs to it. A list
+that belongs to no app stands after the apps. There a person reads a
+document by the
 sections of its class, change the values the class lets them change,
 with what the class calculates following as they type, save, and move
 the document along its flow. The buttons that move it follow the
@@ -113,8 +123,8 @@ The decisions and the reasons for them are in
 
 | | |
 |---|---|
-| `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, the design of a class, Workshop's door to the server (`fado.js`), the live document (`live.js`), how a value is shown to a person and read from their typing (`format.js`, `input.js`), the field a value is typed in (`fields.js`), how a class is read and changed for the designer's lists (`class.js`), how a formula is read for its editor (`formula.js`), the two text boxes of the design mode (`text.js`), and a class tried on a new document (`try.js`). |
-| `pages/vendor/` | Made by `npm run vendor`, not kept here: the engine's file for the browser, and CodeMirror, which stands under the text box, built into one file with its licences beside it. |
+| `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, the design of a class, Workshop's door to the server (`fado.js`), the live document (`live.js`), how a value is shown to a person and read from their typing (`format.js`, `input.js`), how a thing is found by a part of its name (`find.js`), the apps of a server with their lists, and the rail at the side (`apps.js`), the page of an app, where a designer makes one too (`app.html`, `app.js`), the field a value is typed in (`fields.js`), how a class is read and changed for the designer's lists (`class.js`), how a formula is read for its editor (`formula.js`), the two text boxes of the design mode (`text.js`), and a class tried on a new document (`try.js`). |
+| `pages/vendor/` | Made by `npm run vendor`, not kept here: the engine's file for the browser, the two typefaces of the pages with their licences, and CodeMirror, which stands under the text box, built into one file with its licences beside it. |
 | `tools/vendor.mjs`, `tools/codemirror.entry.mjs` | What makes `pages/vendor/`, and the list of what Workshop takes from CodeMirror. |
 | `tools/serve.mjs` | A helper that hands out `pages/` with no FadoDB server behind them, to look at a page as it is drawn. |
 | `tests/` | The checks: each page is opened in a real browser, in front of a real FadoDB server, in Chromium, Firefox and WebKit. |
@@ -128,7 +138,7 @@ the commit of the engine this Workshop is checked against, under
 `config.engine`:
 
 ```
-go install github.com/MojoHand70/fadodb/cmd/fadodb@1ff999153c1b4da8b4ea564803a300579e359e31
+go install github.com/MojoHand70/fadodb/cmd/fadodb@ff1781837638e9704fa582d803c132c0f70e693c
 ```
 
 Get Workshop's pages ready. The second command puts the engine's file

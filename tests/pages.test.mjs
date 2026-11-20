@@ -34,7 +34,21 @@ test('a FadoDB server hands out Workshop\'s pages at its own address', async () 
   assert.match(first.headers.get('content-type') ?? '', /^text\/html/);
   assert.match(await first.text(), /<title>FadoDB Workshop<\/title>/);
 
-  for (const [file, type] of [['workshop.css', 'text/css'], ['workshop.js', 'text/javascript'], ['vendor/fadodb-vm.js', 'text/javascript'], ['vendor/fadodb-vm.LICENSE.txt', 'text/plain'], ['mark.png', 'image/png']]) {
+  const files = [
+    ['workshop.css', 'text/css'],
+    ['workshop.js', 'text/javascript'],
+    ['vendor/fadodb-vm.js', 'text/javascript'],
+    ['vendor/fadodb-vm.LICENSE.txt', 'text/plain'],
+    ['mark.png', 'image/png'],
+    // The typefaces, each with its licence beside it (ADR-0006).
+    ['vendor/fonts/inter-latin-wght-normal.woff2', 'font/woff2'],
+    ['vendor/fonts/inter-latin-ext-wght-normal.woff2', 'font/woff2'],
+    ['vendor/fonts/inter.LICENSE.txt', 'text/plain'],
+    ['vendor/fonts/jetbrains-mono-latin-wght-normal.woff2', 'font/woff2'],
+    ['vendor/fonts/jetbrains-mono-latin-ext-wght-normal.woff2', 'font/woff2'],
+    ['vendor/fonts/jetbrains-mono.LICENSE.txt', 'text/plain'],
+  ];
+  for (const [file, type] of files) {
     const answer = await fetch(server.site.url + file);
     assert.equal(answer.status, 200, file);
     assert.ok((answer.headers.get('content-type') ?? '').startsWith(type), `${file} is sent as ${answer.headers.get('content-type')}`);
@@ -68,6 +82,16 @@ test('the first page loads from the server with nothing refused, and fits a phon
   assert.equal(await mark.evaluate((img) => /** @type {HTMLImageElement} */ (img).naturalWidth), 96);
   assert.equal(await mark.getAttribute('alt'), '', 'the words beside it say what it is');
   assert.equal(await page.locator('header.top a.brand').innerText(), 'FadoDB\nworkshop');
+
+  // The words are set in the typefaces the pages carry, whatever the machine has:
+  // the browser fetched them from the server, and nothing was refused.
+  const faces = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return [...document.fonts].filter((face) => face.status === 'loaded').map((face) => face.family.replaceAll('"', ''));
+  });
+  assert.ok(faces.includes('Inter'), `the faces a page loaded: ${faces.join(', ')}`);
+  assert.ok(faces.includes('JetBrains Mono'), 'the word "workshop" beside the mark is set in it');
+  assert.match(await page.evaluate(() => getComputedStyle(document.body).fontFamily), /^"?Inter"?,/);
 
   await page.keyboard.press('Tab');
   const reached = await page.evaluate(() => document.activeElement?.className);

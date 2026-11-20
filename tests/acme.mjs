@@ -19,6 +19,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ready } from './browser.mjs';
 import { digits } from './totp.mjs';
 
 /** The folder of Workshop's pages. */
@@ -206,7 +207,7 @@ export async function signIn(page, site, server, user = 'ann') {
   // then is the password set, and only then may the browser go on.
   await page.waitForURL((address) => !address.search.includes('link='));
   await page.goto(site.url);
-  await page.waitForFunction(() => document.documentElement.dataset.ready === 'yes');
+  await ready(page);
   await page.click('#sign-in');
   await page.fill('#user', user);
   await page.fill('#password', PASSWORD);
@@ -240,5 +241,5 @@ export async function signIn(page, site, server, user = 'ann') {
     const says = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
     throw new Error(`${user} signed in and did not arrive at ${site.url}: the page is at ${page.url()} and says "${says}"`, { cause: error });
   }
-  await page.waitForFunction(() => document.documentElement.dataset.ready === 'yes');
+  await ready(page);
 }

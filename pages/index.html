@@ -9,7 +9,7 @@
 <link rel="icon" href="data:,">
 <script type="module" src="workshop.js"></script>
 </head>
-<body>
+<body class="framed">
 
 <header class="top">
   <a class="brand" href="./">
@@ -23,21 +23,37 @@
   </div>
 </header>
 
-<main class="page">
-  <p class="status">Status: you can sign in, read a list, make a document, change it and move it. A designer reads a class as lists, changes it as text and through the lists, writes its formulas with help, tries it on a document, and makes a new one.</p>
+<div class="frame">
+  <nav class="rail" id="rail" aria-label="Workshop" hidden></nav>
 
-  <section data-view="home" id="home" hidden>
-    <div class="doc-head">
-      <h1>Classes on this server</h1>
-      <div class="doc-do">
-        <a class="button button-plain" id="new-class" href="design.html?new" hidden>New class</a>
+  <main class="page page-frame">
+    <section data-view="home" id="home" hidden>
+      <div class="home-head">
+        <div class="home-title">
+          <h1>Apps</h1>
+          <p class="home-about">What runs on this server.</p>
+        </div>
+        <div class="find" id="find-box" role="search" hidden>
+          <input class="input" id="find" type="search" aria-label="Find an app" placeholder="Find an app" autocomplete="off" spellcheck="false" enterkeyhint="go">
+        </div>
       </div>
-    </div>
-    <p class="lead">Every class you may see. Choose one to see its list.</p>
-    <ul class="classes" id="classes"></ul>
-    <p class="lead" id="no-classes" hidden>There is no class here yet.</p>
-  </section>
-</main>
+
+      <ul class="tiles" id="apps"></ul>
+      <p class="home-none" id="none-found" role="status" aria-live="polite" hidden></p>
+
+      <div class="first" id="first-app" hidden>
+        <h2 id="first-title">Create your first FadoDB application</h2>
+        <p id="first-about"></p>
+        <a class="button" id="first-go" href="app.html?new" hidden>New app</a>
+      </div>
+
+      <section class="loose" id="loose" aria-labelledby="loose-title" hidden>
+        <h2 id="loose-title"></h2>
+        <ul class="loose-lists" id="loose-lists"></ul>
+      </section>
+    </section>
+  </main>
+</div>
 
 </body>
 </html>

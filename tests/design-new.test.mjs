@@ -110,15 +110,19 @@ test('what a new class begins as is a class the server takes, and it is its auth
   assert.equal(starter('Memo', '').label, 'Memo', 'with no label given, the name is the label');
 });
 
-test('Dan is offered New class on the first page; Jan is not', async () => {
-  const first = await at(dan, '');
-  assert.ok(await first.page.locator('#new-class').isVisible());
-  assert.equal(await first.page.locator('#new-class').getAttribute('href'), 'design.html?new');
-  assert.match(await first.page.locator('.status').innerText(), /makes a new one/);
+test('Dan is offered a new class on the page of an app; Jan is not', async () => {
+  // A class is made inside an app: the app is there first.
+  await server.exec('define_app', { definition: { name: 'Travel', label: 'Travel' } });
+  const first = await at(dan, 'app.html?app=Travel');
+  assert.equal(await first.page.locator('#no-lists-title').innerText(), 'Make its first class');
+  assert.ok(await first.page.locator('#first-class').isVisible());
+  assert.equal(await first.page.locator('#first-class').getAttribute('href'), 'design.html?new&app=Travel');
   assert.deepEqual(first.wrong, []);
   await first.context.close();
 
-  const plain = await at(jan, '');
+  const plain = await at(jan, 'app.html?app=Travel');
+  assert.equal(await plain.page.locator('#no-lists-title').innerText(), 'There is nothing here yet');
+  assert.ok(await plain.page.locator('#first-class').isHidden());
   assert.ok(await plain.page.locator('#new-class').isHidden());
   await plain.context.close();
 
@@ -131,8 +135,8 @@ test('Dan is offered New class on the first page; Jan is not', async () => {
 });
 
 test('Dan names a class, changes what it begins as, and makes it', async () => {
-  const { context, page, wrong, commands, answers } = await at(dan, '');
-  await page.click('#new-class');
+  const { context, page, wrong, commands, answers } = await at(dan, 'app.html?app=Travel');
+  await page.click('#first-class');
   await page.waitForURL((address) => address.pathname === '/design.html');
   await ready(page);
   assert.ok(await page.locator('#begin').isVisible());
@@ -142,12 +146,14 @@ test('Dan names a class, changes what it begins as, and makes it', async () => {
   commands.length = 0;
   await begin(page, 'Trip', 'Business trip');
   await page.locator('#design').waitFor();
-  assert.deepEqual(commands, ['list_classes', 'validate_class', 'list_functions'], 'the page looks whether the name is free and whether the server takes it, then asks what a formula can call');
+  assert.deepEqual(commands, ['list_classes', 'validate_class', 'list_functions', 'get_app'], 'the page looks whether the name is free and whether the server takes it, then asks what a formula can call and what its app is called');
   assert.equal(await page.locator('#class-title').innerText(), 'Business trip');
   assert.equal(await page.locator('#class-name').innerText(), 'Trip');
   assert.equal(await page.locator('#class-version').innerText(), 'not made yet');
   assert.equal(await page.locator('#class-defined').innerText(), '');
   assert.equal(await page.locator('#to-list').getAttribute('href'), null, 'a class that is not made has no list');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Travel', 'A new class'], 'the class is made inside the app');
+  assert.equal(await page.locator('#to-app').getAttribute('href'), 'app.html?app=Travel');
   assert.ok(await page.locator('#text').isVisible(), 'the page opens on the text');
   assert.equal(await page.locator('#save').innerText(), 'Make the class');
   assert.ok(await page.locator('#save').isEnabled(), 'it may be made as it begins');
@@ -161,7 +167,8 @@ test('Dan names a class, changes what it begins as, and makes it', async () => {
 
   // Dan adds a variable, then makes the class.
   await page.click('#as-text');
-  const mine = starter('Trip', 'Business trip');
+  const mine = starter('Trip', 'Business trip', 'Travel');
+  assert.equal(mine.app, 'Travel');
   mine.description = 'A journey for the company.';
   mine.variables.where_to = { type: 'text', label: 'Where to', list: true };
   await write(page, mine);
@@ -170,11 +177,12 @@ test('Dan names a class, changes what it begins as, and makes it', async () => {
 
   commands.length = 0;
   assert.equal(await press(page, 'save'), 'Made: the class Business trip, version 1.');
-  assert.deepEqual(commands, ['list_classes', 'define_class', 'get_user']);
+  assert.deepEqual(commands, ['list_classes', 'define_class', 'get_app', 'get_user']);
   assert.equal(await page.locator('#class-version').innerText(), 'version 1');
   assert.match(await page.locator('#class-defined').innerText(), /^Defined by Dan Mazur, /);
   assert.equal(await page.locator('#class-about').innerText(), 'A journey for the company.');
   assert.equal(await page.locator('#to-list').getAttribute('href'), 'list.html?class=Trip');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Travel', 'Business trip', 'Design']);
   assert.equal(await page.locator('#save').innerText(), 'Save');
   assert.ok(await page.locator('#save').isDisabled());
   const address = new URL(page.url());

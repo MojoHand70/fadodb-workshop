@@ -110,6 +110,8 @@ test('Ann opens an expense from the list and reads it by the sections of its cla
   assert.equal(await page.locator('#doc-state').innerText(), 'Waiting for approval');
   assert.match(await page.locator('#doc-state-about').innerText(), /Waiting for an approver/);
   assert.equal(await page.locator('#to-list').getAttribute('href'), 'list.html?class=Expense');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Expense', 'Taxi to the station']);
+  assert.equal(await page.locator('#crumbs [aria-current="page"]').innerText(), 'Taxi to the station');
 
   assert.deepEqual(await page.locator('#sections h2').allInnerTexts(), ['The purchase', 'Amounts']);
   assert.deepEqual(await fieldsOf(page), {

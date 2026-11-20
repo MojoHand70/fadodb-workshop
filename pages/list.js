@@ -13,7 +13,8 @@
 import { Refused, call } from './fado.js';
 import { kindOf, show as showValue } from './format.js';
 import { Live } from './live.js';
-import { enter, make, part, ready, show } from './shell.js';
+import { appSteps } from './apps.js';
+import { crumbs, enter, make, part, ready, show } from './shell.js';
 
 /** How many documents are asked for at a time. */
 const AT_A_TIME = 50;
@@ -175,7 +176,7 @@ async function load(fromTheStart) {
   part('table').hidden = shown === 0;
   const empty = part('empty');
   empty.hidden = shown > 0;
-  empty.textContent = state ? 'No document is in this state.' : 'There is no document of this class yet.';
+  empty.textContent = state ? 'No document is in this state.' : 'There is no document here yet.';
   part('more').hidden = shown >= count;
   await Promise.all(names.values());
 }
@@ -183,13 +184,14 @@ async function load(fromTheStart) {
 /** Shows that the list cannot be shown, in the server's own words. */
 function trouble(/** @type {unknown} */ refusal) {
   part('trouble-why').textContent = refusal instanceof Error ? refusal.message : String(refusal);
+  crumbs();
   show('trouble');
 }
 
 const user = await enter();
 if (user) {
   try {
-    if (!className) throw new Refused('unknown_class', 'The address names no class: it ends in list.html?class= and the name of a class.', 0);
+    if (!className) throw new Refused('unknown_class', 'The address does not say which list to show. Choose one from Home.', 0);
     const bundle = await call('get_bundle', { class: className, language: person.locale });
     readClass(bundle);
     // A new document is offered to whoever the class lets make one. Where
@@ -203,8 +205,10 @@ if (user) {
     design.hidden = !(user.system_groups ?? []).includes('designers');
     const wanted = asked.get('state') ?? '';
     state = (definition.states?.list ?? []).includes(wanted) ? wanted : '';
-    const label = String(definition.label || className);
+    // A list goes by the word for many of its documents, where the class has one.
+    const label = String(definition.plural || definition.label || className);
     document.title = `${label} · FadoDB Workshop`;
+    crumbs([...(await appSteps(definition.app)), { words: label }]);
     part('list-title').textContent = label;
     part('list-about').textContent = String(definition.description || '');
     drawStates();

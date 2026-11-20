@@ -44,6 +44,42 @@ export function show(view) {
   for (const section of views) section.hidden = section.dataset.view !== view;
 }
 
+/**
+ * Says where the person is: the way from the first page to this one,
+ * Home first. A step with an address leads there; the last step, when
+ * it has none, is the page itself.
+ *
+ * @param {{ words: string, href?: string, id?: string }[]} [steps] the steps after Home
+ */
+export function crumbs(steps = []) {
+  const all = [{ words: 'Home', href: './', id: 'to-home' }, ...steps];
+  const list = make('ol', '');
+  all.forEach((step, at) => {
+    const one = make(step.href ? 'a' : 'span', '', step.words);
+    if (step.href) one.setAttribute('href', step.href);
+    else if (at === all.length - 1) one.setAttribute('aria-current', 'page');
+    if (step.id) one.id = step.id;
+    const item = make('li', '');
+    item.append(one);
+    list.append(item);
+  });
+  const box = part('crumbs');
+  box.replaceChildren(list);
+  box.hidden = false;
+}
+
+/**
+ * Changes the words of the page's own step, the last one, where they
+ * differ. The steps before it are left as they are: a person may be
+ * pressing one.
+ *
+ * @param {string} words
+ */
+export function crumbHere(words) {
+  const here = part('crumbs').querySelector('[aria-current]');
+  if (here && here.textContent !== words) here.textContent = words;
+}
+
 /** Says that the page has drawn what it had to. The checks wait for it. */
 export function ready() {
   document.documentElement.dataset.ready = 'yes';

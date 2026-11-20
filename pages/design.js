@@ -86,7 +86,8 @@ import {
   whereWords,
   whoDecides,
 } from './class.js';
-import { enter, make, part, ready, show } from './shell.js';
+import { appSteps } from './apps.js';
+import { crumbs, enter, make, part, ready, show } from './shell.js';
 import { callAt, fromBytes, helpFor, pieceAt } from './formula.js';
 import { codeView, formulaBox } from './text.js';
 import { tryView } from './try.js';
@@ -2314,18 +2315,15 @@ async function drawHeld() {
   part('class-title').textContent = label;
   part('class-name').textContent = held.name;
   part('class-about').textContent = String(saved.description || '');
-  const toList = part('to-list');
   if (making) {
     // The server has no such class yet: there is no version and no list.
     part('class-version').textContent = 'not made yet';
-    toList.textContent = 'A new class';
-    toList.removeAttribute('href');
+    crumbs([...(await appSteps(saved.app)), { words: 'A new class', id: 'to-list' }]);
     part('class-defined').textContent = '';
     return;
   }
   part('class-version').textContent = `version ${held.version}`;
-  toList.textContent = label;
-  toList.setAttribute('href', `list.html?class=${encodeURIComponent(held.name)}`);
+  crumbs([...(await appSteps(saved.app)), { words: String(saved.plural || label), href: `list.html?class=${encodeURIComponent(held.name)}`, id: 'to-list' }, { words: 'Design' }]);
 
   // Who defined this version, by name.
   const by = String(held.defined?.by ?? '');
@@ -2638,6 +2636,7 @@ async function save() {
 
 function trouble(/** @type {unknown} */ refusal) {
   part('trouble-why').textContent = refusal instanceof Error ? refusal.message : String(refusal);
+  crumbs();
   show('trouble');
 }
 
@@ -2743,7 +2742,7 @@ async function open(mayChange) {
  * works, which the designer changes and then makes. Nothing is the
  * server's until then.
  */
-function begin() {
+async function begin() {
   const why = part('begin-why');
   part('begin-form').addEventListener('submit', async (sent) => {
     sent.preventDefault();
@@ -2761,7 +2760,8 @@ function begin() {
         return;
       }
       // Whether a name may be a name is the server's to say, in its words.
-      const first = starter(name, label);
+      // A class made from the page of an app belongs to that app.
+      const first = starter(name, label, asked.get('app') ?? '');
       const { diagnostics } = await call('validate_class', { definition: first });
       /** @type {import('./fado.js').Finding | undefined} */
       const about = (Array.isArray(diagnostics) ? diagnostics : []).find((/** @type {import('./fado.js').Finding} */ d) => d.path === '/name');
@@ -2773,6 +2773,7 @@ function begin() {
       why.textContent = `The server said: ${refusal instanceof Error ? refusal.message : String(refusal)}`;
     }
   });
+  crumbs([...(await appSteps(asked.get('app'))), { words: 'A new class' }]);
   show('begin');
   part('new-name').focus();
 }
@@ -2785,7 +2786,7 @@ if (user) {
       if (!mayChange) throw new Refused('forbidden', 'Making a class is for a designer.', 0);
       // The text is what a new class is worked on: the page opens there.
       if (!asked.has('as')) shownAs = 'text';
-      begin();
+      await begin();
     } else {
       if (!className) throw new Refused('unknown_class', 'The address names no class: it ends in design.html?class= and the name of a class.', 0);
       const answer = await call('get_class', { name: className });

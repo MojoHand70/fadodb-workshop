@@ -353,11 +353,13 @@ export function rulesAbout(definition, state) {
  *
  * @param {string} name
  * @param {string} label
+ * @param {string} [app] the app the class belongs to, when it is made inside one
  * @returns {Definition}
  */
-export function starter(name, label) {
+export function starter(name, label, app = '') {
   return {
     name,
+    ...(app ? { app } : {}),
     label: label || name,
     description: '',
     title: 'subject',
