@@ -1072,8 +1072,9 @@ h1 {
   text-align: center;
 }
 
-.first h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
-.first p { margin: 0 0 20px; color: var(--ink-2); }
+.first h2 { margin: 0; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
+.first p { margin: 8px 0 0; color: var(--ink-2); }
+.first .button { margin-top: 20px; }
 
 /* The lists of an app, on its own page: for a designer each says the
    name of its class and leads to its design. */

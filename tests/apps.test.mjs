@@ -71,6 +71,7 @@ test('a server with no app asks a designer to create the first one, and tells an
   assert.ok(await first.page.locator('#first-app').isVisible());
   assert.equal(await first.page.locator('#first-title').innerText(), 'Create your first FadoDB application');
   assert.ok(await first.page.locator('#first-go').isVisible());
+  assert.ok(await first.page.locator('#first-about').isHidden(), 'the words and the button say it: no sentence explains what an app is');
   assert.equal(await first.page.locator('#first-go').getAttribute('href'), 'app.html?new');
   assert.ok(await first.page.locator('#apps').isHidden(), 'there is no tile, and none that adds one beside nothing');
   // The engine's own class is there from the first day, in no app: it stands under Unassigned.
@@ -138,6 +139,7 @@ test('Dan makes the first app, and its first class inside it', async () => {
   assert.equal(await page.locator('#app-about').innerText(), 'Requests to IT, from the first message to the fix.');
   assert.equal(await page.locator('#app-name').innerText(), 'Helpdesk');
   assert.equal(await page.locator('#no-lists-title').innerText(), 'Make its first class');
+  assert.ok(await page.locator('#no-lists-about').isHidden(), 'and no sentence explains what a class is');
   assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'The help desk', 'Unassigned']);
   assert.equal(await page.locator('#first-class').getAttribute('href'), 'design.html?new&app=Helpdesk');
 

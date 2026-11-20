@@ -17,6 +17,8 @@ What a user of Workshop would see, newest first.
   "Unassigned", last in the rail, and a page about one of them names
   Unassigned on the way back. It needs a FadoDB server that knows
   apps (the engine's ADR-0077).
+- No sentence explains the first page, an empty server or an empty app
+  to a designer: the heading and the button say it.
 - The first page no longer carries a line on how far Workshop is; the
   README says it. A box finds an app by a part of its name, of what it
   is for or of a list in it, typed without capitals or the marks over

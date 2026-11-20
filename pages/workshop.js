@@ -95,9 +95,9 @@ async function draw(designer) {
   const first = part('first-app');
   first.hidden = apps.length > 0;
   part('first-title').textContent = designer ? 'Create your first FadoDB application' : 'There is no app here yet';
-  part('first-about').textContent = designer
-    ? 'An app holds what belongs together: the expenses of a company, its help desk.'
-    : 'A designer makes the first one.';
+  // A designer has the button. Anybody else is told who makes the first app.
+  part('first-about').textContent = designer ? '' : 'A designer makes the first one.';
+  part('first-about').hidden = designer;
   part('first-go').hidden = !designer;
 }
 
