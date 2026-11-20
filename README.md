@@ -49,6 +49,13 @@ says who may. The card of a variable then says, state by state, who
 may set it and who may see it, and which line says so: the question a
 designer asks most, answered as the server answers it.
 
+**The sections of a class**, which variables belong together, are
+changed there as well. A section is chosen by its title: its label,
+what it is for, and where it lies, at the top or inside another
+section. "Add a section" asks its name and the variable it begins
+with, for the server takes no section with nothing in it. A section
+removed leaves its variables in the class, in no section.
+
 **A formula is written in the formula editor**, wherever the lists
 have one: what the class works out, a first value, the title of a
 document, who may, the condition of a transition. Its pieces are
@@ -61,9 +68,9 @@ and what it finds is marked at its place.
 
 What is not there yet: a value that is a list, rows or an object is
 shown and cannot be set; in the design mode what a class does by
-itself, and its sections themselves, are changed in the text only,
-and a formula cannot be tried on a document yet; and Workshop has no
-packaged release, so it is run from this
+itself, and the order of its variables and sections, are changed in
+the text only, and a formula cannot be tried on a document yet; and
+Workshop has no packaged release, so it is run from this
 repository, with a FadoDB server built from the engine's source, newer
 than its release 0.6.0. This page will say so until that changes.
 

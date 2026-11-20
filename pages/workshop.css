@@ -539,6 +539,26 @@ h1 {
 .part-title { margin: 0 0 2px; font-size: 16px; font-weight: 600; }
 .part-name { color: var(--ink-2); font: 500 12px/1.5 var(--mono); }
 .part-about { margin: 0 0 8px; color: var(--ink-2); font-size: 14px; }
+.part-about:empty { display: none; }
+
+/* A section is chosen by its title, as a variable by its row. */
+.part-pick {
+  display: inline-block;
+  margin: 0 0 0 -8px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.part-pick:hover { background: var(--bg-2); }
+.part-pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.part-pick[aria-pressed="true"] { border-color: var(--blue); background: #EEF2FA; }
+.field-value { margin: 0; overflow-wrap: anywhere; }
 
 .vars { margin: 0; padding: 0; list-style: none; }
 
@@ -708,6 +728,8 @@ h1 {
 .adder { margin: 10px 0 0; }
 .adder-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .adder-form .input { flex: 1 1 12em; width: auto; min-height: 36px; }
+.adder-form .adder-whole { flex-basis: 100%; }
+.adder[data-adds-section] { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); }
 .card .adder .field-why { margin: 6px 0 0; color: #7A2318; }
 .adder .field-why:empty { display: none; }
 

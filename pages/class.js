@@ -917,3 +917,158 @@ export function whereWords(definition, line) {
   const about = line.about === 'every variable' ? 'the line for every variable' : line.about === 'variable' ? 'its own line' : `the line for the section ${section?.label || line.what}`;
   return `${about}, ${line.state === '*' ? 'for every state' : 'in this state'}`;
 }
+
+/**
+ * Where a section is written: the list of sections that holds it,
+ * what holds that list, the class itself or a section, and the names
+ * of the sections around it, the nearest first. Null where the class
+ * has no section of that name.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @returns {{ section: Record<string, any>, holder: Record<string, any>, around: string[] } | null}
+ */
+function whereSection(definition, name) {
+  /** @type {{ section: Record<string, any>, holder: Record<string, any>, around: string[] } | null} */
+  let found = null;
+  /** @param {Record<string, any>} holder @param {string[]} around */
+  const look = (holder, around) => {
+    for (const [at, section] of Object.entries(holder.sections ?? {})) {
+      if (!section || typeof section !== 'object') continue;
+      if (!found && at === name) found = { section, holder, around };
+      look(section, [at, ...around]);
+    }
+  };
+  look(definition, []);
+  return found;
+}
+
+/**
+ * A section as its card shows it: its words, the section it lies in,
+ * '' at the top, and what it holds. Null where the class has no
+ * section of that name.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @returns {{ name: string, label: string, description: string, inside: string, variables: string[], sections: string[] } | null}
+ */
+export function sectionWords(definition, name) {
+  const at = whereSection(definition, name);
+  if (!at) return null;
+  return {
+    name,
+    label: text(at.section.label),
+    description: text(at.section.description),
+    inside: at.around[0] ?? '',
+    variables: texts(at.section.variables),
+    sections: Object.keys(at.section.sections ?? {}),
+  };
+}
+
+/**
+ * Sets the label or the description of a section, or takes it out.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @param {'label' | 'description'} word
+ * @param {string} value
+ */
+export function setSectionWord(definition, name, word, value) {
+  const at = whereSection(definition, name);
+  if (!at) return;
+  if (nothing(value)) delete at.section[word];
+  else at.section[word] = value;
+}
+
+/**
+ * Adds a section at the end of the top level, holding one variable,
+ * which leaves the section it was in: the server takes no section
+ * with nothing in it, so a section begins with what it is for.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @param {string} first the variable it begins with
+ */
+export function addSection(definition, name, first) {
+  if (!definition.sections || typeof definition.sections !== 'object') definition.sections = {};
+  if (definition.sections[name] === undefined) definition.sections[name] = { variables: [] };
+  moveVariable(definition, first, name);
+}
+
+/**
+ * Takes a section out. Its variables stay in the class, in no section,
+ * and the sections inside it take its place, in their order. A line
+ * about single variables that names it is left as it is: the server
+ * says so when the class is checked.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ */
+export function removeSection(definition, name) {
+  const at = whereSection(definition, name);
+  if (!at) return;
+  /** @type {Record<string, any>} */
+  const next = {};
+  for (const [one, section] of Object.entries(at.holder.sections)) {
+    if (one === name) Object.assign(next, section.sections ?? {});
+    else next[one] = section;
+  }
+  if (Object.keys(next).length > 0) at.holder.sections = next;
+  else delete at.holder.sections;
+}
+
+/**
+ * The sections a section may be moved into: the top, and every section
+ * that is not the section itself and does not lie inside it.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @returns {{ name: string, label: string, depth: number }[]}
+ */
+export function placesFor(definition, name) {
+  /** @type {Set<string>} */
+  const own = new Set([name]);
+  /** @param {Record<string, any> | undefined} sections */
+  const gather = (sections) => {
+    for (const [one, section] of Object.entries(sections ?? {})) {
+      own.add(one);
+      gather(section?.sections);
+    }
+  };
+  gather(whereSection(definition, name)?.section.sections);
+  return [{ name: '', label: 'At the top', depth: 0 }, ...sectionsOf(definition).filter((one) => !own.has(one.name))];
+}
+
+/**
+ * Moves a section, with all it holds, into another section or to the
+ * top, to the end of the sections there. A section is not moved into
+ * itself or into one that lies inside it.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @param {string} into the section it goes into, '' for the top
+ */
+export function moveSection(definition, name, into) {
+  const at = whereSection(definition, name);
+  if (!at || !placesFor(definition, name).some((place) => place.name === into)) return;
+  if ((at.around[0] ?? '') === into) return;
+  const to = into ? whereSection(definition, into)?.section : definition;
+  if (!to) return;
+  delete at.holder.sections[name];
+  if (Object.keys(at.holder.sections).length === 0) delete at.holder.sections;
+  if (!to.sections || typeof to.sections !== 'object') to.sections = {};
+  to.sections[name] = at.section;
+}
+
+/**
+ * Where a section is written, as the server names the place: a JSON
+ * pointer. '' where the class has no section of that name.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ */
+export function pathOfSection(definition, name) {
+  const at = whereSection(definition, name);
+  return at ? [...at.around].reverse().concat(name).map((one) => `/sections/${one}`).join('') : '';
+}
+
