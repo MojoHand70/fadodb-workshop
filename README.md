@@ -81,7 +81,7 @@ the commit of the engine this Workshop is checked against, under
 `config.engine`:
 
 ```
-go install github.com/MojoHand70/fadodb/cmd/fadodb@32b088e3fec4dab711e2f086b3335fa451b215e6
+go install github.com/MojoHand70/fadodb/cmd/fadodb@1ff999153c1b4da8b4ea564803a300579e359e31
 ```
 
 Get Workshop's pages ready. The second command puts the engine's file
