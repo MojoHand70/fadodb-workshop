@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, ready, watch } from './browser.mjs';
+import { fits, formulaOf, launch, ready, watch, writeFormula } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -120,17 +120,18 @@ test('Dan changes the words of the class and the four lines that say who may', a
   assert.equal(await page.inputValue('#c-label'), 'Expense');
   assert.equal(await page.inputValue('#c-plural'), '');
   assert.equal(await page.inputValue('#c-description'), definition.description);
-  assert.equal(await page.inputValue('#c-title'), 'what');
+  assert.equal(await formulaOf(page, '#c-title'), 'what');
   commands.length = 0;
 
   await type(page, '#c-label', 'Expense claim');
   await type(page, '#c-plural', 'Expense claims');
   await type(page, '#c-description', 'What an employee asks to be paid back.');
-  await type(page, '#c-title', '"Claim: " & what');
-  await type(page, '#c-delete', 'CREATEDBY() = USER() AND STATE() = "draft"');
+  await writeFormula(page, '#c-title', '"Claim: " & what');
+  await writeFormula(page, '#c-delete', 'CREATEDBY() = USER() AND STATE() = "draft"');
   assert.ok(await page.locator('#class-changed').isVisible());
   assert.equal(await page.locator('#class-title').innerText(), 'Expense', 'the heading shows the class the server holds, until it is saved');
-  assert.deepEqual(commands, [], 'nothing of this reaches the server');
+  assert.deepEqual(commands.filter((command) => command !== 'validate_class'), [], 'the formula editor asks the server to check a formula, which writes nothing; nothing else is sent');
+  assert.equal((await held('Owned')).version, 1);
 
   assert.equal(await press(page, 'check'), 'Checked: the server takes it.');
   assert.equal(await press(page, 'save'), 'Saved as version 2.');
@@ -144,7 +145,7 @@ test('Dan changes the words of the class and the four lines that say who may', a
   assert.deepEqual((await held('Owned')).definition, next);
 
   // An empty line is a line left out: nobody is let through, and the server notes it.
-  await type(page, '#c-read', '');
+  await writeFormula(page, '#c-read', '');
   assert.equal(await press(page, 'check'), 'Checked: the server takes it, with one note.');
   assert.match(await page.locator('#notes .finding-go').innerText(), /^Owned has no read rule/);
   assert.equal(await press(page, 'save'), 'Saved as version 3.');
@@ -227,10 +228,10 @@ test('Dan chooses a way out of a state and changes the transition', async () => 
   assert.equal(await page.inputValue('#m-from'), 'submitted');
   assert.equal(await page.inputValue('#m-to'), 'approved');
   assert.equal(await page.inputValue('#m-description'), 'An approver who is not its author accepts it; above 5,000, a director.');
-  assert.equal(await page.inputValue('#m-who'), definition.access.transition.approve, 'the formula whole');
-  assert.equal(await page.inputValue('#m-guard'), '');
+  assert.equal(await formulaOf(page, '#m-who'), definition.access.transition.approve, 'the formula whole');
+  assert.equal(await formulaOf(page, '#m-guard'), '');
   assert.equal(await page.inputValue('#m-after'), '');
-  assert.equal(await page.inputValue('#m-at'), '');
+  assert.equal(await formulaOf(page, '#m-at'), '');
   assert.deepEqual(await page.locator('#m-to option').evaluateAll((all) => all.map((o) => o.textContent)), ['Draft', 'Waiting for approval', 'Approved', 'Paid']);
   assert.equal(await pick(page, 'submitted').getAttribute('aria-pressed'), 'true', 'the state it leaves stays chosen');
   assert.equal(new URL(page.url()).searchParams.get('move'), '3');
@@ -238,8 +239,8 @@ test('Dan chooses a way out of a state and changes the transition', async () => 
 
   await type(page, '#m-label', 'Accept');
   assert.equal(await page.locator('#about-title').innerText(), 'Accept');
-  await type(page, '#m-guard', 'total < 100000');
-  await type(page, '#m-who', 'INGROUP("expense_approvers") AND CREATEDBY() <> USER()');
+  await writeFormula(page, '#m-guard', 'total < 100000');
+  await writeFormula(page, '#m-who', 'INGROUP("expense_approvers") AND CREATEDBY() <> USER()');
   await type(page, '#m-after', '30d');
 
   // The address opens the same transition again, with what was typed still in the text.
@@ -261,8 +262,8 @@ test('Dan chooses a way out of a state and changes the transition', async () => 
 
   // With no line of its own a transition asks the line for changing; a guard and a time emptied are gone.
   await way(page, 'approve').locator('.way-pick').click();
-  await type(page, '#m-who', '');
-  await type(page, '#m-guard', '');
+  await writeFormula(page, '#m-who', '');
+  await writeFormula(page, '#m-guard', '');
   await type(page, '#m-after', '');
   await page.selectOption('#m-to', 'paid');
   await page.click('#m-back');
@@ -331,7 +332,7 @@ test('Dan adds a way out: its name is asked of the server, and it opens at the s
 
   await page.keyboard.type('Escalate');
   await type(page, '#m-description', 'An approver passes it to a director.');
-  await type(page, '#m-who', 'INGROUP("expense_approvers")');
+  await writeFormula(page, '#m-who', 'INGROUP("expense_approvers")');
   await page.click('#m-back');
   assert.deepEqual(await page.locator('#ways-out .way').evaluateAll((all) => all.map((w) => w.getAttribute('data-transition'))), ['take_back', 'send_back', 'approve', 'escalate']);
   assert.equal(await press(page, 'check'), 'Checked: the server takes it.');
@@ -480,7 +481,7 @@ test('a transition that leaves several states, and one with no name, are shown f
   assert.equal(await page.locator('#about-title').innerText(), 'A transition with no name');
   assert.match(await page.locator('#about').innerText(), /the engine makes this move by itself when its condition holds/);
   assert.equal(await page.locator('#m-who').count(), 0, 'nobody takes it, so no line says who may');
-  assert.equal(await page.inputValue('#m-guard'), 'amount > 1000');
+  assert.equal(await formulaOf(page, '#m-guard'), 'amount > 1000');
   assert.deepEqual(wrong, []);
   await context.close();
 });

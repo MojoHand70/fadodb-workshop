@@ -142,7 +142,7 @@ test('Dan names a class, changes what it begins as, and makes it', async () => {
   commands.length = 0;
   await begin(page, 'Trip', 'Business trip');
   await page.locator('#design').waitFor();
-  assert.deepEqual(commands, ['list_classes', 'validate_class'], 'the page looks whether the name is free and whether the server takes it');
+  assert.deepEqual(commands, ['list_classes', 'validate_class', 'list_functions'], 'the page looks whether the name is free and whether the server takes it, then asks what a formula can call');
   assert.equal(await page.locator('#class-title').innerText(), 'Business trip');
   assert.equal(await page.locator('#class-name').innerText(), 'Trip');
   assert.equal(await page.locator('#class-version').innerText(), 'not made yet');

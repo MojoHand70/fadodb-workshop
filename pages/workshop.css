@@ -744,6 +744,38 @@ h1 {
 .card .starts-here { color: var(--ink); font-weight: 500; font-size: 14px; }
 .picks .adder { margin-top: 2px; }
 
+/* The formula editor: a box that colours a formula, the help for the
+   function the cursor is in, and what the server says of the formula. */
+
+.formula-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+
+.formula-names {
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--blue-strong);
+  font: 500 13px/1.5 var(--sans);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.formula-names:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+.formula-box { min-width: 0; }
+.card .formula-call { margin: 4px 0 0; color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }
+.formula-call:empty { display: none; }
+.formula-sig { font: 400 13px/1.5 var(--mono); }
+.formula-arg { color: var(--blue-strong); font-weight: 700; text-decoration: underline; }
+.props .field-why:empty { display: none; }
+.card .props .field-why { color: #7A2318; }
+
+.fx-text { color: #1F6B4F; }
+.fx-number { color: #8A4B00; }
+.fx-word { color: #7A2318; font-weight: 600; }
+.fx-function { color: var(--blue-strong); font-weight: 600; }
+.fx-variable { color: var(--ink); font-weight: 600; }
+.fx-name { color: var(--ink-2); }
+.fx-sign { color: var(--ink-2); }
+
 /* Beginning a new class. */
 
 .begin { display: grid; gap: 16px; max-width: 560px; }

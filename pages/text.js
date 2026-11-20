@@ -393,6 +393,8 @@ export function formulaBox(parent, { text, label, describedBy = '', readOnly = f
         EditorView.lineWrapping,
         autocompletion({
           icons: false,
+          // The whole list is there for somebody who walks it: the engine has about a hundred functions.
+          maxRenderedOptions: 400,
           override: [
             (context) => {
               const word = context.matchBefore(NAME_BEFORE);
@@ -433,10 +435,16 @@ export function formulaBox(parent, { text, label, describedBy = '', readOnly = f
         EditorView.updateListener.of((update) => {
           if (update.docChanged && onType) onType();
           if ((update.docChanged || update.selectionSet) && onMove) onMove();
-          if (update.focusChanged && !update.view.hasFocus && onDone) onDone();
         }),
       ],
     }),
+  });
+  // The person is done when the cursor leaves the box. The browser says
+  // so at once; the box itself would say it a moment later, after
+  // whatever was pressed next had already been dealt with.
+  view.dom.addEventListener('focusout', (left) => {
+    const to = left.relatedTarget;
+    if (onDone && !(to instanceof Node && view.dom.contains(to))) onDone();
   });
 
   return {

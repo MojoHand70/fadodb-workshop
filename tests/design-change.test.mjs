@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, ready, watch } from './browser.mjs';
+import { fits, formulaOf, launch, ready, watch, writeFormula } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -120,7 +120,7 @@ test('Dan chooses a variable, and the side shows its properties as fields', asyn
   assert.ok(await page.isChecked('#v-given'));
   assert.equal(await page.inputValue('#v-type'), 'text');
   assert.equal(await page.isChecked('#v-required'), false);
-  assert.equal(await page.inputValue('#v-default'), '');
+  assert.equal(await formulaOf(page, '#v-default'), '');
   assert.equal(await page.inputValue('#v-values'), '');
   assert.equal(await page.isChecked('#v-list'), false);
   assert.equal(await page.inputValue('#v-section'), 'purchase');
@@ -130,7 +130,7 @@ test('Dan chooses a variable, and the side shows its properties as fields', asyn
 
   await choose(page, 'vat_rate');
   assert.equal(await page.inputValue('#v-type'), 'decimal');
-  assert.equal(await page.inputValue('#v-default'), '0.23');
+  assert.equal(await formulaOf(page, '#v-default'), '0.23');
   assert.equal(await page.inputValue('#v-min'), '0');
   assert.equal(await page.inputValue('#v-max'), '0.23');
   assert.equal(await page.inputValue('#v-scale'), '2');
@@ -139,7 +139,7 @@ test('Dan chooses a variable, and the side shows its properties as fields', asyn
 
   await choose(page, 'total');
   assert.ok(await page.isChecked('#v-computed'));
-  assert.equal(await page.inputValue('#v-formula'), 'net + vat');
+  assert.equal(await formulaOf(page, '#v-formula'), 'net + vat');
   assert.ok(await page.isChecked('#v-list'));
   assert.equal(await page.inputValue('#v-format'), '#,##0.00');
   assert.equal(await page.locator('#v-type, #v-required, #v-default').count(), 0, 'what the class works out has no type of its own, is not required and has no first value');
@@ -149,13 +149,13 @@ test('Dan chooses a variable, and the side shows its properties as fields', asyn
   assert.equal(new URL(page.url()).searchParams.get('state'), null);
   await page.reload();
   await ready(page);
-  assert.equal(await page.inputValue('#v-formula'), 'net + vat');
+  assert.equal(await formulaOf(page, '#v-formula'), 'net + vat');
   await page.click('.pick[data-state="submitted"]');
   assert.equal(await page.locator('#about-title').innerText(), 'Waiting for approval');
   assert.equal(await page.locator('#v-label').count(), 0);
   assert.equal(await row(page, 'total').locator('.var-pick').getAttribute('aria-pressed'), 'false');
   assert.equal(new URL(page.url()).searchParams.get('variable'), null);
-  assert.deepEqual(commands, ['whoami', 'get_class', 'get_user'], 'choosing asks the server nothing: only the reload did');
+  assert.deepEqual(commands, ['whoami', 'get_class', 'list_functions', 'get_user'], 'choosing asks the server nothing: only the reload did');
   assert.deepEqual(wrong, []);
   await context.close();
 });
@@ -197,15 +197,14 @@ test('what Dan changes in the fields goes into the text at once, and is saved as
   await page.fill('#v-description', 'What the approver should know before deciding.');
   await page.check('#v-required');
   assert.equal(await row(page, 'note').locator('.var-kind').innerText(), 'text, required');
-  await page.fill('#v-default', '"low"');
-  await page.press('#v-default', 'Enter');
+  await writeFormula(page, '#v-default', '"low"');
   await page.fill('#v-values', 'low,  normal , high');
   await page.press('#v-values', 'Tab');
   assert.equal(await row(page, 'note').locator('.var-kind').innerText(), 'text, required, one of low, normal, high, at first "low"');
   assert.equal(await row(page, 'note').locator('.var-about').innerText(), 'What the approver should know before deciding.');
   await page.check('#v-list');
   assert.deepEqual(await row(page, 'note').locator('.tag').evaluateAll((all) => all.map((t) => t.textContent)), ['in The List']);
-  assert.deepEqual(commands, [], 'nothing of this reaches the server');
+  assert.deepEqual(commands.filter((command) => command !== 'validate_class'), [], 'the formula editor asks the server to check a formula, which writes nothing; nothing else is sent');
   assert.equal((await held('Changed')).version, 1);
 
   // The text holds the same class: the lists and the text are one thing.
@@ -221,8 +220,7 @@ test('what Dan changes in the fields goes into the text at once, and is saved as
   assert.ok(await page.locator('#class-changed').isHidden());
 
   // Emptying a field takes the word out of the class.
-  await page.fill('#v-default', '');
-  await page.press('#v-default', 'Tab');
+  await writeFormula(page, '#v-default', '');
   await page.uncheck('#v-required');
   await page.fill('#v-values', '');
   await page.press('#v-values', 'Tab');
@@ -299,7 +297,7 @@ test('Dan turns a value people give into one the class works out, and back', asy
   const { context, page, wrong } = await atTheLists('Turned');
   await choose(page, 'cost_centre');
   await page.check('#v-computed');
-  assert.equal(await page.inputValue('#v-formula'), '');
+  assert.equal(await formulaOf(page, '#v-formula'), '');
   assert.equal(await page.locator('#v-type, #v-required, #v-default, #v-values').count(), 0);
   assert.equal(await row(page, 'cost_centre').locator('.var-kind').innerText(), 'fx');
 
@@ -308,8 +306,7 @@ test('Dan turns a value people give into one the class works out, and back', asy
   assert.equal(await press(page, 'check'), 'Checked: one thing to put right.');
   assert.match((await page.locator('#findings .finding').getAttribute('data-path')) ?? '', /^\/variables\/cost_centre\//);
 
-  await page.fill('#v-formula', 'UPPER(what)');
-  await page.press('#v-formula', 'Enter');
+  await writeFormula(page, '#v-formula', 'UPPER(what)');
   assert.equal(await row(page, 'cost_centre').locator('.var-kind').innerText(), 'fx UPPER(what)');
   assert.equal(await press(page, 'check'), 'Checked: the server takes it.');
   assert.equal(await press(page, 'save'), 'Saved as version 2.');
