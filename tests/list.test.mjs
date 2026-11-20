@@ -79,7 +79,7 @@ async function annOpensTheList(locale, label = 'Expense') {
   await signIn(page, site, server);
   // Before she signed in the server answered 401 once, as it should.
   seen.answers.length = 0;
-  await page.locator('.class-way', { has: page.locator('.class-name', { hasText: new RegExp(`^${label}$`) }) }).click();
+  await page.locator(`.class[data-class="${label}"] .class-way`).click();
   await ready(page);
   return { context, page, ...seen };
 }
@@ -100,6 +100,10 @@ test('Ann opens the list of expenses from the first page', async () => {
 
   assert.equal(new URL(page.url()).pathname + new URL(page.url()).search, '/list.html?class=Expense');
   assert.equal(await page.locator('#list-title').innerText(), 'Expense');
+  // Where she is: the way from the first page, the list itself last.
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Expense']);
+  assert.equal(await page.locator('#crumbs a').getAttribute('href'), './');
+  assert.equal(await page.locator('#crumbs [aria-current="page"]').innerText(), 'Expense');
   assert.equal(await page.title(), 'Expense · FadoDB Workshop');
   assert.deepEqual(await page.locator('#heads th').allInnerTexts(), ['What was bought', 'Bought on', 'Cost centre', 'Total', 'State', 'By', 'Changed']);
 

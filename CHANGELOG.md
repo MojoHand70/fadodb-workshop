@@ -4,6 +4,16 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- The first page no longer carries a line on how far Workshop is; the
+  README says it. A box at its top finds a list by a part of its name
+  or of what it is for, typed without capitals or the marks over
+  letters, and Enter opens the first that is left.
+- Every page says where the person is: Home, the list, the document,
+  each step before the last leading back.
+- "Class" is a designer's word. A person who is no designer reads a
+  list by the word for many of its documents, "Expenses", and no page
+  says "class" to them. A designer sees the name of each class, the
+  way to its design and "New class" as before.
 - The pages carry FadoDB's own mark, the one of fadodb.org, beside the
   words "FadoDB workshop", in place of a blue square with an F that
   was a stand-in.

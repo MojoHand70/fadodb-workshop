@@ -114,7 +114,6 @@ test('Dan is offered New class on the first page; Jan is not', async () => {
   const first = await at(dan, '');
   assert.ok(await first.page.locator('#new-class').isVisible());
   assert.equal(await first.page.locator('#new-class').getAttribute('href'), 'design.html?new');
-  assert.match(await first.page.locator('.status').innerText(), /makes a new one/);
   assert.deepEqual(first.wrong, []);
   await first.context.close();
 
@@ -148,6 +147,7 @@ test('Dan names a class, changes what it begins as, and makes it', async () => {
   assert.equal(await page.locator('#class-version').innerText(), 'not made yet');
   assert.equal(await page.locator('#class-defined').innerText(), '');
   assert.equal(await page.locator('#to-list').getAttribute('href'), null, 'a class that is not made has no list');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'A new class']);
   assert.ok(await page.locator('#text').isVisible(), 'the page opens on the text');
   assert.equal(await page.locator('#save').innerText(), 'Make the class');
   assert.ok(await page.locator('#save').isEnabled(), 'it may be made as it begins');

@@ -29,7 +29,7 @@ import { Refused, call } from './fado.js';
 import { control as controlOf } from './fields.js';
 import { show as showValue } from './format.js';
 import { Live } from './live.js';
-import { enter, make, part, ready, show } from './shell.js';
+import { crumbHere, crumbs, enter, make, part, ready, show } from './shell.js';
 
 const person = { locale: navigator.language || 'en', yes: 'Yes', no: 'No' };
 const asked = new URLSearchParams(location.search);
@@ -166,7 +166,7 @@ function field(name) {
   const label = make('dt', 'field-label');
   if (variable.formula) {
     const mark = make('span', 'fx', 'fx');
-    mark.setAttribute('title', 'Worked out by the class');
+    mark.setAttribute('title', 'Worked out, not typed');
     label.append(mark);
   }
   if (set) {
@@ -239,6 +239,7 @@ function follow() {
     if (JSON.stringify(live.values[name] ?? null) !== drawn) box.replaceWith(field(name));
   }
   part('doc-title').textContent = live.title || (making ? `New: ${String(definition.label || className)}` : '');
+  crumbHere(live.title || (making ? `New: ${String(definition.label || className)}` : id));
 
   const changed = [...live.changed, ...[...unread.keys()].filter((name) => !live.changed.has(name))];
   const dirty = changed.length > 0;
@@ -549,14 +550,12 @@ async function load() {
 const user = await enter();
 if (user) {
   try {
-    if (!className || (!id && !making)) throw new Refused('unknown_document', 'The address names no document: it ends in document.html?class=, the name of a class, &id= and the id of a document.', 0);
+    if (!className || (!id && !making)) throw new Refused('unknown_document', 'The address does not say which document to show. Open one from its list.', 0);
     const bundle = await call('get_bundle', { class: className, language: person.locale });
     live = new Live(bundle, user);
     definition = live.definition;
     const list = `list.html?class=${encodeURIComponent(className)}`;
-    const toList = part('to-list');
-    toList.textContent = String(definition.label || className);
-    toList.setAttribute('href', list);
+    crumbs([{ words: String(definition.plural || definition.label || className), href: list, id: 'to-list' }, { words: '' }]);
     part('save').addEventListener('click', save);
     part('discard').addEventListener('click', () => {
       if (making) {
@@ -580,7 +579,7 @@ if (user) {
       if (!done && live.changed.size > 0) leaving.preventDefault();
     });
     if (making) {
-      if (live.mayCreate() === false) throw new Refused('forbidden', `You may not make a document of ${String(definition.label || className)}: the class keeps that for others.`, 0);
+      if (live.mayCreate() === false) throw new Refused('forbidden', `You may not make a document of ${String(definition.label || className)}: that is kept for others.`, 0);
       live.begin();
       const first = live.saved.state;
       document.title = `New: ${String(definition.label || className)} · FadoDB Workshop`;
@@ -598,6 +597,7 @@ if (user) {
     show('document');
   } catch (refusal) {
     part('trouble-why').textContent = refusal instanceof Error ? refusal.message : String(refusal);
+    crumbs();
     show('trouble');
   }
   ready();

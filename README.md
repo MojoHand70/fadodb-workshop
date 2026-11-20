@@ -6,8 +6,11 @@ server.
 
 **Status: the use mode works for a class of plain values.** A FadoDB
 server hands out Workshop's pages. A person signs in on the server's
-own page, sees the classes on the server, opens the list of a class,
-makes a new document, and opens one. There they read it by the
+own page, sees the lists they may open, finds one by a part of its
+name, opens it, makes a new document, and opens one. Every page says
+where the person is, Home first. That a list has a class behind it is
+a designer's to know: the pages say the word to a designer alone.
+There they read a document by the
 sections of its class, change the values the class lets them change,
 with what the class calculates following as they type, save, and move
 the document along its flow. The buttons that move it follow the
@@ -113,7 +116,7 @@ The decisions and the reasons for them are in
 
 | | |
 |---|---|
-| `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, the design of a class, Workshop's door to the server (`fado.js`), the live document (`live.js`), how a value is shown to a person and read from their typing (`format.js`, `input.js`), the field a value is typed in (`fields.js`), how a class is read and changed for the designer's lists (`class.js`), how a formula is read for its editor (`formula.js`), the two text boxes of the design mode (`text.js`), and a class tried on a new document (`try.js`). |
+| `pages/` | The files a server hands out. Today: the first page, the list of a class, one document, the design of a class, Workshop's door to the server (`fado.js`), the live document (`live.js`), how a value is shown to a person and read from their typing (`format.js`, `input.js`), how a thing is found by a part of its name (`find.js`), the field a value is typed in (`fields.js`), how a class is read and changed for the designer's lists (`class.js`), how a formula is read for its editor (`formula.js`), the two text boxes of the design mode (`text.js`), and a class tried on a new document (`try.js`). |
 | `pages/vendor/` | Made by `npm run vendor`, not kept here: the engine's file for the browser, and CodeMirror, which stands under the text box, built into one file with its licences beside it. |
 | `tools/vendor.mjs`, `tools/codemirror.entry.mjs` | What makes `pages/vendor/`, and the list of what Workshop takes from CodeMirror. |
 | `tools/serve.mjs` | A helper that hands out `pages/` with no FadoDB server behind them, to look at a page as it is drawn. |

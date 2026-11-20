@@ -39,9 +39,13 @@ TEST_BROWSER=firefox npm test            # the same tests in Firefox; webkit is 
    that reaches the browser needs a decision record too.
 4. **Decisions are records.** A record under `docs/adr/` goes in as
    Proposed and is Accepted on the owner's word.
-5. **Honest status.** The README and the pages say what works today.
-   Planned behaviour is marked as planned.
-6. **Checked in a real browser, against a real server.** Every page
+5. **Honest status.** The README says what works today, and a page
+   offers only what works. Planned behaviour is marked as planned.
+6. **A designer's words stay with the designer.** A person who is no
+   designer reads a list by the word for many of its documents; no
+   page says "class" to them, and a test reads the pages as such a
+   person to hold it.
+7. **Checked in a real browser, against a real server.** Every page
    has a test that opens it under the security header, with nothing
    refused, at a phone's width and by the keyboard. What a page shows
    of a database comes from a FadoDB server the test starts, built from
@@ -53,7 +57,7 @@ TEST_BROWSER=firefox npm test            # the same tests in Firefox; webkit is 
    read too early. The same tests run in Chromium, Firefox and WebKit;
    a test that cannot run in one of them says why, and is not left out
    silently.
-7. **A public repository.** Nothing private belongs here.
+8. **A public repository.** Nothing private belongs here.
 
 ## Style
 

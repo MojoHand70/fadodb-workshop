@@ -86,7 +86,7 @@ import {
   whereWords,
   whoDecides,
 } from './class.js';
-import { enter, make, part, ready, show } from './shell.js';
+import { crumbs, enter, make, part, ready, show } from './shell.js';
 import { callAt, fromBytes, helpFor, pieceAt } from './formula.js';
 import { codeView, formulaBox } from './text.js';
 import { tryView } from './try.js';
@@ -2314,18 +2314,15 @@ async function drawHeld() {
   part('class-title').textContent = label;
   part('class-name').textContent = held.name;
   part('class-about').textContent = String(saved.description || '');
-  const toList = part('to-list');
   if (making) {
     // The server has no such class yet: there is no version and no list.
     part('class-version').textContent = 'not made yet';
-    toList.textContent = 'A new class';
-    toList.removeAttribute('href');
+    crumbs([{ words: 'A new class', id: 'to-list' }]);
     part('class-defined').textContent = '';
     return;
   }
   part('class-version').textContent = `version ${held.version}`;
-  toList.textContent = label;
-  toList.setAttribute('href', `list.html?class=${encodeURIComponent(held.name)}`);
+  crumbs([{ words: String(saved.plural || label), href: `list.html?class=${encodeURIComponent(held.name)}`, id: 'to-list' }, { words: 'Design' }]);
 
   // Who defined this version, by name.
   const by = String(held.defined?.by ?? '');
@@ -2638,6 +2635,7 @@ async function save() {
 
 function trouble(/** @type {unknown} */ refusal) {
   part('trouble-why').textContent = refusal instanceof Error ? refusal.message : String(refusal);
+  crumbs();
   show('trouble');
 }
 
@@ -2773,6 +2771,7 @@ function begin() {
       why.textContent = `The server said: ${refusal instanceof Error ? refusal.message : String(refusal)}`;
     }
   });
+  crumbs([{ words: 'A new class' }]);
   show('begin');
   part('new-name').focus();
 }
