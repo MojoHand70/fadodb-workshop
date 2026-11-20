@@ -20,12 +20,20 @@ import { Refused, call } from './fado.js';
 import { show as showValue } from './format.js';
 import {
   TYPES,
+  actionsOf,
   addMove,
+  addReset,
   addRightLine,
+  addRule,
   addSection,
+  addSet,
   addState,
   addVariable,
   asRangeEnd,
+  eventsAt,
+  eventsOf,
+  homeOfRule,
+  inputsOf,
   kindLine,
   linesOf,
   linesToAdd,
@@ -38,13 +46,17 @@ import {
   placeOfVariable,
   placesFor,
   placesOut,
+  removeAction,
   removeMove,
   removeRightLine,
+  removeRule,
   removeSection,
+  removeSetValue,
   removeState,
   removeVariable,
   rightsIn,
-  rulesAbout,
+  ruleAt,
+  rulesAt,
   sectionOfVariable,
   sectionWords,
   sectionsOf,
@@ -55,8 +67,13 @@ import {
   setLine,
   setMoveWho,
   setMoveWord,
+  setResetVariables,
   setRight,
+  setRuleEvent,
+  setRuleIf,
+  setRuleVariables,
   setSectionWord,
+  setSetFormula,
   setStateWord,
   setWord,
   shiftSection,
@@ -93,6 +110,8 @@ let variable = '';
 let move = -1;
 /** The section whose card the side of the page shows, or '' when it shows something else. */
 let shownSection = '';
+/** The rule whose card the side of the page shows, by its place in the list of the class, or -1. */
+let shownRule = -1;
 /** Whether the person may change a class: a designer. */
 let designer = false;
 /**
@@ -216,6 +235,8 @@ function remember() {
   else address.searchParams.delete('variable');
   if (move >= 0 && !variable) address.searchParams.set('move', String(move));
   else address.searchParams.delete('move');
+  if (shownRule >= 0) address.searchParams.set('rule', String(shownRule));
+  else address.searchParams.delete('rule');
   if (shownAs === 'text') address.searchParams.set('as', 'text');
   else address.searchParams.delete('as');
   history.replaceState(null, '', address);
@@ -362,6 +383,7 @@ function chooseSection(name) {
   shownSection = name;
   variable = '';
   move = -1;
+  shownRule = -1;
   remember();
   for (const head of document.querySelectorAll('#variables .var-pick')) head.setAttribute('aria-pressed', 'false');
   for (const head of document.querySelectorAll('#variables .part-pick')) head.setAttribute('aria-pressed', String(head.closest('.part')?.getAttribute('data-section') === name));
@@ -440,6 +462,7 @@ async function addSectionNamed(name, first) {
   shownSection = name;
   variable = '';
   move = -1;
+  shownRule = -1;
   remember();
   drawVariables();
   drawStates();
@@ -670,6 +693,7 @@ async function addNamed(name, section) {
   variable = name;
   move = -1;
   shownSection = '';
+  shownRule = -1;
   remember();
   drawVariables();
   drawStates();
@@ -688,6 +712,7 @@ function choose(name) {
   variable = name;
   move = -1;
   shownSection = '';
+  shownRule = -1;
   remember();
   for (const head of document.querySelectorAll('#variables .part-pick')) head.setAttribute('aria-pressed', 'false');
   for (const head of document.querySelectorAll('#variables .var-pick')) {
@@ -786,6 +811,7 @@ function chooseState(state) {
   variable = '';
   move = -1;
   shownSection = '';
+  shownRule = -1;
   remember();
   for (const head of document.querySelectorAll('#variables .var-pick, #variables .part-pick')) head.setAttribute('aria-pressed', 'false');
   drawStates();
@@ -954,27 +980,341 @@ function rightsBlock(state, title, about, changing = false) {
   return box;
 }
 
+/** The names in a list a person typed with commas between. */
+const listed = (/** @type {string} */ typedList) =>
+  typedList
+    .split(',')
+    .map((one) => one.trim())
+    .filter(Boolean);
+
 /**
- * The rules about a state, or about none, as a block.
+ * The rules about a state, or about none, as a block: what the class
+ * does by itself. Where a designer changes them, a rule is chosen by
+ * its first line, as a way out is, and one is added at the end.
  *
- * @param {string} state
+ * @param {string} state '' for the rules that are about no state
  * @param {string} title
+ * @param {boolean} [changing]
  */
-function rulesBlock(state, title) {
-  const rules = rulesAbout(definition, state);
-  if (rules.length === 0) return null;
-  const box = block(title, 'What the class does by itself.');
+function rulesBlock(state, title, changing = false) {
+  const rules = rulesAt(definition, state);
+  if (rules.length === 0 && !changing) return null;
+  const box = block(title, changing && rules.length > 0 ? 'What the class does by itself. Choose a rule to change it.' : 'What the class does by itself.');
   box.dataset.rules = state;
+  if (rules.length === 0) box.append(make('p', 'card-about rule-none', state ? 'Nothing: no rule is about this state or a way out of it.' : 'Nothing: no rule is about a new document, a change of a value or a deletion.'));
   for (const rule of rules) {
     const one = make('div', 'rule');
-    one.append(make('p', 'rule-when', rule.when));
+    one.dataset.rule = String(rule.at);
+    if (changing) {
+      const head = make('button', 'rule-when way-pick', rule.when);
+      head.setAttribute('type', 'button');
+      head.addEventListener('click', () => chooseRule(rule.at));
+      one.append(head);
+    } else one.append(make('p', 'rule-when', rule.when));
     const lines = make('dl', 'right');
     if (rule.only) lines.append(line('only when', formulaOf(rule.only)));
     for (const does of rule.does) lines.append(line('it does', formulaOf(does)));
     one.append(lines);
     box.append(one);
   }
+  if (changing) {
+    const add = ruleAdder(state);
+    if (add) box.append(add);
+  }
   return box;
+}
+
+/**
+ * Chooses a rule: the side of the page shows its card.
+ *
+ * @param {number} at its place in the list of the class
+ */
+function chooseRule(at) {
+  flush();
+  shownRule = at;
+  variable = '';
+  move = -1;
+  shownSection = '';
+  remember();
+  drawAbout();
+  showSide();
+}
+
+/**
+ * A way to add a rule in one place of the lists: a button that becomes
+ * a small form asking what sets the rule off and which value it sets.
+ * A rule does at least one thing, so it begins with one. Null where
+ * the class has no value a rule could set.
+ *
+ * @param {string} state '' for the whole class
+ */
+function ruleAdder(state) {
+  const inputs = inputsOf(definition);
+  if (inputs.length === 0) return null;
+  const box = make('div', 'adder');
+  box.dataset.addsRule = state;
+  const open = make('button', 'button button-plain button-small', 'Add a rule');
+  open.setAttribute('type', 'button');
+  open.addEventListener('click', () => {
+    const form = make('form', 'adder-form');
+    form.setAttribute('novalidate', '');
+    const when = /** @type {HTMLSelectElement} */ (make('select', 'input adder-whole'));
+    when.setAttribute('aria-label', 'What sets the rule off');
+    for (const one of eventsAt(definition, state)) {
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', `when ${one.words.charAt(0).toLowerCase()}${one.words.slice(1)}`));
+      option.value = one.event;
+      when.append(option);
+    }
+    const sets = /** @type {HTMLSelectElement} */ (make('select', 'input adder-whole'));
+    sets.setAttribute('aria-label', 'The value the rule sets');
+    for (const one of inputs) {
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', `it sets ${one.name}, ${one.label}`));
+      option.value = one.name;
+      sets.append(option);
+    }
+    const go = make('button', 'button button-small', 'Add');
+    go.setAttribute('type', 'submit');
+    const cancel = make('button', 'button button-plain button-small', 'Cancel');
+    cancel.setAttribute('type', 'button');
+    cancel.addEventListener('click', () => box.replaceChildren(open));
+    form.addEventListener('submit', (sent) => {
+      sent.preventDefault();
+      flush();
+      let at = -1;
+      change((draft) => {
+        at = addRule(draft, when.value, sets.value);
+      });
+      if (at < 0) return;
+      shownRule = at;
+      variable = '';
+      move = -1;
+      shownSection = '';
+      remember();
+      drawAbout();
+      const first = document.querySelector(`#u-set-0-${sets.value} .cm-content`);
+      if (first instanceof HTMLElement) first.focus();
+      part('said').textContent = 'Added a rule. Say what the value is set to.';
+    });
+    form.append(when, sets, go, cancel);
+    box.replaceChildren(form, make('p', 'field-about', 'A rule does at least one thing: it begins by setting one value, to a formula you then write.'));
+    when.focus();
+  });
+  box.append(open);
+  return box;
+}
+
+/**
+ * A way to add an action to what a rule does: to set a value, or to
+ * put one back to its first value.
+ *
+ * @param {number} at the place of the rule
+ */
+function actionAdder(at) {
+  const box = make('div', 'adder');
+  box.dataset.addsAction = String(at);
+  const open = make('button', 'button button-plain button-small', 'Add an action');
+  open.setAttribute('type', 'button');
+  open.addEventListener('click', () => {
+    const form = make('form', 'adder-form');
+    form.setAttribute('novalidate', '');
+    const kind = /** @type {HTMLSelectElement} */ (make('select', 'input adder-whole'));
+    kind.setAttribute('aria-label', 'What the action does');
+    for (const [value, words] of [
+      ['set', 'Set a value'],
+      ['reset', 'Put a value back to its first value'],
+    ]) {
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', words));
+      option.value = value;
+      kind.append(option);
+    }
+    const which = /** @type {HTMLSelectElement} */ (make('select', 'input adder-whole'));
+    which.setAttribute('aria-label', 'The value it is about');
+    for (const one of inputsOf(definition)) {
+      const option = /** @type {HTMLOptionElement} */ (make('option', '', `${one.name}, ${one.label}`));
+      option.value = one.name;
+      which.append(option);
+    }
+    const go = make('button', 'button button-small', 'Add');
+    go.setAttribute('type', 'submit');
+    const cancel = make('button', 'button button-plain button-small', 'Cancel');
+    cancel.setAttribute('type', 'button');
+    cancel.addEventListener('click', () => box.replaceChildren(open));
+    form.addEventListener('submit', (sent) => {
+      sent.preventDefault();
+      flush();
+      let place = -1;
+      change((draft) => {
+        place = kind.value === 'set' ? addSet(draft, at, which.value) : addReset(draft, at, which.value);
+      });
+      drawAbout();
+      const first = document.querySelector(kind.value === 'set' ? `#u-set-${place}-${which.value} .cm-content` : `#u-reset-${place}`);
+      if (first instanceof HTMLElement) first.focus();
+      part('said').textContent = kind.value === 'set' ? 'Added an action. Say what the value is set to.' : 'Added an action.';
+    });
+    form.append(kind, which, go, cancel);
+    box.replaceChildren(form);
+    kind.focus();
+  });
+  box.append(open);
+  return box;
+}
+
+/**
+ * A rule, as fields: what sets it off, on what condition, and what it
+ * does, one action after another. It is told by its place in the list
+ * of the class. An action that sets a value or puts one back has
+ * fields; any other is shown as the class writes it, and is changed in
+ * the text.
+ *
+ * @param {number} at
+ */
+function drawRule(at) {
+  const it = ruleAt(definition, at);
+  if (!it) return;
+  const box = part('about');
+  part('about-title').textContent = it.when;
+  part('about-what').textContent = 'A rule: what the class does by itself when something happens. What you change here goes into the text at once. Nothing is the server\'s until you save.';
+  /** @param {string} state */
+  const labelOf = (state) => (state ? (statesOf(definition).find((one) => one.name === state)?.label ?? state) : 'The whole class');
+
+  const back = make('button', 'button button-plain button-small', `Back to ${labelOf(homeOfRule(definition, at, chosen))}`);
+  back.id = 'u-back';
+  back.setAttribute('type', 'button');
+  back.addEventListener('click', () => {
+    flush();
+    chosen = homeOfRule(definition, at, chosen);
+    shownRule = -1;
+    remember();
+    drawStates();
+    drawAbout();
+    showSide();
+  });
+
+  const props = make('div', 'props');
+  const top = make('div', 'field');
+  top.append(back);
+  props.append(top);
+
+  const when = /** @type {HTMLSelectElement} */ (make('select', 'input'));
+  const events = eventsOf(definition);
+  // What the text names and the class does not have is shown as it is written.
+  if (!events.some((one) => one.event === it.event)) events.push({ event: it.event, words: `${it.when} (as the text writes it)` });
+  for (const one of events) {
+    const option = /** @type {HTMLOptionElement} */ (make('option', '', one.words));
+    option.value = one.event;
+    option.selected = one.event === it.event;
+    when.append(option);
+  }
+  when.addEventListener('change', () => {
+    flush();
+    change((draft) => setRuleEvent(draft, at, when.value));
+    // The rule may belong to another state now: the lists go with it.
+    chosen = homeOfRule(definition, at, chosen);
+    remember();
+    drawStates();
+    drawAbout();
+  });
+  props.append(field('u-when', 'When', when, 'What sets the rule off.'));
+  if (it.event === 'values_change') {
+    props.append(
+      field(
+        'u-variables',
+        'Which values',
+        typed(
+          it.variables.join(', '),
+          (t) => {
+            change((draft) => setRuleVariables(draft, at, listed(t)));
+            part('about-title').textContent = ruleAt(definition, at)?.when ?? '';
+          },
+          { mono: true },
+        ),
+        'The names of the variables, with commas between: net, vat_rate. The rule runs when one of them changes.',
+      ),
+    );
+  }
+  props.append(formulaField('u-if', 'Only when', it.condition, `/rules/${at}/if`, (draft, formula) => setRuleIf(draft, at, formula.trim()), 'A condition about the document: total > 1000. Empty: every time.'));
+  box.append(props);
+
+  const does = block('It does', 'One action after another, in this order.');
+  does.id = 'u-does';
+  const actions = actionsOf(definition, at);
+  // A rule does at least one thing: the last thing it does is not taken away, the rule is.
+  const things = actions.reduce((count, action) => count + (action.kind === 'set' ? action.values.length : 1), 0);
+  /**
+   * @param {string} id
+   * @param {string} what for a screen reader: what is removed
+   * @param {(draft: Record<string, any>) => void} take
+   */
+  const remover = (id, what, take) => {
+    const remove = make('button', 'button button-plain button-small', 'Remove');
+    remove.id = id;
+    remove.setAttribute('type', 'button');
+    remove.setAttribute('aria-label', `Remove: ${what}`);
+    remove.addEventListener('click', () => {
+      flush();
+      change(take);
+      drawAbout();
+      part('said').textContent = 'Removed the action from the text. Undo puts it back.';
+    });
+    return remove;
+  };
+  for (const action of actions) {
+    if (action.kind === 'set') {
+      for (const value of action.values) {
+        const one = make('div', 'props rule-action');
+        one.dataset.action = String(action.at);
+        one.dataset.sets = value.variable;
+        one.append(
+          formulaField(`u-set-${action.at}-${value.variable}`, `Set ${value.label} to`, value.formula, `/rules/${at}/do/${action.at}/values/${value.variable}`, (draft, formula) =>
+            setSetFormula(draft, at, action.at, value.variable, formula.trim()), ''),
+        );
+        if (things > 1) one.append(remover(`u-remove-${action.at}-${value.variable}`, `set ${value.label}`, (draft) => removeSetValue(draft, at, action.at, value.variable)));
+        does.append(one);
+      }
+    } else if (action.kind === 'reset') {
+      const one = make('div', 'props rule-action');
+      one.dataset.action = String(action.at);
+      one.append(
+        field(
+          `u-reset-${action.at}`,
+          'Put back to its first value',
+          typed(action.variables.join(', '), (t) => void change((draft) => setResetVariables(draft, at, action.at, listed(t))), { mono: true }),
+          'The names of the variables, with commas between. Each goes back to the first value the class gives it.',
+        ),
+      );
+      if (things > 1) one.append(remover(`u-remove-${action.at}`, 'put back to its first value', (draft) => removeAction(draft, at, action.at)));
+      does.append(one);
+    } else {
+      const one = make('div', 'props rule-action');
+      one.dataset.action = String(action.at);
+      const words = make('p', 'rule-other');
+      words.append(formulaOf(action.words), ' ', make('span', 'tag', 'changed in the text'));
+      one.append(words);
+      if (things > 1) one.append(remover(`u-remove-${action.at}`, action.words, (draft) => removeAction(draft, at, action.at)));
+      does.append(one);
+    }
+  }
+  if (things <= 1) does.append(make('p', 'field-about rule-last', 'A rule does at least one thing. To take this away, remove the rule.'));
+  does.append(actionAdder(at));
+  box.append(does);
+
+  const remove = make('button', 'button button-plain', 'Remove this rule');
+  remove.id = 'u-remove';
+  remove.setAttribute('type', 'button');
+  remove.addEventListener('click', () => {
+    flush();
+    const home = homeOfRule(definition, at, chosen);
+    change((draft) => removeRule(draft, at));
+    chosen = home;
+    shownRule = -1;
+    remember();
+    drawStates();
+    drawAbout();
+    part('said').textContent = 'Removed the rule from the text. Undo puts it back.';
+  });
+  const end = block('', '');
+  end.append(remove);
+  box.append(end);
 }
 
 /** What holds for the whole class: who may see, make, change and delete a document. */
@@ -1026,7 +1366,7 @@ function drawWholeClass() {
     designer && editable(),
   );
   if (rights) box.append(rights);
-  const rules = rulesBlock('', 'By itself');
+  const rules = rulesBlock('', 'By itself', designer && editable());
   if (rules) box.append(rules);
 }
 
@@ -1161,7 +1501,7 @@ function drawState(state) {
     none.append(make('p', 'card-about', 'The class keeps no line for single variables: whoever may change a document may set every value in it.'));
     box.append(none);
   }
-  const rules = rulesBlock(state.name, 'By itself');
+  const rules = rulesBlock(state.name, 'By itself', changing);
   if (rules) box.append(rules);
 
   if (changing) {
@@ -1883,6 +2223,7 @@ function drawAbout() {
   part('about').replaceChildren();
   if (variable && designer && editable() && definition.variables?.[variable]) return drawVariable(variable);
   if (shownSection && designer && editable() && sectionWords(definition, shownSection)) return drawSection(shownSection);
+  if (shownRule >= 0 && designer && editable() && ruleAt(definition, shownRule)) return drawRule(shownRule);
   if (move >= 0 && designer && editable() && definition.transitions?.[move]) return drawMove(move);
   const state = statesOf(definition).find((s) => s.name === chosen);
   if (state) drawState(state);
@@ -1957,6 +2298,7 @@ function drawLists() {
   if (chosen !== '' && !statesOf(definition).some((s) => s.name === chosen)) chosen = '';
   if (variable && !definition.variables?.[variable]) variable = '';
   if (shownSection && !sectionWords(definition, shownSection)) shownSection = '';
+  if (shownRule >= 0 && !ruleAt(definition, shownRule)) shownRule = -1;
   if (move >= 0 && !definition.transitions?.[move]) move = -1;
   drawVariables();
   drawStates();
@@ -2276,7 +2618,11 @@ async function open(mayChange) {
   const wantedSection = asked.get('section') ?? '';
   shownSection = designer && !variable && sectionWords(definition, wantedSection) ? wantedSection : '';
   const wantedMove = /^\d+$/.test(asked.get('move') ?? '') ? Number(asked.get('move')) : -1;
-  move = designer && !variable && !shownSection && definition.transitions?.[wantedMove] ? wantedMove : -1;
+  const wantedRule = /^\d+$/.test(asked.get('rule') ?? '') ? Number(asked.get('rule')) : -1;
+  shownRule = designer && !variable && !shownSection && ruleAt(definition, wantedRule) ? wantedRule : -1;
+  // The state at the side of a rule is the one it belongs to.
+  if (shownRule >= 0 && homeOfRule(definition, shownRule, chosen)) chosen = homeOfRule(definition, shownRule, chosen);
+  move = designer && !variable && !shownSection && shownRule < 0 && definition.transitions?.[wantedMove] ? wantedMove : -1;
   if (move >= 0) {
     // The state at the side of a transition is one it leaves.
     const leaves = [definition.transitions[move].from].flat().map(String);

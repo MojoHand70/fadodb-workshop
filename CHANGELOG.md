@@ -4,6 +4,22 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: a designer changes what a class does by itself, its
+  rules, through the lists. A rule stands under "By itself" in the
+  card of the state it belongs to, or under "The whole class", and is
+  chosen there. Its card has three parts. When: the event that sets it
+  off, a document made, entering or leaving a state, a transition
+  taken, a value changing, a document deleted. Only when: a condition,
+  in a formula box. It does: its actions in order. An action that sets
+  a value by a formula, and one that puts values back to their first
+  values, have fields; any other action is shown as the class writes
+  it and is changed in the text. "Add a rule" asks the event and the
+  value the rule begins by setting; "Add an action" adds to what it
+  does. The last thing a rule does is not taken away: the rule is.
+- In the lists, an action that puts values back reads "put note back
+  to its first value".
+- Fixed: on a phone, a form with a long choice in its list pushed the
+  page sideways.
 - Design mode: the order a document shows its values in is changed
   through the lists. The card of a variable says its place among the
   variables of its section, and "Earlier" and "Later" move it a step;

@@ -58,6 +58,13 @@ removed leaves its variables in the class, in no section. The order a
 document shows its values in is changed a step at a time: a variable
 earlier or later within its section, a section among those beside it.
 
+**What a class does by itself**, its rules, stands under "By itself"
+in the card of the state it belongs to, and under "The whole class"
+for a rule about no state. A rule is chosen there, and its card says
+when it runs, the event that sets it off; only when, a condition; and
+what it does, one action after another. "Add a rule" asks the event
+and the value the rule sets, for a rule does at least one thing.
+
 **A formula is written in the formula editor**, wherever the lists
 have one: what the class works out, a first value, the title of a
 document, who may, the condition of a transition. Its pieces are
@@ -69,10 +76,11 @@ moment after the typing stops the server is asked about the formula,
 and what it finds is marked at its place.
 
 What is not there yet: a value that is a list, rows or an object is
-shown and cannot be set; in the design mode what a class does by
-itself is changed in the text only, and a formula cannot be tried on
-a document yet; and Workshop has no packaged release, so it is run
-from this
+shown and cannot be set; in the design mode, of what a class does by
+itself, only setting a value and putting one back have fields, and
+every other action of a rule, such as calling another system, is
+changed in the text; a formula cannot be tried on a document yet; and
+Workshop has no packaged release, so it is run from this
 repository, with a FadoDB server built from the engine's source, newer
 than its release 0.6.0. This page will say so until that changes.
 

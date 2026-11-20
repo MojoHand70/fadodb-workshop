@@ -7,14 +7,23 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   TYPES,
+  actionsOf,
   addMove,
+  addReset,
   addRightLine,
+  addRule,
   addSection,
+  addSet,
   addState,
   addVariable,
   asFormula,
   asRangeEnd,
   decides,
+  eventOf,
+  eventsAt,
+  eventsOf,
+  homeOfRule,
+  inputsOf,
   kindLine,
   linesOf,
   linesToAdd,
@@ -27,13 +36,18 @@ import {
   placeOfVariable,
   placesFor,
   placesOut,
+  removeAction,
   removeMove,
   removeRightLine,
+  removeRule,
   removeSection,
+  removeSetValue,
   removeState,
   removeVariable,
   rightsIn,
+  ruleAt,
   rulesAbout,
+  rulesAt,
   sectionOfVariable,
   sectionWords,
   sectionsAround,
@@ -45,8 +59,13 @@ import {
   setLine,
   setMoveWho,
   setMoveWord,
+  setResetVariables,
   setRight,
+  setRuleEvent,
+  setRuleIf,
+  setRuleVariables,
   setSectionWord,
+  setSetFormula,
   setStateWord,
   setWord,
   shiftSection,
@@ -607,4 +626,117 @@ test('a variable and a section are moved a step earlier or later among those bes
   shiftSection(nested, 'two', -1);
   assert.deepEqual(Object.keys(nested.sections.outer.sections), ['two', 'one']);
   assert.deepEqual(placeOfSection(nested, 'nothing'), { at: 0, of: 0 });
+});
+
+test('what can set a rule off: everything in the class, and what belongs to one place of the lists', () => {
+  assert.deepEqual(inputsOf(expense).map((one) => one.name), ['what', 'bought_on', 'cost_centre', 'note', 'net', 'vat_rate'], 'the values people give: a rule sets these and no other');
+  assert.deepEqual(eventsOf(expense).slice(0, 4), [
+    { event: 'create', words: 'A document is made' },
+    { event: 'values_change', words: 'A value changes' },
+    { event: 'enter:draft', words: 'A document enters Draft' },
+    { event: 'enter:submitted', words: 'A document enters Waiting for approval' },
+  ]);
+  assert.deepEqual(eventsOf(expense).slice(-6).map((one) => one.event), ['transition:submit', 'transition:take_back', 'transition:send_back', 'transition:approve', 'transition:pay', 'delete']);
+  assert.deepEqual(eventsAt(expense, 'submitted'), [
+    { event: 'enter:submitted', words: 'A document enters Waiting for approval' },
+    { event: 'exit:submitted', words: 'A document leaves Waiting for approval' },
+    { event: 'transition:take_back', words: 'Take back is taken' },
+    { event: 'transition:send_back', words: 'Send back is taken' },
+    { event: 'transition:approve', words: 'Approve is taken' },
+  ]);
+  assert.deepEqual(eventsAt(expense, '').slice(0, 2), [{ event: 'create', words: 'A document is made' }, { event: 'values_change:what', words: 'What was bought changes' }]);
+  assert.equal(eventsAt(expense, '').at(-1)?.event, 'delete');
+  assert.equal(eventOf({ on: 'transition', name: 'approve' }), 'transition:approve');
+  assert.equal(eventOf({ on: 'exit', state: 'draft' }), 'exit:draft');
+  assert.equal(eventOf({ on: 'values_change', variables: ['net'] }), 'values_change');
+  assert.equal(eventOf(undefined), '');
+});
+
+test('a rule is added, told where it belongs, changed and taken out; and so is each thing it does', () => {
+  /** @type {any} */
+  const it = structuredClone(expense);
+  assert.equal('rules' in it, false);
+  /** The first rule as the class holds it, read afresh: a check narrows what the checker takes it for. */
+  const first = () => /** @type {any} */ (it).rules[0];
+
+  // A rule does at least one thing: it begins by setting one variable, to a formula the designer then writes.
+  assert.equal(addRule(it, 'transition:approve', 'note'), 0);
+  assert.deepEqual(it.rules, [{ on: 'transition', name: 'approve', do: [{ action: 'set', values: { note: '' } }] }]);
+  setSetFormula(it, 0, 0, 'note', 'note & " (seen)"');
+  assert.equal(addRule(it, 'values_change:net', 'cost_centre'), 1);
+  assert.deepEqual(it.rules[1], { on: 'values_change', variables: ['net'], do: [{ action: 'set', values: { cost_centre: '' } }] });
+  assert.equal(addRule(it, 'enter:draft', 'note'), 2);
+  assert.equal(addRule(it, 'create', 'what'), 3);
+
+  // Where each stands in the lists, by its place in the class.
+  assert.deepEqual(rulesAt(it, 'submitted'), [{ at: 0, when: 'When Approve is taken', only: '', does: ['set note = note & " (seen)"'] }]);
+  assert.deepEqual(rulesAt(it, 'draft').map((rule) => [rule.at, rule.when]), [[2, 'When a document enters Draft']]);
+  assert.deepEqual(rulesAt(it, '').map((rule) => [rule.at, rule.when]), [[1, 'When net changes'], [3, 'When a document is made']]);
+  assert.deepEqual(rulesAbout(it, 'submitted'), [{ when: 'When Approve is taken', only: '', does: ['set note = note & " (seen)"'] }]);
+  assert.equal(homeOfRule(it, 0), 'submitted');
+  // A transition that leaves several states: its rule stands under each, and is at home in the one the lists show.
+  /** @type {any} */
+  const several = { states: { initial: 'a', list: ['a', 'b', 'c'] }, transitions: [{ name: 'stop', from: ['a', 'b'], to: 'c' }], rules: [{ on: 'transition', name: 'stop', do: [] }] };
+  assert.equal(homeOfRule(several, 0), 'a');
+  assert.equal(homeOfRule(several, 0, 'b'), 'b');
+  assert.equal(homeOfRule(several, 0, 'c'), 'a', 'not in a state the transition does not leave');
+  assert.deepEqual([rulesAt(several, 'a').length, rulesAt(several, 'b').length, rulesAt(several, 'c').length], [1, 1, 0]);
+  assert.equal(homeOfRule(it, 2), 'draft');
+  assert.equal(homeOfRule(it, 1), '');
+  assert.equal(homeOfRule(it, 9), '');
+  assert.deepEqual(ruleAt(it, 0), { when: 'When Approve is taken', only: '', does: ['set note = note & " (seen)"'], event: 'transition:approve', variables: [], condition: '' });
+  assert.equal(ruleAt(it, 9), null);
+
+  // The condition, and what sets it off. What the old event named and the new one does not is taken out.
+  setRuleIf(it, 0, 'total > 1000');
+  assert.deepEqual(Object.keys(it.rules[0]), ['on', 'name', 'if', 'do'], 'in the order a class writes a rule');
+  setRuleEvent(it, 0, 'exit:submitted');
+  assert.deepEqual(it.rules[0], { on: 'exit', state: 'submitted', if: 'total > 1000', do: [{ action: 'set', values: { note: 'note & " (seen)"' } }] });
+  setRuleEvent(it, 0, 'values_change');
+  assert.deepEqual(first().variables, [], 'for the designer to name');
+  setRuleVariables(it, 0, ['net', 'vat_rate']);
+  assert.deepEqual(Object.keys(it.rules[0]), ['on', 'variables', 'if', 'do']);
+  setRuleEvent(it, 0, 'values_change');
+  assert.deepEqual(first().variables, ['net', 'vat_rate'], 'the same event again keeps what it names');
+  setRuleEvent(it, 0, 'delete');
+  assert.deepEqual(Object.keys(it.rules[0]), ['on', 'if', 'do']);
+  setRuleIf(it, 0, '');
+  assert.equal('if' in it.rules[0], false);
+  setRuleEvent(it, 0, 'transition:approve');
+
+  // What it does, one action after another.
+  assert.equal(addReset(it, 0, 'cost_centre'), 1);
+  assert.equal(addSet(it, 0, 'what'), 2);
+  setSetFormula(it, 0, 2, 'what', 'UPPER(what)');
+  first().do.push({ action: 'emit', event: 'approved' });
+  first().do[0].values.cost_centre = '"none"';
+  assert.deepEqual(actionsOf(it, 0), [
+    { at: 0, kind: 'set', values: [{ variable: 'note', label: 'Note', formula: 'note & " (seen)"' }, { variable: 'cost_centre', label: 'Cost centre', formula: '"none"' }] },
+    { at: 1, kind: 'reset', variables: ['cost_centre'] },
+    { at: 2, kind: 'set', values: [{ variable: 'what', label: 'What was bought', formula: 'UPPER(what)' }] },
+    { at: 3, kind: 'other', words: 'emit (event: approved)' },
+  ]);
+  setResetVariables(it, 0, 1, ['cost_centre', 'note']);
+  assert.deepEqual(it.rules[0].do[1], { action: 'reset', variables: ['cost_centre', 'note'] });
+  setSetFormula(it, 0, 1, 'note', 'x');
+  assert.deepEqual(it.rules[0].do[1], { action: 'reset', variables: ['cost_centre', 'note'] }, 'an action that sets nothing is given no formula');
+
+  // One value out of an action that sets two; the last value takes the action with it.
+  removeSetValue(it, 0, 0, 'note');
+  assert.deepEqual(it.rules[0].do[0], { action: 'set', values: { cost_centre: '"none"' } });
+  removeSetValue(it, 0, 0, 'cost_centre');
+  assert.deepEqual(it.rules[0].do.map((/** @type {any} */ step) => step.action), ['reset', 'set', 'emit']);
+  removeAction(it, 0, 0);
+  assert.deepEqual(it.rules[0].do.map((/** @type {any} */ step) => step.action), ['set', 'emit']);
+  removeAction(it, 0, 7);
+  assert.equal(it.rules[0].do.length, 2);
+
+  // Taken out, the rules after it move up; the last one leaves no list.
+  removeRule(it, 1);
+  assert.deepEqual(it.rules.map(eventOf), ['transition:approve', 'enter:draft', 'create']);
+  removeRule(it, 5);
+  removeRule(it, 0);
+  removeRule(it, 0);
+  removeRule(it, 0);
+  assert.equal('rules' in it, false);
 });
