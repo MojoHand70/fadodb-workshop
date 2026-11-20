@@ -5,7 +5,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, plain, ready, watch } from './browser.mjs';
+import { fits, launch, leave, plain, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -250,20 +250,21 @@ test('Cancel goes back to the list without a question; leaving any other way ask
   const { context, page } = await janBeginsOne();
   await page.fill('#f-what', 'Not wanted after all');
   let asked = '';
-  page.on('dialog', async (dialog) => {
+  /** @param {import('playwright').Dialog} dialog */
+  const question = async (dialog) => {
     asked = dialog.type();
     await dialog.dismiss();
-  });
+  };
+  page.on('dialog', question);
   await page.click('#discard');
   await page.waitForURL((address) => address.pathname === '/list.html');
   assert.equal(asked, '', 'Cancel is the person\'s own word: nothing is asked');
+  page.off('dialog', question);
 
   await page.click('#new');
   await ready(page);
   await page.fill('#f-what', 'Typed, then the window is closed');
-  await page.close({ runBeforeUnload: true });
-  await new Promise((wait) => setTimeout(wait, 300));
-  assert.equal(asked, 'beforeunload');
+  assert.equal(await leave(page), 'asked');
   await context.close();
 });
 

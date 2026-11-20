@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { show } from '../pages/format.js';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, ready, watch } from './browser.mjs';
+import { fits, launch, leave, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -326,14 +326,7 @@ test('leaving with something not saved asks first', async () => {
   const id = await janDraftsATaxi();
   const { context, page } = await opened('jan', id);
   await page.fill('#f-net', '4200');
-  let asked = '';
-  page.once('dialog', async (dialog) => {
-    asked = dialog.type();
-    await dialog.dismiss();
-  });
-  await page.close({ runBeforeUnload: true });
-  await new Promise((wait) => setTimeout(wait, 300));
-  assert.equal(asked, 'beforeunload');
+  assert.equal(await leave(page), 'asked');
   await context.close();
 });
 

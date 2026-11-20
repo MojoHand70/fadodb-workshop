@@ -126,3 +126,30 @@ export function plain(text) {
 export function fits(page) {
   return page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 }
+
+/**
+ * Leaves a page as a person does who closes its tab, and answers what
+ * came of it: 'asked' when the browser asked first, and the person
+ * then stays; 'left' when the page went without a question.
+ *
+ * It waits for the one or the other to happen, however long the
+ * browser takes: never for a moment in between.
+ *
+ * @param {import('playwright').Page} page
+ * @returns {Promise<'asked' | 'left'>}
+ */
+export async function leave(page) {
+  /** @type {Promise<'asked'>} */
+  const asked = new Promise((answer) => {
+    page.once('dialog', async (dialog) => {
+      if (dialog.type() === 'beforeunload') answer('asked');
+      await dialog.dismiss();
+    });
+  });
+  /** @type {Promise<'left'>} */
+  const left = new Promise((answer) => {
+    page.once('close', () => answer('left'));
+  });
+  await page.close({ runBeforeUnload: true });
+  return Promise.race([asked, left]);
+}

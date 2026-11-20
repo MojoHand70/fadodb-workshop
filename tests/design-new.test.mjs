@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { starter } from '../pages/class.js';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, ready, watch } from './browser.mjs';
+import { fits, launch, leave, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -285,27 +285,14 @@ test('leaving a new class asks first only when something was changed', async () 
   const untouched = await at(dan, 'design.html?new');
   await begin(untouched.page, 'Untouched');
   await untouched.page.locator('#design').waitFor();
-  let asked = '';
-  untouched.page.once('dialog', async (dialog) => {
-    asked = dialog.type();
-    await dialog.dismiss();
-  });
-  await untouched.page.close({ runBeforeUnload: true });
-  await new Promise((wait) => setTimeout(wait, 300));
-  assert.equal(asked, '', 'what it began as is no work to lose');
+  assert.equal(await leave(untouched.page), 'left', 'what it began as is no work to lose');
   await untouched.context.close();
 
   const touched = await at(dan, 'design.html?new');
   await begin(touched.page, 'Touched');
   await touched.page.locator('#design').waitFor();
   await write(touched.page, { ...starter('Touched', 'Touched'), description: 'Something of Dan\'s.' });
-  touched.page.once('dialog', async (dialog) => {
-    asked = dialog.type();
-    await dialog.dismiss();
-  });
-  await touched.page.close({ runBeforeUnload: true });
-  await new Promise((wait) => setTimeout(wait, 300));
-  assert.equal(asked, 'beforeunload');
+  assert.equal(await leave(touched.page), 'asked');
   await touched.context.close();
 });
 

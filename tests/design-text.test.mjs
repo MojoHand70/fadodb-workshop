@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, ready, watch } from './browser.mjs';
+import { fits, launch, leave, ready, watch } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -425,14 +425,7 @@ test('leaving with a class that is not saved asks first', async () => {
   const { context, page } = await atTheText('Leaving');
   await write(page, asText({ ...definition, description: 'Not saved yet.' }));
   assert.ok(await page.locator('#class-changed').isVisible());
-  let asked = '';
-  page.once('dialog', async (dialog) => {
-    asked = dialog.type();
-    await dialog.dismiss();
-  });
-  await page.close({ runBeforeUnload: true });
-  await new Promise((wait) => setTimeout(wait, 300));
-  assert.equal(asked, 'beforeunload');
+  assert.equal(await leave(page), 'asked');
   await context.close();
 });
 
