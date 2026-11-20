@@ -291,8 +291,18 @@ function choose(name) {
   }
   drawStates();
   drawAbout();
-  // On a narrow window the side is below the lists: bring it into view.
-  part('about-card').scrollIntoView({ block: 'nearest' });
+  showSide();
+}
+
+/**
+ * Brings the card of what was just chosen into view, at its top. In a
+ * wide window the card stays beside the lists and scrolls by itself;
+ * in a narrow one it lies below them.
+ */
+function showSide() {
+  const card = part('about-card');
+  card.scrollTop = 0;
+  if (matchMedia('(max-width: 900px)').matches) card.scrollIntoView({ block: 'start' });
 }
 
 /**
@@ -363,6 +373,7 @@ function pick(state, label, name, marks) {
     for (const head of document.querySelectorAll('#variables .var-pick')) head.setAttribute('aria-pressed', 'false');
     drawStates();
     drawAbout();
+    part('about-card').scrollTop = 0;
   });
   return button;
 }
