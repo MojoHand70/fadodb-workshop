@@ -4,6 +4,9 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Workshop is checked against an engine that hands out its list of
+  functions, with the command `list_functions`: what the formula
+  editor will offer names from.
 - Design mode: a designer changes the states of a class, the
   transitions between them and the class's own lines through the
   lists. A state has fields for its label and for what a document
