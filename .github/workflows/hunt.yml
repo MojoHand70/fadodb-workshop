@@ -1,0 +1,51 @@
+# Temporary, on this branch only: how the machine's package manager is
+# set up, and whether a browser installs from another mirror. It goes
+# before the branch becomes a pull request.
+name: hunt
+
+on:
+  push:
+    branches: [ci-another-mirror]
+
+permissions:
+  contents: read
+
+jobs:
+  hunt:
+    name: hunt ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: What the machine asks, and how patient it is
+        run: |
+          echo "== /etc/apt/apt-mirrors.txt"; cat /etc/apt/apt-mirrors.txt || echo none
+          echo "== sources"; ls /etc/apt/sources.list.d/ || true
+          grep -rhE "^(URIs|deb |Suites|Types)" /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | sort | uniq -c | head -20
+          echo "== patience"; apt-config dump | grep -iE "Acquire::(http|https)::(Timeout|Dl-Limit)|Acquire::Retries|Acquire::Queue-Mode" || echo "nothing set: the defaults hold"
+          apt --version
+      - name: Ask another mirror, and ask again when it says nothing
+        run: |
+          sudo killall -q apt-get dpkg || true
+          sudo dpkg --configure -a || true
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "5";\n' | sudo tee /etc/apt/apt.conf.d/80-ask-again
+          echo "== /etc/apt/apt-mirrors.txt now"; cat /etc/apt/apt-mirrors.txt || echo none
+      - name: Install the browser from there
+        run: |
+          start=$(date +%s)
+          npx playwright install --with-deps ${{ matrix.browser }} > install.txt 2>&1 || { tail -30 install.txt; exit 1; }
+          echo "installed in $(( $(date +%s) - start )) s"
+          grep -E "^Get:[0-9]+ " install.txt | awk '{print $2}' | sed -E 's|(https?://[^/]+).*|\1|' | sort | uniq -c
+      - name: Start the browser once
+        run: |
+          node -e "const pw = require('playwright'); (async () => { const b = await pw['${{ matrix.browser }}'].launch(); const p = await b.newPage(); await p.setContent('<p>hello</p>'); console.log('started, and it reads a page:', await p.textContent('p')); await b.close(); })()"
