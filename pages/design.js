@@ -2651,7 +2651,16 @@ async function open(mayChange) {
   designer = mayChange;
   if (designer && !trying) {
     // Trying a class on a document is a designer's: the server lets nobody else.
-    trying = tryView({ root: part('try'), form: part('try-form'), result: part('try-result'), said: part('try-said'), draft: read, person });
+    trying = tryView({
+      root: part('try'),
+      form: part('try-form'),
+      result: part('try-result'),
+      said: part('try-said'),
+      draft: read,
+      // A class that is not made yet is held by the server under no name, and has no document to be tried on.
+      documents: async () => (!held.name ? [] : ((await call('query', { class: held.name, order: ['-created_at', '-id'], limit: 20 })).documents ?? [])),
+      person,
+    });
     part('as-try').hidden = false;
   }
   definition = saved;

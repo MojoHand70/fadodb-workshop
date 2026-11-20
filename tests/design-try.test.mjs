@@ -118,6 +118,8 @@ test('Dan tries a class he has changed and not saved: a taxi for 199.99 PLN', as
   // With nothing given, the document is as the class begins it, and the server says what it lacks.
   assert.equal(await page.locator('#try-said').innerText(), 'Tried. The server would not keep this document yet; it wrote nothing.');
   assert.deepEqual(await page.locator('#try-missing li').evaluateAll((all) => all.map((one) => [one.getAttribute('data-variable'), one.textContent])), [['what', 'what is required']]);
+  assert.equal(await page.locator('#t-what').getAttribute('aria-invalid'), 'false', 'a field nobody has touched is not marked as wrong: the list says what is needed');
+  assert.ok(await page.locator('#t-what-why').isHidden());
   assert.match(await page.locator('#t-bought_on-first').innerText(), /^Left empty, it begins as \d{1,2} \w{3} \d{4}\.$/);
   assert.equal(await page.locator('#t-vat_rate-first').innerText(), 'Left empty, it begins as 23%.');
   assert.equal(await page.locator('#t-note-first').innerText(), '');
@@ -289,6 +291,186 @@ test('typed letter by letter, the document is asked of the server once, when the
   await tried(page, 'A long way home');
   assert.deepEqual(commands, ['preview_draft'], 'fifteen letters, one question');
   assert.equal(await page.locator('#try-title').innerText(), 'A long way home');
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+/**
+ * A class of which Dan, who made none of its documents, may read every
+ * one, set every value but the note, and take Submit and Take back:
+ * Expense under another name, with those lines opened. It does two
+ * things by itself when a document is submitted.
+ *
+ * @param {string} name
+ */
+async function anOpenClass(name) {
+  const definition = { ...structuredClone(expense), name };
+  definition.access = { ...definition.access, read: 'TRUE', update: 'TRUE', delete: 'TRUE', transition: { ...definition.access.transition, submit: 'TRUE', take_back: 'TRUE' } };
+  definition.rights = { ...definition.rights, draft: { '*': { write: 'TRUE' }, note: { write: 'CREATEDBY() = USER()' } } };
+  definition.rules = [
+    { on: 'transition', name: 'submit', do: [{ action: 'set', values: { cost_centre: '"sent by " & USER()' } }] },
+    { on: 'enter', state: 'submitted', if: 'total > 100', do: [{ action: 'emit', event: 'large' }] },
+  ];
+  await server.exec('define_class', { definition });
+  return definition;
+}
+
+test('Dan tries the class on a document the server holds, and takes a way out', async () => {
+  await anOpenClass('Held');
+  const { document: train } = await server.exec('create', { class: 'Held', values: { what: 'Train', net: '300.00 PLN', note: 'urgent' } }, 'jan');
+  const { context, page, wrong } = await atTheLists('Held', '&as=try');
+  await tried(page);
+  assert.equal(await page.locator('label[for="try-on"]').innerText(), 'Try it on');
+  assert.deepEqual(await page.locator('#try-on option').evaluateAll((all) => all.map((one) => one.textContent)), ['A new document', 'Train, Draft, made by jan']);
+  assert.equal(await page.locator('#try-ways .try-take').count(), 0, 'a new document takes no way out');
+  assert.equal(await page.locator('#try-ways .try-no-taking').innerText(), 'A way out is taken by a document the server holds: choose one above to try it.');
+
+  // The document as the server holds it, under the class as the text stands.
+  await page.selectOption('#try-on', train.id);
+  await tried(page, ` on ${train.id}`);
+  assert.equal(await page.inputValue('#t-what'), 'Train');
+  assert.equal(await page.inputValue('#t-net'), '300.00');
+  assert.equal(await page.inputValue('#t-net-currency'), 'PLN');
+  assert.equal(await page.inputValue('#t-note'), 'urgent');
+  assert.equal(await page.locator('#t-total-value').innerText(), '369.00\u00a0PLN');
+  assert.equal(await page.locator('#t-vat_rate-first').innerText(), '', 'it has what it holds: nothing begins');
+  assert.equal(await page.locator('#try-title').innerText(), 'Train');
+  assert.equal(await page.locator('#try-missing').count(), 0);
+
+  // A value he may set, and one the class keeps for whoever made the document: the server names the line that decides.
+  await page.fill('#t-net', '1000');
+  await tried(page, '1000 PLN');
+  assert.equal(await page.locator('#t-total-value').innerText(), '1,230.00\u00a0PLN');
+  assert.equal(await page.locator('#try-missing').count(), 0);
+  await page.fill('#t-note', 'not mine to change');
+  await tried(page, 'not mine to change');
+  assert.equal(await page.locator('#t-note-why').innerText(), 'dan may not set note while the document is in draft');
+  assert.deepEqual(await page.locator('#try-missing li').evaluateAll((all) => all.map((one) => [one.getAttribute('data-variable'), one.firstChild?.textContent, one.querySelector('.try-hint')?.textContent])), [
+    ['note', 'dan may not set note while the document is in draft', 'the write right of note, from the cell draft / note: CREATEDBY() = USER()'],
+  ]);
+  // Put back as the document holds it, the note is no value given.
+  await page.fill('#t-note', 'urgent');
+  await tried(page, '1000 PLN');
+  assert.equal(await page.locator('#try-missing').count(), 0);
+  assert.equal(await page.locator('#t-note-why').innerText(), '');
+
+  // He takes Submit: where the document goes, and what the class does on the way.
+  assert.deepEqual(await ways(page), [['submit', 'true', 'Submit, to Waiting for approval: open Take it']]);
+  assert.equal(await page.locator('#try-ways .try-take').getAttribute('aria-label'), 'Take Submit');
+  await page.click('#try-ways .try-take');
+  await tried(page, ' taking submit');
+  assert.equal(await page.locator('#try-said').innerText(), 'Tried: Submit would be taken. The server wrote nothing.');
+  assert.equal(await page.locator('#try-taken .card-about').innerText(), 'Submit. What follows is the document after it.');
+  assert.equal(await page.locator('#try-state').innerText(), 'Waiting for approval');
+  assert.equal(await page.locator('#try-path').innerText(), 'Draft, then Waiting for approval');
+  assert.deepEqual(await page.locator('#try-rules .rule').evaluateAll((all) => all.map((rule) => [rule.querySelector('.rule-when')?.textContent, ...[...rule.querySelectorAll('li')].map((step) => step.textContent)])), [
+    ['When Submit is taken', 'set cost_centre to sent by dan'],
+    ['When a document enters Waiting for approval', 'emit (event: large)'],
+  ]);
+  assert.equal(await page.locator('#try-ways h3').innerText(), 'Ways out after it, for you');
+  assert.deepEqual((await ways(page))[0], ['take_back', 'true', 'Take back, to Draft: open'], 'a way out is open after it');
+  assert.equal(await page.locator('#try-ways .try-take').count(), 0, 'and is not offered: one way out a try');
+
+  // Without it, the document is where it was.
+  await page.click('#try-untake');
+  await tried(page, '1000 PLN');
+  assert.equal(await page.locator('#try-state').innerText(), 'Draft');
+  assert.equal(await page.locator('#try-taken').count(), 0);
+
+  // What was given to one document stays with it, and a new document begins empty.
+  await page.selectOption('#try-on', '');
+  await tried(page);
+  assert.equal(await page.inputValue('#t-net'), '');
+  assert.equal(await page.inputValue('#t-what'), '');
+  await page.selectOption('#try-on', train.id);
+  await tried(page, '1000 PLN');
+  assert.equal(await page.inputValue('#t-net'), '1000');
+
+  // Nothing was written: the document is as Jan made it, and the class at its version.
+  const { document: after } = await server.exec('get', { class: 'Held', id: train.id }, 'jan');
+  assert.deepEqual([after.state, after.version, after.values.net, after.values.cost_centre], ['draft', 1, '300.00 PLN', null]);
+  assert.equal((await held('Held')).version, 1);
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('a way out he may not take is shown closed; one the document cannot take as it now stands is said, with the way back', async () => {
+  await anOpenClass('Barred');
+  const { document: train } = await server.exec('create', { class: 'Barred', values: { what: 'Train', net: '300.00 PLN' } }, 'jan');
+  await server.exec('transition', { class: 'Barred', id: train.id, transition: 'submit' }, 'jan');
+  const { document: taxi } = await server.exec('create', { class: 'Barred', values: { what: 'Taxi', net: '40.00 PLN' } }, 'jan');
+  const { context, page, wrong } = await atTheLists('Barred', '&as=try');
+  await tried(page);
+  assert.deepEqual(await page.locator('#try-on option').evaluateAll((all) => all.map((one) => one.textContent)), ['A new document', 'Taxi, Draft, made by jan', 'Train, Waiting for approval, made by jan'], 'the last made first');
+
+  // Waiting for approval: its ways out are the approvers' and its author's, not Dan's.
+  await page.selectOption('#try-on', train.id);
+  await tried(page, ` on ${train.id}`);
+  assert.deepEqual(await ways(page), [
+    ['take_back', 'true', 'Take back, to Draft: open Take it'],
+    ['send_back', 'false', 'Send back, to Draft: closed, you may not take it'],
+    ['approve', 'false', 'Approve, to Approved: closed, you may not take it'],
+  ]);
+  assert.equal(await page.locator('#try-ways .try-take').count(), 1, 'a way he may not take has no button');
+
+  // He takes Submit on the taxi. Another document chosen is tried as it is: the way taken was the taxi's.
+  await page.selectOption('#try-on', taxi.id);
+  await tried(page, ` on ${taxi.id}`);
+  await page.click('#try-ways .try-take');
+  await tried(page, ' taking submit');
+  assert.equal(await page.locator('#try-state').innerText(), 'Waiting for approval');
+  await page.selectOption('#try-on', train.id);
+  await tried(page, ` on ${train.id}`);
+  assert.equal(await page.locator('#try-taken').count(), 0);
+  assert.equal(await page.locator('#try-state').innerText(), 'Waiting for approval', 'the train is where the server holds it');
+  assert.equal(await page.locator('#try-path').count(), 0);
+
+  // Back at the taxi he takes Submit again, and then makes its net nothing: Submit asks for a total above nothing.
+  await page.selectOption('#try-on', taxi.id);
+  await tried(page, ` on ${taxi.id}`);
+  await page.click('#try-ways .try-take');
+  await tried(page, ' taking submit');
+  await page.fill('#t-net', '0');
+  await tried(page, '0 PLN');
+  assert.equal(await page.locator('#try-said').innerText(), 'Not taken: the server would not let the document go this way.');
+  assert.equal(await page.locator('#try-taken h3').innerText(), 'The way not taken');
+  assert.match(await page.locator('#try-taken .card-about').innerText(), /submit/i);
+  assert.equal(await page.locator('#t-total-value').innerText(), '—', 'what the earlier try worked out is taken away');
+  await page.click('#try-untake');
+  await tried(page, '0 PLN');
+  assert.equal(await page.locator('#try-state').innerText(), 'Draft');
+  assert.deepEqual(await ways(page), [['submit', 'false', 'Submit, to Waiting for approval: closed, its condition does not hold']]);
+
+  // Jan deletes the taxi meanwhile. Shown again, the view tries a new document, and does not ask about one that is gone.
+  await server.exec('delete', { class: 'Barred', id: taxi.id }, 'jan');
+  await page.click('#as-lists');
+  await page.click('#as-try');
+  await tried(page);
+  assert.equal(await page.inputValue('#try-on'), '');
+  assert.deepEqual(await page.locator('#try-on option').evaluateAll((all) => all.map((one) => one.textContent)), ['A new document', 'Train, Waiting for approval, made by jan']);
+  assert.equal(await page.locator('#try-said').innerText(), 'Tried. The server would not keep this document yet; it wrote nothing.');
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('a class that is not made yet, and one with no document he may see, are tried on a new document alone', async () => {
+  // Expense as it is: Jan's document is his and the approvers' to see, not Dan's.
+  await aClass('Unseen');
+  await server.exec('create', { class: 'Unseen', values: { what: 'Train' } }, 'jan');
+  const { context, page, wrong } = await atTheLists('Unseen', '&as=try');
+  await tried(page);
+  assert.deepEqual(await page.locator('#try-on option').evaluateAll((all) => all.map((one) => one.textContent)), ['A new document']);
+  assert.equal(await page.locator('.try-on .field-about').innerText(), 'A new document, tried as you. The server holds no document of this class that you may see.');
+
+  await page.goto(`${site.url}design.html?new`);
+  await ready(page);
+  await page.fill('#new-name', 'Fresh');
+  await page.press('#new-name', 'Enter');
+  await page.locator('#design').waitFor();
+  await page.click('#as-try');
+  await tried(page);
+  assert.deepEqual(await page.locator('#try-on option').evaluateAll((all) => all.map((one) => one.textContent)), ['A new document']);
+  assert.equal(await page.locator('#try-state').innerText(), 'Draft', 'a class the server does not hold yet is tried all the same');
   assert.deepEqual(wrong, []);
   await context.close();
 });
