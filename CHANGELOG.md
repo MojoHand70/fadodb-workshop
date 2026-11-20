@@ -4,6 +4,17 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: a class is tried before it is saved. "Try", beside
+  Lists and Text, shows a new document of the class as the text
+  stands. The designer gives it values, in the fields a document's own
+  page has, and a moment after the typing stops the server answers:
+  what the class works out, the title and the state of the document,
+  the ways out then open or why one is closed, what the class did by
+  itself, and what the document still lacks. A field left empty says
+  the first value the class gives it. A value the server does not take
+  is said under its field, in the server's words. The server writes
+  nothing. What was typed stays while the designer goes to the lists
+  and back, and the form follows the text.
 - Design mode: the actions of a rule run in their order, and the card
   of a rule changes it: each action says its place, "Action 2 of 3",
   and "Earlier" and "Later" move it a step, with all it sets.

@@ -26,7 +26,7 @@
 <main class="page page-wide">
   <section data-view="design" id="design" hidden>
     <p class="crumbs"><a href="./">Classes</a> / <a id="to-list" href="./"></a></p>
-    <p class="status">Design mode: a designer changes a class as text and through the lists, and writes its formulas with help. Of what a class does by itself, setting a value and putting one back have their fields; any other action is changed in the text.</p>
+    <p class="status">Design mode: a designer changes a class as text and through the lists, writes its formulas with help, and tries it on a new document before saving. Of what a class does by itself, setting a value and putting one back have their fields; any other action is changed in the text.</p>
     <div class="doc-head">
       <h1 id="class-title"></h1>
       <code class="class-name" id="class-name"></code>
@@ -40,6 +40,7 @@
       <div class="chips" role="group" aria-label="Show the class as">
         <button class="chip" id="as-lists" type="button" aria-pressed="true">Lists</button>
         <button class="chip" id="as-text" type="button" aria-pressed="false">Text</button>
+        <button class="chip" id="as-try" type="button" aria-pressed="false" hidden>Try</button>
       </div>
       <div class="design-do" id="design-do" hidden>
         <button class="button button-plain" id="undo" type="button">Undo</button>
@@ -76,6 +77,21 @@
           <h2 id="about-title"></h2>
           <p class="card-about" id="about-what"></p>
           <div id="about"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="try" class="design" hidden>
+      <div class="card" id="try-form-card">
+        <h2>A new document</h2>
+        <p class="card-about">The class as the text stands, tried on a new document, as you would make one. Give it values: the server works out the rest, and writes nothing.</p>
+        <div id="try-form"></div>
+      </div>
+      <div class="design-side">
+        <div class="card" id="try-result-card" aria-live="polite">
+          <h2>What comes of it</h2>
+          <p class="card-about" id="try-said" role="status"></p>
+          <div id="try-result"></div>
         </div>
       </div>
     </div>

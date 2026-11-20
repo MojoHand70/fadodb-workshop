@@ -564,6 +564,12 @@ h1 {
 .rule-action > .button { justify-self: start; }
 .card .rule-other { margin: 0; overflow-wrap: anywhere; }
 .rule .rule-when.way-pick { font-weight: 600; }
+/* The class tried on a new document. */
+.try-part { margin: 0 0 14px; }
+.try-part h3, .try-part h4 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.card .try-first:empty { display: none; }
+.try-way { padding: 2px 0; }
+.try-open { color: var(--ink); font-weight: 600; }
 .place-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 0; }
 .place-row .button[aria-disabled="true"] { opacity: 0.5; cursor: default; }
 .action-place { align-items: center; margin: 0; }

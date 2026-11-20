@@ -26,8 +26,8 @@
 // the server's when the person creates it.
 
 import { Refused, call } from './fado.js';
-import { kindOf, show as showValue } from './format.js';
-import { editable, readNumber, shift } from './input.js';
+import { control as controlOf } from './fields.js';
+import { show as showValue } from './format.js';
 import { Live } from './live.js';
 import { enter, make, part, ready, show } from './shell.js';
 
@@ -105,9 +105,6 @@ const labelOf = (name) => String(definition.variables?.[name]?.label || name);
 /** @param {unknown} moment */
 const when = (moment) => showValue(moment, { type: 'datetime' }, person);
 
-/** Whether a format shows a number as a percentage. */
-const isPercent = (/** @type {unknown} */ format) => String(format ?? '').replace(/"[^"]*"/g, '').includes('%');
-
 /**
  * Shows a value that is not a field: by the class's format, a dash for
  * none, and a word for one the person may not read.
@@ -133,107 +130,17 @@ function showCell(name) {
  * kind this page does not set yet: a list, rows, an object.
  *
  * @param {string} name
- * @returns {{ parts: HTMLElement[], read: () => { wire: any } | { why: string } } | null}
  */
-function control(name) {
-  const variable = definition.variables?.[name] ?? {};
-  const kind = kindOf(live.typeOf(name));
-  const value = live.values[name];
-  const box = make('input', 'input');
-  box.id = `f-${name}`;
-  const input = /** @type {HTMLInputElement} */ (box);
-  if (variable.required) input.required = true;
-
-  if (kind === 'text' && Array.isArray(variable.values)) {
-    const select = /** @type {HTMLSelectElement} */ (make('select', 'input'));
-    select.id = `f-${name}`;
-    for (const choice of ['', ...variable.values]) {
-      const option = /** @type {HTMLOptionElement} */ (make('option', '', choice === '' ? '—' : String(choice)));
-      option.value = String(choice);
-      select.append(option);
-    }
-    select.value = String(value ?? '');
-    return { parts: [select], read: () => ({ wire: select.value === '' ? null : select.value }) };
-  }
-  if (kind === 'text') {
-    input.type = 'text';
-    input.value = String(value ?? '');
-    return { parts: [input], read: () => ({ wire: input.value === '' ? null : input.value }) };
-  }
-  if (kind === 'bool') {
-    input.type = 'checkbox';
-    input.className = 'check';
-    input.checked = value === true;
-    return { parts: [input], read: () => ({ wire: input.checked }) };
-  }
-  if (kind === 'date') {
-    input.type = 'date';
-    input.value = String(value ?? '');
-    return { parts: [input], read: () => ({ wire: input.value === '' ? null : input.value }) };
-  }
-  if (kind === 'datetime') {
-    input.type = 'datetime-local';
-    if (typeof value === 'number') {
-      const at = new Date(value * 1000);
-      const two = (/** @type {number} */ n) => String(n).padStart(2, '0');
-      input.value = `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}T${two(at.getHours())}:${two(at.getMinutes())}`;
-    }
-    return {
-      parts: [input],
-      read: () => {
-        if (input.value === '') return { wire: null };
-        const at = new Date(input.value).getTime();
-        return Number.isNaN(at) ? { why: 'This is not a day and an hour.' } : { wire: Math.floor(at / 1000) };
-      },
-    };
-  }
-  if (kind === 'number' || kind === 'int' || kind === 'decimal') {
-    const percent = kind !== 'int' && isPercent(variable.format);
-    input.type = 'text';
-    input.inputMode = kind === 'int' ? 'numeric' : 'decimal';
-    input.className = 'input input-number';
-    const written = value === null || value === undefined ? '' : editable(value, 'en');
-    input.value = written === '' ? '' : editable(percent ? shift(written, 2) : written, person.locale);
-    const parts = percent ? [input, make('span', 'input-unit', '%')] : [input];
-    return {
-      parts,
-      read: () => {
-        let read = readNumber(input.value, person.locale);
-        if (read === null) return { why: 'This is not a number.' };
-        if (read === '') return { wire: null };
-        if (kind === 'int' && !/^-?\d+$/.test(read)) return { why: 'This is a whole number: it has no decimals.' };
-        if (percent) read = shift(read, -2);
-        return { wire: kind === 'number' ? Number(read) : read };
-      },
-    };
-  }
-  if (kind === 'money') {
-    const [amount = '', currency = ''] = String(value ?? '').split(' ');
-    input.type = 'text';
-    input.inputMode = 'decimal';
-    input.className = 'input input-number';
-    input.value = amount === '' ? '' : editable(amount, person.locale);
-    const unit = /** @type {HTMLInputElement} */ (make('input', 'input input-currency'));
-    unit.type = 'text';
-    unit.id = `f-${name}-currency`;
-    unit.maxLength = 3;
-    unit.setAttribute('aria-label', `Currency of ${labelOf(name)}`);
-    unit.setAttribute('autocapitalize', 'characters');
-    unit.value = currency || currencyOfTheDocument();
-    return {
-      parts: [input, unit],
-      read: () => {
-        const read = readNumber(input.value, person.locale);
-        if (read === null) return { why: 'This is not a number.' };
-        if (read === '') return { wire: null };
-        const code = unit.value.trim().toUpperCase();
-        if (!/^[A-Z]{3}$/.test(code)) return { why: 'Give the currency beside it, as three letters: PLN, EUR.' };
-        return { wire: `${read} ${code}` };
-      },
-    };
-  }
-  return null;
-}
+const control = (name) =>
+  controlOf({
+    id: `f-${name}`,
+    variable: definition.variables?.[name] ?? {},
+    type: live.typeOf(name),
+    value: live.values[name],
+    locale: person.locale,
+    label: labelOf(name),
+    currency: currencyOfTheDocument,
+  });
 
 /** The currency the document already counts in, for a money that has none yet. */
 function currencyOfTheDocument() {
