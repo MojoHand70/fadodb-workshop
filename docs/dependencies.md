@@ -15,13 +15,14 @@ The owner's ruling and the measurements are in
 [ADR-0003](adr/0003-the-text-boxes-stand-on-codemirror-6.md). Only the
 design mode loads it, and only `pages/text.js` knows it.
 `npm run vendor` builds what `tools/codemirror.entry.mjs` lists into
-one file, `pages/vendor/codemirror.js` (some 360 KB, 120 KB compressed,
-for the code view), and writes the licence of every package that went into
+one file, `pages/vendor/codemirror.js` (some 390 KB, 127 KB compressed,
+for the code view and the formula box), and writes the licence of every package that went into
 it beside it, `pages/vendor/codemirror.LICENSE.txt`. Neither is kept in
 the repository.
 
 | Package | Version | Licence | Why |
 |---|---|---|---|
+| `@codemirror/autocomplete` | 6.20.4, fixed | MIT | Offers the names that may be written in a formula, as a person types: the variables of the class and the engine's functions. |
 | `@codemirror/commands` | 6.11.1, fixed | MIT | Undo and redo, and the usual keys of a text box. |
 | `@codemirror/lang-json` | 6.0.2, fixed | MIT | Reads a class as JSON. |
 | `@codemirror/language` | 6.13.1, fixed | MIT | Colours inside the text, and the tree of a text, by which a finding of the server is put at its place. |
@@ -33,10 +34,8 @@ the repository.
 
 These bring 8 more with them, all MIT, at the versions
 `package-lock.json` fixes: `@codemirror/streamparser` 6.0.0, `@lezer/common` 1.5.5, `@lezer/json` 1.0.3, `@lezer/lr` 1.4.12, `@marijn/find-cluster-break` 1.0.4, `crelt` 1.0.7, `style-mod` 4.1.5, `w3c-keyname` 2.2.8.
-Fifteen of the sixteen name one author, Marijn Haverbeke; `@lezer/json`
-names Arun Srinivasan.
-
-Still to come with the formula editor: `@codemirror/autocomplete`.
+Sixteen of the seventeen name one author, Marijn Haverbeke;
+`@lezer/json` names Arun Srinivasan.
 
 No font file is shipped yet. The pages name Inter and JetBrains Mono
 and use them where the machine has them.

@@ -4,6 +4,23 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: the formula editor. Wherever the lists have a formula,
+  it is written in a box that helps: what the class works out, a first
+  value, the title of a document, the four lines that say who may, who
+  may take a transition, its condition and its date.
+  - The pieces of the formula are coloured: functions, the variables
+    of the class, numbers, texts and the words of the language.
+  - As the designer types, the names that may be written are offered:
+    the variables of the class with their labels, and the functions
+    the engine has, with their arguments. "Names" opens the whole
+    list. A function the engine has not built is not offered.
+  - Under the box stands the function the cursor is in: its arguments,
+    the one being written, what it does and what it gives.
+  - A moment after the typing stops the server is asked about the
+    formula, and what it finds is said under the box and marked at its
+    place. The check writes nothing.
+  - Enter, or leaving the box, puts the formula into the class, as one
+    step that Undo takes back.
 - Workshop is checked against an engine that hands out its list of
   functions, with the command `list_functions`: what the formula
   editor will offer names from.

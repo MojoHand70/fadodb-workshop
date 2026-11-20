@@ -207,3 +207,32 @@ export async function leaveByClosing(page) {
   await page.close({ runBeforeUnload: true });
   return Promise.race([asked, left]);
 }
+
+/**
+ * The formula a formula box holds.
+ *
+ * @param {import('playwright').Page} page
+ * @param {string} box the box, as a selector: '#v-formula'
+ */
+export async function formulaOf(page, box) {
+  return (await page.locator(`${box} .cm-content`).innerText()).replace(/\n$/, '');
+}
+
+/**
+ * Writes a formula in a formula box in place of what is there, and
+ * leaves the box: the person selects everything, types or pastes, and
+ * goes on to the next field.
+ *
+ * @param {import('playwright').Page} page
+ * @param {string} box the box, as a selector: '#v-formula'
+ * @param {string} formula
+ */
+export async function writeFormula(page, box, formula) {
+  await page.locator(`${box} .cm-content`).click();
+  await page.keyboard.press('ControlOrMeta+A');
+  if (formula === '') await page.keyboard.press('Delete');
+  else await page.keyboard.insertText(formula);
+  // The list of names may have opened on what was written; Escape shuts it.
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+}

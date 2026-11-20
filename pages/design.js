@@ -52,7 +52,8 @@ import {
   waysOut,
 } from './class.js';
 import { enter, make, part, ready, show } from './shell.js';
-import { codeView } from './text.js';
+import { callAt, fromBytes, helpFor, pieceAt } from './formula.js';
+import { codeView, formulaBox } from './text.js';
 
 const person = { locale: navigator.language || 'en', yes: 'Yes', no: 'No' };
 const asked = new URLSearchParams(location.search);
@@ -75,6 +76,14 @@ let variable = '';
 let move = -1;
 /** Whether the person may change a class: a designer. */
 let designer = false;
+/**
+ * The functions a formula can call, as the engine tells them with
+ * list_functions: empty until the server has answered, and where the
+ * server does not know the command.
+ *
+ * @type {any[]}
+ */
+let functions = [];
 /**
  * What was typed into a field at the side and is not in the class yet:
  * a field gives its text when the cursor leaves it. Before the page
@@ -515,13 +524,13 @@ function drawWholeClass() {
       field('c-label', 'Label', typed(definition.label, (t) => set('label', t.trim())), 'What people call one document of the class.'),
       field('c-plural', 'Label for many', typed(definition.plural, (t) => set('plural', t.trim())), 'What a list of them is called. Empty: the label.'),
       field('c-description', 'What it is for', typed(definition.description, (t) => set('description', t.trim()), { lines: 2 }), 'For the people who work with it, and for an agent that reads the class.'),
-      field('c-title', 'The title of a document', typed(definition.title, (t) => set('title', t), { mono: true }), 'A formula that names each document: what, or "Invoice " & number. Empty: its id.'),
+      formulaField('c-title', 'The title of a document', definition.title, '/title', (draft, formula) => setClassWord(draft, 'title', formula), 'A formula that names each document: what, or "Invoice " & number. Empty: its id.'),
     );
     box.append(words);
     const who = block('Who may', 'Each is a formula: INGROUP("everyone"), CREATEDBY() = USER(), FALSE. An empty line lets nobody through.');
     const lines = make('div', 'props');
     for (const { line: name, what, formula } of linesOf(definition)) {
-      lines.append(field(`c-${name}`, what, typed(formula ?? '', (t) => void change((draft) => setLine(draft, name, t.trim())), { mono: true })));
+      lines.append(formulaField(`c-${name}`, what, formula ?? '', `/access/${name}`, (draft, written) => setLine(draft, name, written.trim()), ''));
     }
     who.append(lines);
     box.append(who);
@@ -874,17 +883,19 @@ function drawMove(at) {
   props.append(field('m-description', 'What taking it means', typed(it.description, (t) => set('description', t.trim()), { lines: 2 }), 'For the person who presses the button, and for an agent.'));
   if (it.name !== undefined) {
     props.append(
-      field(
+      formulaField(
         'm-who',
         'Who may take it',
-        typed(definition.access?.transition?.[it.name], (t) => void change((draft) => setMoveWho(draft, at, t.trim())), { mono: true }),
+        definition.access?.transition?.[it.name],
+        `/access/transition/${it.name}`,
+        (draft, formula) => setMoveWho(draft, at, formula.trim()),
         'A formula asked for the person and the document: CREATEDBY() = USER(), INGROUP("accountants"). Empty: whoever may change the document.',
       ),
     );
   }
-  props.append(field('m-guard', 'Only when', typed(it.guard, (t) => set('guard', t), { mono: true }), 'A condition about the document: total > 0. Empty: always.'));
+  props.append(formulaField('m-guard', 'Only when', it.guard, `/transitions/${at}/guard`, (draft, formula) => setMoveWord(draft, at, 'guard', formula), 'A condition about the document: total > 0. Empty: always.'));
   props.append(field('m-after', 'By itself, after', typed(it.after, (t) => set('after', t.trim()), { mono: true }), 'So long after the document entered the state: 30d, 12h, 90m. Empty: only when somebody takes it.'));
-  props.append(field('m-at', 'By itself, at', typed(it.at, (t) => set('at', t), { mono: true }), 'At a day or a moment the document holds: ADDDAYS(bought_on, 60). Empty: not by a date.'));
+  props.append(formulaField('m-at', 'By itself, at', it.at, `/transitions/${at}/at`, (draft, formula) => setMoveWord(draft, at, 'at', formula), 'At a day or a moment the document holds: ADDDAYS(bought_on, 60). Empty: not by a date.'));
 
   const remove = make('button', 'button button-plain', 'Remove this transition');
   remove.id = 'm-remove';
@@ -977,6 +988,154 @@ function typed(value, then, { mono = false, lines = 1 } = {}) {
 }
 
 /**
+ * What may be written in a formula of the class as it stands: its
+ * variables, and the functions the engine has.
+ *
+ * @returns {import('./text.js').Names}
+ */
+function names() {
+  return {
+    variables: Object.entries(definition.variables ?? {}).map(([name, it]) => ({ name, label: String(it?.label ?? ''), kind: kindLine(it) })),
+    functions,
+  };
+}
+
+/**
+ * A field that holds a formula, the formula editor.
+ *
+ * At once, from what the page knows: the pieces of the formula in
+ * their colours, the names that may be written, offered as the person
+ * types, and under the box the help for the function the cursor is
+ * in. A moment after the typing stops, from the server: whether it
+ * takes the formula, and where it does not, marked at its place. The
+ * formula goes into the text of the class when the person is done with
+ * the box, as one step.
+ *
+ * @param {string} id
+ * @param {string} label
+ * @param {unknown} value
+ * @param {string} path where the formula is in the class, as the server names the place
+ * @param {(draft: Record<string, any>, formula: string) => void} put puts a formula into a class
+ * @param {string} help
+ * @param {() => void} [after] what the page draws again after the class changed
+ */
+function formulaField(id, label, value, path, put, help, after) {
+  const box = make('div', 'field');
+  const head = make('div', 'formula-head');
+  head.append(make('p', 'field-label', label));
+  const offer = make('button', 'formula-names', 'Names');
+  offer.setAttribute('type', 'button');
+  offer.setAttribute('aria-label', `What may be written in ${label}`);
+  head.append(offer);
+  const holder = make('div', 'formula-box');
+  holder.id = id;
+  const helpLine = make('p', 'formula-call');
+  helpLine.id = `${id}-call`;
+  helpLine.setAttribute('aria-live', 'polite');
+  const why = make('p', 'field-why');
+  why.id = `${id}-why`;
+  why.setAttribute('role', 'status');
+  const about = make('p', 'field-about', help);
+  about.id = `${id}-about`;
+
+  /** The formula as the class holds it. */
+  let written = value === undefined || value === null ? '' : String(value);
+  /** Whether something was typed that the server was not asked about. */
+  let unchecked = false;
+  /** The number of the last question to the server: an older answer is left alone. */
+  let asked = 0;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let waiting;
+
+  /** Asks the server about the class with this formula in it, and marks what it says of this formula. */
+  const check = async () => {
+    unchecked = false;
+    const formula = fx.text();
+    const mine = ++asked;
+    const draft = read();
+    if (!draft) return;
+    put(draft, formula);
+    /** @type {import('./fado.js').Finding[]} */
+    let findings = [];
+    try {
+      const { diagnostics } = await call('validate_class', { definition: draft });
+      if (Array.isArray(diagnostics)) findings = diagnostics;
+    } catch {
+      return;
+    }
+    if (mine !== asked) return;
+    // The server may say one thing twice; once is enough.
+    const said = new Set();
+    const here = findings.filter((finding) => {
+      const key = `${finding.pos} ${finding.message}`;
+      if (finding.note === true || finding.path !== path || said.has(key)) return false;
+      said.add(key);
+      return true;
+    });
+    fx.mark(
+      here.map((finding) => {
+        const place = finding.pos >= 0 ? pieceAt(formula, fromBytes(formula, finding.pos)) : { from: 0, to: formula.length };
+        return { ...place, message: finding.message };
+      }),
+    );
+    why.textContent = here.map((finding) => (finding.hint ? `${finding.message}. ${finding.hint}` : finding.message)).join(' ');
+    // The page says what it has asked about: a check waits for this.
+    holder.dataset.checked = formula;
+  };
+
+  /** Puts the formula into the text of the class, where it differs from what the class holds. */
+  const commit = () => {
+    pending = null;
+    const formula = fx.text();
+    if (formula === written) return;
+    written = formula;
+    change((draft) => put(draft, formula));
+    if (after) after();
+  };
+
+  /** Shows the help for the function the cursor is in, under the box. */
+  const showCall = () => {
+    const at = callAt(fx.text(), fx.cursor());
+    const told = at ? helpFor(at, functions) : null;
+    helpLine.replaceChildren();
+    if (!told) return;
+    const call = make('code', 'formula-sig', `${told.name}(`);
+    told.params.forEach((param, n) => {
+      if (n > 0) call.append(', ');
+      call.append(make(param.current ? 'strong' : 'span', param.current ? 'formula-arg' : '', param.words));
+    });
+    call.append(')');
+    helpLine.append(call, ` ${told.description} Gives: ${told.returns}.`);
+  };
+
+  const fx = formulaBox(holder, {
+    text: written,
+    label,
+    describedBy: `${helpLine.id} ${why.id} ${about.id}`,
+    names,
+    onType() {
+      pending = commit;
+      unchecked = true;
+      delete holder.dataset.checked;
+      clearTimeout(waiting);
+      waiting = setTimeout(check, 600);
+    },
+    onMove: showCall,
+    onDone() {
+      commit();
+      helpLine.replaceChildren();
+      if (unchecked) {
+        clearTimeout(waiting);
+        check();
+      }
+    },
+  });
+  offer.addEventListener('click', () => fx.offer());
+  box.append(head, holder, helpLine, why, about);
+  return box;
+}
+
+/**
  * The properties of a variable, as fields. What a designer changes
  * here goes into the text of the class at once.
  *
@@ -1037,7 +1196,20 @@ function drawVariable(name) {
 
   const type = String(it.type ?? '');
   if (computed) {
-    props.append(field('v-formula', 'Formula', typed(it.formula, (t) => set('formula', t), { mono: true }), 'As in a spreadsheet: net + vat, ROUND(net * vat_rate, 2). Check says where a formula is wrong. The formula editor comes next.'));
+    props.append(
+      formulaField(
+        'v-formula',
+        'Formula',
+        it.formula,
+        `/variables/${name}/formula`,
+        (draft, formula) => {
+          // A variable the class works out keeps its formula, an empty one too: it stays of that kind.
+          if (draft.variables?.[name]) draft.variables[name].formula = formula;
+        },
+        'As in a spreadsheet: net + vat, ROUND(net * vat_rate, 2).',
+        () => redrawRow(name),
+      ),
+    );
   } else {
     if (TYPES.includes(type) || type === '') {
       const select = /** @type {HTMLSelectElement} */ (make('select', 'input'));
@@ -1056,7 +1228,17 @@ function drawVariable(name) {
       props.append(other);
     }
     props.append(tick('v-required', 'Required', it.required === true, (on) => set('required', on), 'A document without a value for it is refused.'));
-    props.append(field('v-default', 'First value', typed(it.default, (t) => set('default', t), { mono: true }), 'A formula for what a new document gets when nobody gives a value: TODAY(), 0.23, "PLN".'));
+    props.append(
+      formulaField(
+        'v-default',
+        'First value',
+        it.default,
+        `/variables/${name}/default`,
+        (draft, formula) => setWord(draft, name, 'default', formula),
+        'A formula for what a new document gets when nobody gives a value: TODAY(), 0.23, "PLN".',
+        () => redrawRow(name),
+      ),
+    );
     if (type === 'text') {
       props.append(
         field(
@@ -1485,6 +1667,14 @@ function trouble(/** @type {unknown} */ refusal) {
 async function open(mayChange) {
   designer = mayChange;
   definition = saved;
+  if (designer) {
+    // What a formula can call, for the formula editor. A server that
+    // does not know the command leaves the editor with the variables.
+    functions = await call('list_functions').then(
+      (answer) => (Array.isArray(answer?.functions) ? answer.functions : []),
+      () => [],
+    );
+  }
   await drawHeld();
 
   const states = statesOf(definition);

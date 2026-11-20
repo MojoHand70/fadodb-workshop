@@ -5,14 +5,19 @@
 // to put another text in, a way to mark places in it and to show one.
 // Whatever stands under the box can be changed here and nowhere else.
 //
-// Today there is one box: the code view, for a class as text. The
-// formula editor comes with its own function.
+// There are two boxes: the code view, for a class as text, and the
+// formula box, for one formula of a class.
 
+import { WORDS, pieces } from './formula.js';
 import {
+  Decoration,
   EditorState,
   EditorView,
   HighlightStyle,
+  ViewPlugin,
+  autocompletion,
   bracketMatching,
+  closeCompletion,
   defaultKeymap,
   ensureSyntaxTree,
   highlightActiveLine,
@@ -26,6 +31,7 @@ import {
   search,
   searchKeymap,
   setDiagnostics,
+  startCompletion,
   syntaxHighlighting,
   tags,
   undo,
@@ -281,6 +287,210 @@ export function codeView(parent, { text, label, readOnly = false, onChange }) {
         },
       });
       return at;
+    },
+  };
+}
+
+/**
+ * What may be written in a formula of a class: the variables of the
+ * class, and the functions the engine has, as it tells them itself.
+ *
+ * @typedef {object} Names
+ * @property {{ name: string, label: string, kind: string }[]} variables
+ * @property {{ name: string, aliases?: string[], signature: string, params: unknown[], returns: string, description: string, not_built?: boolean }[]} functions
+ */
+
+/**
+ * A formula box, as a page holds it.
+ *
+ * @typedef {object} FormulaBox
+ * @property {() => string} text the formula as it stands
+ * @property {(text: string) => void} set puts another formula in, as one change that can be undone
+ * @property {(marks: Mark[]) => void} mark marks places in the formula, each with what is said of it; none clears them
+ * @property {() => number} cursor where the cursor is
+ * @property {() => void} offer puts the cursor in the box and opens the list of what may be written there
+ * @property {() => void} focus puts the cursor in the box
+ */
+
+/** The look of a formula box: a field of the page, not a text editor. */
+const lookOfFormula = EditorView.theme({
+  '&': { backgroundColor: 'var(--surface)', border: '1px solid var(--taupe, #A89C86)', borderRadius: '10px', fontSize: '14px', minHeight: '44px' },
+  '&.cm-focused': { outline: '2px solid var(--blue)', outlineOffset: '1px' },
+  '.cm-scroller': { fontFamily: 'var(--mono)', lineHeight: '1.6' },
+  '.cm-content': { padding: '10px 4px' },
+  '.cm-line': { padding: '0 8px' },
+  '.cm-tooltip.cm-tooltip-autocomplete': { border: '1px solid var(--line)', borderRadius: '8px', backgroundColor: 'var(--surface)', boxShadow: '0 6px 20px rgba(36, 38, 43, 0.14)', overflow: 'hidden' },
+  '.cm-tooltip.cm-tooltip-autocomplete > ul': { fontFamily: 'var(--mono)', fontSize: '13px', maxHeight: '15em' },
+  '.cm-tooltip.cm-tooltip-autocomplete > ul > li': { padding: '3px 10px' },
+  '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'var(--blue-strong)', color: '#FFFFFF' },
+  '.cm-completionDetail': { fontStyle: 'normal', opacity: '0.75' },
+  '.cm-tooltip.cm-completionInfo': { border: '1px solid var(--line)', borderRadius: '8px', backgroundColor: 'var(--surface)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontSize: '13px', maxWidth: '26em', padding: '8px 10px' },
+});
+
+/** A name as a formula writes one, with the fields read from it by a dot. */
+const NAME_BEFORE = /[\p{L}_][\p{L}\p{N}_.]*/u;
+
+/**
+ * Makes a formula box: one formula, on one line that wraps.
+ *
+ * The box helps with what can be known at once: it colours the pieces
+ * of the formula and offers the names that may be written. It judges
+ * nothing: whether the formula is right is asked of the server by the
+ * page, which marks the answer here.
+ *
+ * @param {HTMLElement} parent where the box goes
+ * @param {object} options
+ * @param {string} options.text the formula
+ * @param {string} options.label names the box for a screen reader
+ * @param {string} [options.describedBy] the ids of what describes the box
+ * @param {boolean} [options.readOnly]
+ * @param {() => Names} options.names what may be written, asked each time it is offered
+ * @param {() => void} [options.onType] told after every change of the formula
+ * @param {() => void} [options.onMove] told when the cursor moves or the formula changes
+ * @param {() => void} [options.onDone] told when the person is done with the box: the cursor left it, or Enter was pressed
+ * @returns {FormulaBox}
+ */
+export function formulaBox(parent, { text, label, describedBy = '', readOnly = false, names, onType, onMove, onDone }) {
+  /** The classes of the pieces: the colours are the page's, in its style sheet. */
+  const colours = ViewPlugin.fromClass(
+    class {
+      /** @param {EditorView} view */
+      constructor(view) {
+        this.decorations = this.read(view);
+      }
+
+      /** @param {{ docChanged: boolean, view: EditorView }} update */
+      update(update) {
+        if (update.docChanged) this.decorations = this.read(update.view);
+      }
+
+      /** @param {EditorView} view */
+      read(view) {
+        const known = new Set(names().variables.map((one) => one.name.toLowerCase()));
+        const formula = view.state.doc.toString();
+        return Decoration.set(
+          pieces(formula)
+            .filter((piece) => piece.kind !== 'open' && piece.kind !== 'close' && piece.kind !== 'comma' && piece.kind !== 'other')
+            .map((piece) => {
+              const written = formula.slice(piece.from, piece.to).toLowerCase();
+              // A name is a variable of the class, a field of one, or a name the class does not have.
+              const kind = piece.kind === 'name' ? (known.has(written) || known.has(written.split('.')[0]) ? 'variable' : 'name') : piece.kind;
+              return Decoration.mark({ class: `fx-${kind}` }).range(piece.from, piece.to);
+            }),
+        );
+      }
+    },
+    { decorations: (plugin) => plugin.decorations },
+  );
+
+  const view = new EditorView({
+    parent,
+    state: EditorState.create({
+      doc: text.replace(/\s*\n\s*/g, ' '),
+      extensions: [
+        history(),
+        colours,
+        lookOfFormula,
+        EditorView.lineWrapping,
+        autocompletion({
+          icons: false,
+          // The whole list is there for somebody who walks it: the engine has about a hundred functions.
+          maxRenderedOptions: 400,
+          override: [
+            (context) => {
+              const word = context.matchBefore(NAME_BEFORE);
+              if (!word && !context.explicit) return null;
+              const all = names();
+              return {
+                from: word ? word.from : context.pos,
+                validFor: /^[\p{L}_][\p{L}\p{N}_.]*$/u,
+                options: [
+                  ...all.variables.map((one) => ({ label: one.name, type: 'variable', detail: one.label, info: one.kind, boost: 2 })),
+                  // A function the engine has not built is not offered: it would be refused.
+                  ...all.functions
+                    .filter((one) => one.not_built !== true)
+                    .map((one) => ({ label: one.name, type: 'function', detail: one.signature.slice(one.name.length), info: `${one.description} Gives: ${one.returns}.`, apply: one.params.length > 0 ? `${one.name}(` : `${one.name}()` })),
+                  ...WORDS.map((one) => ({ label: one, type: 'keyword', boost: -1 })),
+                ],
+              };
+            },
+          ],
+        }),
+        keymap.of([
+          {
+            // One formula is one line: Enter says the person is done. (With
+            // the list of names open, Enter takes the chosen name instead
+            // and never comes here, except in the first moment of the
+            // list, when nobody can have read it.) Who is done wants no
+            // list: one that is open, or still on its way, is put away.
+            key: 'Enter',
+            run: (box) => {
+              closeCompletion(box);
+              if (onDone) onDone();
+              return true;
+            },
+          },
+          ...historyKeymap,
+          ...defaultKeymap,
+        ]),
+        // A formula is one line. What comes in as several, pasted or put
+        // in by a tool, becomes one, with a space where a line ended.
+        EditorState.transactionFilter.of((tr) => {
+          if (!tr.docChanged || tr.newDoc.lines === 1) return tr;
+          const one = tr.newDoc.toString().replace(/\s*\n\s*/g, ' ');
+          return { changes: { from: 0, to: tr.startState.doc.length, insert: one }, selection: { anchor: one.length } };
+        }),
+        EditorState.readOnly.of(readOnly),
+        EditorView.contentAttributes.of(describedBy ? { 'aria-label': label, 'aria-describedby': describedBy } : { 'aria-label': label }),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged && onType) onType();
+          if ((update.docChanged || update.selectionSet) && onMove) onMove();
+        }),
+      ],
+    }),
+  });
+  // The person is done when the cursor leaves the box. The browser says
+  // so at once; the box itself would say it a moment later, after
+  // whatever was pressed next had already been dealt with.
+  //
+  // The list of names is for whoever writes here. It opens a moment
+  // after a letter is typed, and by itself the box shuts only a list
+  // that is open when the cursor leaves: one still on its way would
+  // open afterwards, on a box nobody is in. So it is put away here.
+  view.dom.addEventListener('focusout', (left) => {
+    const to = left.relatedTarget;
+    if (to instanceof Node && view.dom.contains(to)) return;
+    closeCompletion(view);
+    if (onDone) onDone();
+  });
+
+  return {
+    text: () => view.state.doc.toString(),
+
+    set(next) {
+      if (next === view.state.doc.toString()) return;
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next.replace(/\s*\n\s*/g, ' ') }, annotations: isolateHistory.of('full') });
+    },
+
+    mark(marks) {
+      const length = view.state.doc.length;
+      view.dispatch(
+        setDiagnostics(
+          view.state,
+          marks.map((mark) => ({ from: Math.min(mark.from, length), to: Math.min(Math.max(mark.to, mark.from), length), severity: mark.note ? 'info' : 'error', message: mark.message })),
+        ),
+      );
+    },
+
+    cursor: () => view.state.selection.main.head,
+
+    offer() {
+      view.focus();
+      startCompletion(view);
+    },
+
+    focus() {
+      view.focus();
     },
   };
 }

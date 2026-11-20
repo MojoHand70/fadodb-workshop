@@ -3,7 +3,8 @@
 // pages/vendor/codemirror.js, and only pages/text.js reads that file.
 
 export { EditorState } from '@codemirror/state';
-export { EditorView, highlightActiveLine, keymap, lineNumbers } from '@codemirror/view';
+export { Decoration, EditorView, ViewPlugin, highlightActiveLine, keymap, lineNumbers } from '@codemirror/view';
+export { autocompletion, closeCompletion, startCompletion } from '@codemirror/autocomplete';
 export { defaultKeymap, history, historyKeymap, isolateHistory, undo } from '@codemirror/commands';
 export { HighlightStyle, bracketMatching, ensureSyntaxTree, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 export { search, searchKeymap } from '@codemirror/search';

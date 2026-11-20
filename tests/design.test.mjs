@@ -5,7 +5,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { acme, signIn } from './acme.mjs';
-import { fits, launch, open, ready, watch } from './browser.mjs';
+import { fits, formulaOf, launch, open, ready, watch, writeFormula } from './browser.mjs';
 
 /** @type {Awaited<ReturnType<typeof acme>>} */
 let server;
@@ -159,7 +159,7 @@ test('Dan opens the design of Expense from the first page: its name, its version
   assert.match(await page.locator('#class-defined').innerText(), /^Defined by Olga Nowak, \d{1,2} \w{3} \d{4}, \d{2}:\d{2}$/);
   assert.equal(await page.locator('#to-list').getAttribute('href'), 'list.html?class=Expense');
   assert.match(await page.locator('.status').innerText(), /a designer changes a class as text/);
-  assert.deepEqual(commands, ['whoami', 'get_class', 'get_user'], 'the page asks the server for the class and for nothing else');
+  assert.deepEqual(commands, ['whoami', 'get_class', 'list_functions', 'get_user'], 'the page asks the server for the class, for what a formula can call, and for nothing else');
   assert.deepEqual(answers, []);
   assert.deepEqual(wrong, []);
   await context.close();
@@ -253,11 +253,11 @@ test('the whole class: who may see, make, change and delete a document, each for
   await page.click('.pick[data-state=""]');
   assert.equal(await page.locator('#about-title').innerText(), 'The whole class');
   // For a designer each line is a field that holds the formula whole.
-  assert.equal(await page.inputValue('#c-read'), expense.access.read);
-  assert.equal(await page.inputValue('#c-create'), 'INGROUP("everyone")');
-  assert.equal(await page.inputValue('#c-update'), expense.access.update);
-  assert.equal(await page.inputValue('#c-delete'), 'FALSE');
-  assert.equal(await page.inputValue('#c-title'), 'what');
+  assert.equal(await formulaOf(page, '#c-read'), expense.access.read);
+  assert.equal(await formulaOf(page, '#c-create'), 'INGROUP("everyone")');
+  assert.equal(await formulaOf(page, '#c-update'), expense.access.update);
+  assert.equal(await formulaOf(page, '#c-delete'), 'FALSE');
+  assert.equal(await formulaOf(page, '#c-title'), 'what');
   const rules = page.locator('[data-rules=""]');
   assert.equal(await rules.locator('.rule-when').innerText(), 'When a document is made');
   assert.deepEqual(await linesOf(rules), [['only when', 'net > 10000'], ['it does', 'emit (event: large_expense)']]);
@@ -305,7 +305,7 @@ test('a class with no states and no sections is shown as what it is', async () =
   assert.deepEqual(await textsOf(page, '#states .pick .pick-label'), ['The whole class']);
   assert.match(await page.locator('#states-about').innerText(), /no states: it stores no documents/);
   assert.equal(await page.locator('#about-title').innerText(), 'The whole class');
-  for (const line of ['read', 'create', 'update', 'delete']) assert.equal(await page.inputValue(`#c-${line}`), '', `the class leaves the line ${line} out`);
+  for (const line of ['read', 'create', 'update', 'delete']) assert.equal(await formulaOf(page, `#c-${line}`), '', `the class leaves the line ${line} out`);
   assert.deepEqual(wrong, []);
   await context.close();
 
@@ -338,7 +338,7 @@ test('a section inside a section, a pointer, a list of values and the rights of 
   assert.deepEqual(await linesOf(page.locator('[data-rights="*"]')), [['may set it', 'FALSE'], ['may see it', 'anybody in travel_office']]);
 
   await page.click('.pick[data-state=""]');
-  assert.equal(await page.inputValue('#c-delete'), '', 'the class leaves the line for deleting out');
+  assert.equal(await formulaOf(page, '#c-delete'), '', 'the class leaves the line for deleting out');
   assert.deepEqual(wrong, []);
   await context.close();
 });
