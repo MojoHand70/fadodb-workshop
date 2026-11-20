@@ -32,20 +32,32 @@ jobs:
           cache: npm
       - run: npm ci
       # The system libraries of a browser come from the machine's package
-      # mirror, which now and then stops answering in the middle. The
-      # first try gets six minutes; where it does not finish, the package
-      # manager is put right and there is one more.
+      # mirror, which now and then stands still in the middle of a
+      # download. In 51 runs of November 2026 the first try ran out of
+      # time 11 times, and a second try at the same mirror stood still
+      # too in 3 of them, all in the webkit job, which then never
+      # reached a test. The machine's own patience, fifteen seconds for
+      # a connection that says nothing, does not end such a download.
+      #
+      # An install that goes well takes under a minute and a half, so
+      # the first try gets three. Where it does not finish, the second
+      # asks Ubuntu's own archive in place of the machine's mirror: a
+      # trial installed each of the three browsers from there in twenty
+      # seconds. On a machine that keeps its mirrors elsewhere the
+      # second try asks the same mirror again, as before.
       - name: Install the browser the pages are checked in
         id: browser
-        timeout-minutes: 6
+        timeout-minutes: 3
         continue-on-error: true
         run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Install it again, where the first try did not finish
+      - name: Install it again from another mirror, where the first try did not finish
         if: steps.browser.outcome != 'success'
-        timeout-minutes: 8
+        timeout-minutes: 6
         run: |
           sudo killall -q apt-get dpkg || true
           sudo dpkg --configure -a || true
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt || true
+          cat /etc/apt/apt-mirrors.txt || true
           npx playwright install --with-deps ${{ matrix.browser }}
       - name: Check the types
         if: matrix.browser == 'chromium'
