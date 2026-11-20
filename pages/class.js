@@ -256,8 +256,9 @@ export function linesOf(definition) {
 
 /**
  * What one step of a rule does, in a line. The steps that set values
- * are written as the values they set; any other is written as its
- * action and what the class gives it.
+ * are written as the values they set, those that put values back as
+ * the values they put back; any other is written as its action and
+ * what the class gives it.
  *
  * @param {Record<string, any>} step
  */
@@ -267,6 +268,9 @@ function stepWords(step) {
     return `set ${Object.entries(given.values)
       .map(([name, formula]) => `${name} = ${text(formula)}`)
       .join(', ')}`;
+  }
+  if (action === 'reset' && Array.isArray(given.variables) && given.variables.length > 0) {
+    return `put ${texts(given.variables).join(', ')} back to ${given.variables.length === 1 ? 'its first value' : 'their first values'}`;
   }
   const rest = Object.entries(given)
     .map(([name, value]) => `${name}: ${typeof value === 'string' ? value : JSON.stringify(value)}`)
@@ -305,23 +309,37 @@ function ruleWords(definition, rule) {
  * document enters or leaves it, and those that run when a transition
  * out of it is taken. With no state, the rules that are about none:
  * those of a new document, of a change of a value and of a deletion.
+ * Each with its place in the list of the class, by which it is told:
+ * a rule has no name.
+ *
+ * @param {Definition} definition
+ * @param {string} state '' for the rules that are about no state
+ * @returns {{ at: number, when: string, only: string, does: string[] }[]}
+ */
+export function rulesAt(definition, state) {
+  /** @type {any[]} */
+  const rules = Array.isArray(definition.rules) ? definition.rules : [];
+  const out = new Set(waysOut(definition, state).map((way) => way.name));
+  return rules
+    .map((rule, at) => ({ rule, at }))
+    .filter(({ rule }) => {
+      const on = text(rule?.on);
+      if (on === 'enter' || on === 'exit') return state !== '' && text(rule.state) === state;
+      if (on === 'transition') return state !== '' && out.has(text(rule.name));
+      return state === '';
+    })
+    .map(({ rule, at }) => ({ at, ...ruleWords(definition, rule) }));
+}
+
+/**
+ * The same rules in words alone.
  *
  * @param {Definition} definition
  * @param {string} state '' for the rules that are about no state
  * @returns {{ when: string, only: string, does: string[] }[]}
  */
 export function rulesAbout(definition, state) {
-  /** @type {any[]} */
-  const rules = Array.isArray(definition.rules) ? definition.rules : [];
-  const out = new Set(waysOut(definition, state).map((way) => way.name));
-  return rules
-    .filter((rule) => {
-      const on = text(rule?.on);
-      if (on === 'enter' || on === 'exit') return state !== '' && text(rule.state) === state;
-      if (on === 'transition') return state !== '' && out.has(text(rule.name));
-      return state === '';
-    })
-    .map((rule) => ruleWords(definition, rule));
+  return rulesAt(definition, state).map(({ when, only, does }) => ({ when, only, does }));
 }
 
 /**
@@ -1162,5 +1180,345 @@ export function shiftSection(definition, name, by) {
   const sections = at.holder.sections;
   const beside = Object.keys(sections);
   at.holder.sections = Object.fromEntries(shifted(beside, beside, name, by).map((one) => [one, sections[one]]));
+}
+
+// What a class does by itself: its rules. A rule says when it runs,
+// on what condition, and what it does, one action after another. It
+// has no name: it is told by its place in the list of the class.
+
+/**
+ * The variables people give: those the class does not work out. A
+ * rule sets these, and puts these back, and no other.
+ *
+ * @param {Definition} definition
+ * @returns {{ name: string, label: string }[]}
+ */
+export function inputsOf(definition) {
+  return Object.entries(definition.variables ?? {})
+    .filter(([, variable]) => variable?.formula === undefined)
+    .map(([name, variable]) => ({ name, label: text(variable?.label) || name }));
+}
+
+/** @param {Definition} definition @returns {any[]} */
+const rulesOf = (definition) => (Array.isArray(definition.rules) ? definition.rules : []);
+
+/**
+ * A rule with its words in the order a class writes them: when, about
+ * what, on what condition, what it does. Whatever else it holds comes
+ * after, as it was.
+ *
+ * @param {Record<string, any>} rule
+ */
+function tidy(rule) {
+  const { on, state, name, variables, if: only, do: does, ...rest } = rule;
+  /** @type {Record<string, any>} */
+  const next = { on };
+  if (state !== undefined) next.state = state;
+  if (name !== undefined) next.name = name;
+  if (variables !== undefined) next.variables = variables;
+  if (only !== undefined) next.if = only;
+  next.do = does ?? [];
+  return { ...next, ...rest };
+}
+
+/**
+ * What sets a rule off, in one word of the lists: `create`, `delete`,
+ * `values_change`, `enter:<state>`, `exit:<state>` or
+ * `transition:<name>`.
+ *
+ * @param {Record<string, any> | undefined} rule
+ */
+export function eventOf(rule) {
+  const on = text(rule?.on);
+  if (on === 'enter' || on === 'exit') return `${on}:${text(rule?.state)}`;
+  if (on === 'transition') return `transition:${text(rule?.name)}`;
+  return on;
+}
+
+/**
+ * Everything that can set a rule of this class off, each with its
+ * words: for the list a rule's card chooses from.
+ *
+ * @param {Definition} definition
+ * @returns {{ event: string, words: string }[]}
+ */
+export function eventsOf(definition) {
+  const states = statesOf(definition);
+  /** @type {Map<string, string>} */
+  const taken = new Map();
+  for (const move of moves(definition)) if (text(move?.name) && !taken.has(text(move.name))) taken.set(text(move.name), text(move.label) || text(move.name));
+  return [
+    { event: 'create', words: 'A document is made' },
+    { event: 'values_change', words: 'A value changes' },
+    ...states.map((state) => ({ event: `enter:${state.name}`, words: `A document enters ${state.label}` })),
+    ...states.map((state) => ({ event: `exit:${state.name}`, words: `A document leaves ${state.label}` })),
+    ...[...taken].map(([name, label]) => ({ event: `transition:${name}`, words: `${label} is taken` })),
+    { event: 'delete', words: 'A document is deleted' },
+  ];
+}
+
+/**
+ * What can set a rule off in one place of the lists: under a state,
+ * a document entering or leaving it and each transition out of it;
+ * under the whole class, a new document, a deletion, and a change of
+ * each value people give, written `values_change:<variable>`.
+ *
+ * @param {Definition} definition
+ * @param {string} state '' for the whole class
+ * @returns {{ event: string, words: string }[]}
+ */
+export function eventsAt(definition, state) {
+  if (state === '') {
+    return [
+      { event: 'create', words: 'A document is made' },
+      ...inputsOf(definition).map((one) => ({ event: `values_change:${one.name}`, words: `${one.label} changes` })),
+      { event: 'delete', words: 'A document is deleted' },
+    ];
+  }
+  const label = labelOfState(definition, state);
+  return [
+    { event: `enter:${state}`, words: `A document enters ${label}` },
+    { event: `exit:${state}`, words: `A document leaves ${label}` },
+    ...waysOut(definition, state)
+      .filter((way) => way.name)
+      .map((way) => ({ event: `transition:${way.name}`, words: `${way.label} is taken` })),
+  ];
+}
+
+/**
+ * Says what sets a rule off. What the old event named and the new one
+ * does not, a state, a transition or variables, is taken out.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {string} event as `eventOf` writes it; `values_change:<variable>` names the first variable
+ */
+export function setRuleEvent(definition, at, event) {
+  const rule = rulesOf(definition)[at];
+  if (!rule || typeof rule !== 'object') return;
+  const [on, about = ''] = event.split(':');
+  const { state: _state, name: _name, variables, ...rest } = rule;
+  /** @type {Record<string, any>} */
+  const next = { ...rest, on };
+  if (on === 'enter' || on === 'exit') next.state = about;
+  if (on === 'transition') next.name = about;
+  if (on === 'values_change') next.variables = about ? [about] : Array.isArray(variables) ? variables : [];
+  definition.rules[at] = tidy(next);
+}
+
+/**
+ * Adds a rule at the end of the list, and answers its place. A rule
+ * does at least one thing, so it begins by setting one variable, to a
+ * formula the designer then writes.
+ *
+ * @param {Definition} definition
+ * @param {string} event what sets it off, as `eventsAt` writes it
+ * @param {string} variable the variable it begins by setting
+ * @returns {number}
+ */
+export function addRule(definition, event, variable) {
+  if (!Array.isArray(definition.rules)) definition.rules = [];
+  definition.rules.push({ on: '', do: [{ action: 'set', values: { [variable]: '' } }] });
+  const at = definition.rules.length - 1;
+  setRuleEvent(definition, at, event);
+  return at;
+}
+
+/**
+ * Takes a rule out. A class left with no rule keeps no list of them.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ */
+export function removeRule(definition, at) {
+  if (!Array.isArray(definition.rules) || !definition.rules[at]) return;
+  definition.rules.splice(at, 1);
+  if (definition.rules.length === 0) delete definition.rules;
+}
+
+/**
+ * Sets the condition of a rule, a formula, or takes it out: with no
+ * condition a rule runs every time.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {string} formula
+ */
+export function setRuleIf(definition, at, formula) {
+  const rule = rulesOf(definition)[at];
+  if (!rule || typeof rule !== 'object') return;
+  const { if: _only, ...rest } = rule;
+  definition.rules[at] = tidy(nothing(formula) ? rest : { ...rest, if: formula });
+}
+
+/**
+ * Names the variables a rule on a change of values is about.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {string[]} names
+ */
+export function setRuleVariables(definition, at, names) {
+  const rule = rulesOf(definition)[at];
+  if (!rule || typeof rule !== 'object') return;
+  definition.rules[at] = tidy({ ...rule, variables: names });
+}
+
+/**
+ * What a rule does, action by action, as its card shows it. An action
+ * that sets values is told with each value and its formula; one that
+ * puts values back with their names; any other in a line of words,
+ * for it is changed in the text.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @returns {({ at: number, kind: 'set', values: { variable: string, label: string, formula: string }[] } | { at: number, kind: 'reset', variables: string[] } | { at: number, kind: 'other', words: string })[]}
+ */
+export function actionsOf(definition, at) {
+  /** @type {any[]} */
+  const steps = Array.isArray(rulesOf(definition)[at]?.do) ? rulesOf(definition)[at].do : [];
+  return steps.map((step, place) => {
+    if (step?.action === 'set' && step.values && typeof step.values === 'object') {
+      return {
+        at: place,
+        kind: /** @type {const} */ ('set'),
+        values: Object.entries(step.values).map(([variable, formula]) => ({ variable, label: text(definition.variables?.[variable]?.label) || variable, formula: text(formula) })),
+      };
+    }
+    if (step?.action === 'reset') return { at: place, kind: /** @type {const} */ ('reset'), variables: texts(step.variables) };
+    return { at: place, kind: /** @type {const} */ ('other'), words: stepWords(step) };
+  });
+}
+
+/** @param {Definition} definition @param {number} at @returns {any[] | null} the actions of a rule, as the class holds them */
+function stepsOf(definition, at) {
+  const rule = rulesOf(definition)[at];
+  if (!rule || typeof rule !== 'object') return null;
+  if (!Array.isArray(rule.do)) rule.do = [];
+  return rule.do;
+}
+
+/**
+ * Adds an action that sets one variable, at the end of what a rule
+ * does, and answers its place. The formula is the designer's to write.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {string} variable
+ * @returns {number}
+ */
+export function addSet(definition, at, variable) {
+  const steps = stepsOf(definition, at);
+  if (!steps) return -1;
+  steps.push({ action: 'set', values: { [variable]: '' } });
+  return steps.length - 1;
+}
+
+/**
+ * Says what a variable is set to, in an action that sets values.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {number} place the place of the action in what the rule does
+ * @param {string} variable
+ * @param {string} formula
+ */
+export function setSetFormula(definition, at, place, variable, formula) {
+  const step = stepsOf(definition, at)?.[place];
+  if (!step || step.action !== 'set') return;
+  if (!step.values || typeof step.values !== 'object') step.values = {};
+  step.values[variable] = formula;
+}
+
+/**
+ * Takes one variable out of an action that sets values. An action left
+ * setting nothing goes with it.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {number} place
+ * @param {string} variable
+ */
+export function removeSetValue(definition, at, place, variable) {
+  const steps = stepsOf(definition, at);
+  const step = steps?.[place];
+  if (!steps || !step || step.action !== 'set' || !step.values) return;
+  delete step.values[variable];
+  if (Object.keys(step.values).length === 0) steps.splice(place, 1);
+}
+
+/**
+ * Adds an action that puts one variable back to its first value, at
+ * the end of what a rule does, and answers its place.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {string} variable
+ * @returns {number}
+ */
+export function addReset(definition, at, variable) {
+  const steps = stepsOf(definition, at);
+  if (!steps) return -1;
+  steps.push({ action: 'reset', variables: [variable] });
+  return steps.length - 1;
+}
+
+/**
+ * Names the variables an action puts back to their first values.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {number} place
+ * @param {string[]} names
+ */
+export function setResetVariables(definition, at, place, names) {
+  const step = stepsOf(definition, at)?.[place];
+  if (!step || step.action !== 'reset') return;
+  step.variables = names;
+}
+
+/**
+ * Takes an action out of what a rule does.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {number} place
+ */
+export function removeAction(definition, at, place) {
+  const steps = stepsOf(definition, at);
+  if (steps?.[place] !== undefined) steps.splice(place, 1);
+}
+
+/**
+ * The state a rule belongs to in the lists: the one it enters or
+ * leaves, or one its transition leaves, the given one when it is among
+ * them. '' for a rule that is about no state, and so stands under the
+ * whole class.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {string} [preferred] the state the lists show now
+ */
+export function homeOfRule(definition, at, preferred = '') {
+  const rule = rulesOf(definition)[at];
+  const on = text(rule?.on);
+  if (on === 'enter' || on === 'exit') return text(rule.state);
+  if (on !== 'transition') return '';
+  const from = moves(definition)
+    .filter((move) => text(move?.name) === text(rule.name))
+    .flatMap((move) => texts(move.from));
+  return from.includes(preferred) ? preferred : (from[0] ?? '');
+}
+
+/**
+ * A rule in words, by its place: when it runs, on what condition, and
+ * what it does. Null where the class has no rule there.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ */
+export function ruleAt(definition, at) {
+  const rule = rulesOf(definition)[at];
+  return rule && typeof rule === 'object' ? { ...ruleWords(definition, rule), event: eventOf(rule), variables: texts(rule.variables), condition: text(rule.if) } : null;
 }
 
