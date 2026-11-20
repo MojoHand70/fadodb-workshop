@@ -54,13 +54,15 @@ function freePort() {
 /**
  * Makes the database, starts the server and waits until it answers.
  *
- * @param {{ name?: string }} [options]
+ * @param {{ name?: string, first?: number }} [options]
  *   name, when given, is the name people reach the server by, over plain
  *   http: the operator tells the server so, as `url` in its settings,
  *   and `site` is then at that name. The server still listens on this
  *   machine; tests/passage.mjs takes a browser to it.
+ *   first, when given, is the port tried first, whoever holds it: the
+ *   test of this file gives one that is taken.
  */
-export async function acme({ name } = {}) {
+export async function acme({ name, first } = {}) {
   const program = process.env.FADODB_BIN;
   if (!program) {
     throw new Error('FADODB_BIN is not set: it names the fadodb program the tests start, built from the engine this Workshop needs (package.json, config.engine).');
@@ -77,31 +79,62 @@ export async function acme({ name } = {}) {
   /** @type {Record<string, string>} */
   const keys = { olga: await keyOf('olga'), jan: await keyOf('jan') };
 
-  const port = await freePort();
-  const url = `http://127.0.0.1:${port}`;
-  const reached = name ? `http://${name}:${port}` : url;
-  const told = ['serve', database, '--listen', `127.0.0.1:${port}`, '--pages', PAGES];
-  if (name) {
-    const settings = join(folder, 'settings.json');
-    await writeFile(settings, JSON.stringify({ url: reached }));
-    told.push('--settings', settings);
-  }
-  const server = spawn(program, told, { stdio: 'ignore' });
+  // A port that was free when it was looked for may be taken a moment
+  // later: every test file starts a server of its own at the same time,
+  // and a machine may have few ports to hand out (WSL hands out some
+  // 2,000). A server that finds its port taken ends at once, and at that
+  // address the server of another file answers. So a server counts as
+  // started when it knows the key made for this database, which no other
+  // server does; where somebody else answers, or nobody, it is started
+  // again on another port.
+  let url = '';
+  let reached = '';
+  /** @type {import('node:child_process').ChildProcess | undefined} */
+  let server;
   /** @type {Promise<void>} */
-  const ended = new Promise((done) => server.once('exit', () => done()));
-
-  let answers = false;
-  for (let tries = 0; tries < 100 && !answers; tries++) {
-    try {
-      answers = (await fetch(`${url}/v1/health`)).ok;
-    } catch {
-      await new Promise((wait) => setTimeout(wait, 50));
+  let ended = Promise.resolve();
+  let mine = false;
+  for (let starts = 0; starts < 5 && !mine; starts++) {
+    const port = starts === 0 && first ? first : await freePort();
+    url = `http://127.0.0.1:${port}`;
+    reached = name ? `http://${name}:${port}` : url;
+    const told = ['serve', database, '--listen', `127.0.0.1:${port}`, '--pages', PAGES];
+    if (name) {
+      const settings = join(folder, 'settings.json');
+      await writeFile(settings, JSON.stringify({ url: reached }));
+      told.push('--settings', settings);
+    }
+    const started = spawn(program, told, { stdio: 'ignore' });
+    let gone = false;
+    const over = new Promise((/** @type {(value?: undefined) => void} */ done) => {
+      started.once('exit', () => {
+        gone = true;
+        done();
+      });
+    });
+    for (let asks = 0; asks < 100 && !mine && !gone; asks++) {
+      try {
+        const answer = await fetch(`${url}/v1/whoami`, { method: 'POST', headers: { Authorization: `Bearer ${keys.olga}`, 'Content-Type': 'application/json' }, body: '{}' });
+        // Somebody answers there and does not know Olga's key: the server of another file took the port.
+        if (!answer.ok) break;
+        mine = true;
+      } catch {
+        await new Promise((wait) => setTimeout(wait, 50));
+      }
+    }
+    if (mine) {
+      server = started;
+      ended = over;
+    } else {
+      started.kill();
+      await over;
     }
   }
-  if (!answers) {
-    server.kill();
-    throw new Error(`the FadoDB server did not answer at ${url}`);
+  if (!mine || !server) {
+    await rm(folder, { recursive: true, force: true });
+    throw new Error('the FadoDB server did not start: five times in a row its port was taken, or it did not answer');
   }
+  const running = server;
 
   return {
     /** The address the server listens at. */
@@ -128,7 +161,7 @@ export async function acme({ name } = {}) {
     },
     /** Stops the server and throws the database away. */
     async close() {
-      server.kill();
+      running.kill();
       await ended;
       await rm(folder, { recursive: true, force: true });
     },
