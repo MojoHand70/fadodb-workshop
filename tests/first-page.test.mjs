@@ -61,6 +61,7 @@ test('Ann signs in on the server\'s page and sees her name and the apps, each wi
   assert.ok(await page.locator('#home').isVisible());
   assert.ok(await page.locator('#signed-out').isHidden());
   assert.equal(await page.locator('#home h1').innerText(), 'Apps');
+  assert.equal(await page.locator('#home .home-head p').count(), 0, 'no sentence explains the page');
 
   // An app is a tile: its name, what it is for, and the lists she opens in it.
   assert.deepEqual(await page.locator('.tile .tile-name').allInnerTexts(), ['Expenses', 'Help desk']);
