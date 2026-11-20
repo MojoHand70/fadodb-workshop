@@ -17,6 +17,7 @@ import {
   ViewPlugin,
   autocompletion,
   bracketMatching,
+  closeCompletion,
   defaultKeymap,
   ensureSyntaxTree,
   highlightActiveLine,
@@ -417,9 +418,14 @@ export function formulaBox(parent, { text, label, describedBy = '', readOnly = f
         }),
         keymap.of([
           {
-            // One formula is one line: Enter says the person is done.
+            // One formula is one line: Enter says the person is done. (With
+            // the list of names open, Enter takes the chosen name instead
+            // and never comes here, except in the first moment of the
+            // list, when nobody can have read it.) Who is done wants no
+            // list: one that is open, or still on its way, is put away.
             key: 'Enter',
-            run: () => {
+            run: (box) => {
+              closeCompletion(box);
               if (onDone) onDone();
               return true;
             },
@@ -446,9 +452,16 @@ export function formulaBox(parent, { text, label, describedBy = '', readOnly = f
   // The person is done when the cursor leaves the box. The browser says
   // so at once; the box itself would say it a moment later, after
   // whatever was pressed next had already been dealt with.
+  //
+  // The list of names is for whoever writes here. It opens a moment
+  // after a letter is typed, and by itself the box shuts only a list
+  // that is open when the cursor leaves: one still on its way would
+  // open afterwards, on a box nobody is in. So it is put away here.
   view.dom.addEventListener('focusout', (left) => {
     const to = left.relatedTarget;
-    if (onDone && !(to instanceof Node && view.dom.contains(to))) onDone();
+    if (to instanceof Node && view.dom.contains(to)) return;
+    closeCompletion(view);
+    if (onDone) onDone();
   });
 
   return {

@@ -117,6 +117,23 @@ const colours = (page, box) => page.locator(`${box} [class^="fx-"]`).evaluateAll
 /** @param {import('playwright').Page} page */
 const offered = (page) => page.locator('.cm-tooltip-autocomplete li').evaluateAll((all) => all.map((line) => line.textContent ?? ''));
 
+/**
+ * Waits for the list of names, and until it takes a key.
+ *
+ * For the first 75 ms after its list opens, a box leaves Enter and the
+ * arrows to the formula (CodeMirror's `interactionDelay`): somebody who
+ * pressed Enter to say they are done is not given a name they had no
+ * time to see. That is a rule about time. So here, and nowhere else, a
+ * test lets time pass: twice what the rule asks, which a slow machine
+ * can only make longer.
+ *
+ * @param {import('playwright').Page} page
+ */
+async function listTakesKeys(page) {
+  await page.locator('.cm-tooltip-autocomplete').waitFor();
+  await page.waitForTimeout(150);
+}
+
 /** @param {string} name */
 const held = async (name) => (await server.exec('get_class', { name })).class;
 
@@ -142,7 +159,7 @@ test('as Dan types, the names that may be written are offered: the variables of 
   assert.ok(commands.includes('list_functions'), 'the page asked the server what a formula can call');
   await into(page, '#v-formula');
   await page.keyboard.type('RO');
-  await page.locator('.cm-tooltip-autocomplete').waitFor();
+  await listTakesKeys(page);
   const forRO = await offered(page);
   assert.equal(forRO[0], 'ROUND(number[, digits[, method]])', 'the function whose name begins so comes first, with its arguments');
   assert.ok(forRO.length < 20, 'only what fits what was typed');
@@ -154,7 +171,7 @@ test('as Dan types, the names that may be written are offered: the variables of 
 
   // A variable is offered by its name, with its label beside it, before the functions.
   await page.keyboard.type('va');
-  await page.locator('.cm-tooltip-autocomplete').waitFor();
+  await listTakesKeys(page);
   const forVa = await offered(page);
   assert.deepEqual(forVa.slice(0, 2), ['vatVAT', 'vat_rateVAT rate']);
   await page.keyboard.press('ArrowDown');
@@ -164,7 +181,7 @@ test('as Dan types, the names that may be written are offered: the variables of 
   // A function with no argument is written with both its brackets; a function the engine has not built is not offered.
   await into(page, '#v-formula');
   await page.keyboard.type('TODA');
-  await page.locator('.cm-tooltip-autocomplete').waitFor();
+  await listTakesKeys(page);
   await page.keyboard.press('Enter');
   assert.equal(await formulaOf(page, '#v-formula'), 'TODAY()');
   await into(page, '#v-formula');
@@ -172,6 +189,46 @@ test('as Dan types, the names that may be written are offered: the variables of 
   await page.locator('.cm-tooltip-autocomplete').waitFor();
   assert.ok(!(await offered(page)).some((line) => line.startsWith('FIRST(')), 'FIRST is part of the language and not built: offering it would lead to a refusal');
   assert.ok((await offered(page)).some((line) => line.startsWith('FIRSTENTERED(')));
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('the list of names is for the box somebody writes in: none opens on a box already left', async () => {
+  await aClass('Left');
+  const { context, page, wrong } = await atTheLists('Left', '&state=');
+  // Dan types two letters and goes on to the next box at once, before the list of the first had the time to open.
+  await into(page, '#c-read');
+  await page.keyboard.type('IN');
+  await into(page, '#c-create');
+  await page.keyboard.type('IN');
+  await page.locator('#c-create .cm-tooltip-autocomplete').waitFor();
+  // The list of the second box was asked for after that of the first: had the first still been on its way, it would stand here too.
+  assert.equal(await page.locator('.cm-tooltip-autocomplete').count(), 1);
+  assert.equal(await formulaOf(page, '#c-read'), 'IN', 'what he typed in the box he left is there');
+  await page.keyboard.press('Escape');
+  await page.locator('.cm-tooltip-autocomplete').waitFor({ state: 'detached' });
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('Enter in the moment the list opens still says the formula is done, and the list is put away', async () => {
+  await aClass('Breath');
+  const { context, page, wrong } = await atTheLists('Breath', '&variable=vat');
+  // For its first 75 ms a list leaves Enter to the formula: nobody can have read it. A test cannot press a key
+  // inside so short a time, so the page presses it here, in the same breath as the list opens.
+  await page.evaluate(() => {
+    new MutationObserver((changes, watching) => {
+      if (!document.querySelector('.cm-tooltip-autocomplete')) return;
+      watching.disconnect();
+      document.querySelector('#v-formula .cm-content')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true, cancelable: true }));
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+  await into(page, '#v-formula');
+  await page.keyboard.type('ne');
+  // Done: the formula is in the class as he typed it, and no name was taken for him.
+  await page.waitForFunction(() => document.querySelector('.var[data-variable="vat"] .var-kind')?.textContent === 'fx ne');
+  assert.equal(await formulaOf(page, '#v-formula'), 'ne');
+  assert.equal(await page.locator('.cm-tooltip-autocomplete').count(), 0, 'who is done has no list in front of them');
   assert.deepEqual(wrong, []);
   await context.close();
 });
@@ -253,17 +310,36 @@ test('a moment after the typing stops the server is asked, and what it finds is 
   assert.equal(await page.locator('#v-formula-why').innerText(), '');
   assert.equal(await page.locator('#v-formula .cm-lintRange-error').count(), 0);
 
-  // A formula that stops short is marked at its end; the place is counted past a letter of two bytes.
+  // A formula that stops short is marked at its end.
   await into(page, '#v-formula');
   await page.keyboard.insertText('net +');
   await checked(page, '#v-formula', 'net +');
   assert.equal(await page.locator('#v-formula-why').innerText(), 'unexpected end of formula');
   assert.deepEqual(await page.locator('#v-formula .cm-lintRange-error').evaluateAll((all) => all.map((mark) => mark.textContent)), ['+']);
+
+  // The server counts a place in bytes, and each of ż, ó, ł and ć is two: the mark is put where a person counts it.
   await into(page, '#v-formula');
-  await page.keyboard.insertText('"Gdańsk" & nothing');
-  await checked(page, '#v-formula', '"Gdańsk" & nothing');
-  assert.deepEqual(await page.locator('#v-formula .cm-lintRange-error').evaluateAll((all) => all.map((mark) => mark.textContent)), ['nothing']);
+  await page.keyboard.insertText('IF(what = "żółć", q, 0)');
+  await checked(page, '#v-formula', 'IF(what = "żółć", q, 0)');
+  assert.equal(await page.locator('#v-formula-why').innerText(), 'unknown variable q');
+  assert.deepEqual(await page.locator('#v-formula .cm-lintRange-error').evaluateAll((all) => all.map((mark) => mark.textContent)), ['q']);
   assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('a note of the server is no fault of the formula: nothing is said under the box', async () => {
+  const definition = await aClass('Noted');
+  const { context, page, wrong, answers } = await atTheLists('Noted', '&state=');
+  // A line left empty lets nobody through. The server takes that, and notes it at the place of the line.
+  const { diagnostics } = await server.exec('validate_class', { definition: { ...definition, access: { ...definition.access, delete: '' } } });
+  assert.deepEqual(diagnostics.map((/** @type {any} */ one) => [one.path, one.note]), [['/access/delete', true]]);
+  await into(page, '#c-delete');
+  await page.keyboard.press('Delete');
+  await checked(page, '#c-delete', '');
+  assert.equal(await page.locator('#c-delete-why').innerText(), '');
+  assert.equal(await page.locator('#c-delete .cm-lintRange-error').count(), 0);
+  assert.deepEqual(wrong, []);
+  assert.deepEqual(answers, []);
   await context.close();
 });
 

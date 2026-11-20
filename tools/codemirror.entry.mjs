@@ -4,7 +4,7 @@
 
 export { EditorState } from '@codemirror/state';
 export { Decoration, EditorView, ViewPlugin, highlightActiveLine, keymap, lineNumbers } from '@codemirror/view';
-export { autocompletion, startCompletion } from '@codemirror/autocomplete';
+export { autocompletion, closeCompletion, startCompletion } from '@codemirror/autocomplete';
 export { defaultKeymap, history, historyKeymap, isolateHistory, undo } from '@codemirror/commands';
 export { HighlightStyle, bracketMatching, ensureSyntaxTree, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 export { search, searchKeymap } from '@codemirror/search';
