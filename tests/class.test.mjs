@@ -13,6 +13,7 @@ import {
   addVariable,
   asFormula,
   asRangeEnd,
+  decides,
   kindLine,
   linesOf,
   linesToAdd,
@@ -27,6 +28,7 @@ import {
   rightsIn,
   rulesAbout,
   sectionOfVariable,
+  sectionsAround,
   sectionsOf,
   setClassWord,
   setComputed,
@@ -41,6 +43,8 @@ import {
   statesOf,
   waysIn,
   waysOut,
+  whereWords,
+  whoDecides,
   whoMay,
 } from '../pages/class.js';
 
@@ -443,4 +447,46 @@ test('a transition is changed by its place, added and taken out with its line', 
   removeMove(bare, 0);
   assert.equal('transitions' in bare, false);
   assert.deepEqual(bare.access, {}, 'the last line taken out leaves no list of lines');
+});
+
+test('the sections around a variable: its own first, then outwards', () => {
+  const trip = {
+    variables: { by: {}, hotel: {}, loose: {} },
+    sections: { journey: { label: 'The journey', variables: ['by'], sections: { stay: { label: 'The stay', variables: ['hotel'] } } } },
+  };
+  assert.deepEqual(sectionsAround(trip, 'hotel'), ['stay', 'journey']);
+  assert.deepEqual(sectionsAround(trip, 'by'), ['journey']);
+  assert.deepEqual(sectionsAround(trip, 'loose'), []);
+  assert.deepEqual(sectionsAround(expense, 'net'), ['amounts']);
+});
+
+test('who may set a variable and who may see it, state by state, with the line that decides', () => {
+  // Expense: in Draft its author sets every variable; while it waits for approval nobody does, but the approvers set the note.
+  assert.deepEqual(decides(expense, 'draft', 'note', 'write'), { state: 'draft', what: '*', about: 'every variable', formula: 'CREATEDBY() = USER()' });
+  assert.deepEqual(decides(expense, 'submitted', 'note', 'write'), { state: 'submitted', what: 'note', about: 'variable', formula: 'INGROUP("expense_approvers")' });
+  assert.deepEqual(decides(expense, 'submitted', 'net', 'write'), { state: 'submitted', what: '*', about: 'every variable', formula: 'FALSE' });
+  assert.equal(decides(expense, 'approved', 'net', 'write'), null, 'no line: who may change the document decides alone');
+  assert.equal(decides(expense, 'submitted', 'note', 'read'), null, 'a line that says who may set says nothing of who may see');
+
+  assert.deepEqual(
+    whoDecides(expense, 'note').map((row) => [row.state, row.label, row.final, row.write?.formula ?? null, row.read]),
+    [
+      ['draft', 'Draft', false, 'CREATEDBY() = USER()', null],
+      ['submitted', 'Waiting for approval', false, 'INGROUP("expense_approvers")', null],
+      ['approved', 'Approved', false, null, null],
+      ['paid', 'Paid', true, null, null],
+    ],
+  );
+
+  // A state's own line for every variable comes before a line for every state that names the variable.
+  const trap = { ...expense, rights: { ...expense.rights, '*': { note: { write: 'FALSE' }, amounts: { read: ['accountants'] } } } };
+  assert.deepEqual(decides(trap, 'draft', 'note', 'write'), { state: 'draft', what: '*', about: 'every variable', formula: 'CREATEDBY() = USER()' });
+  assert.deepEqual(decides(trap, 'approved', 'note', 'write'), { state: '*', what: 'note', about: 'variable', formula: 'FALSE' });
+  assert.deepEqual(decides(trap, 'paid', 'total', 'read'), { state: '*', what: 'amounts', about: 'section', formula: 'INGROUP("accountants")' });
+
+  // Where a line is, in words.
+  assert.equal(whereWords(trap, /** @type {any} */ (decides(trap, 'draft', 'note', 'write'))), 'the line for every variable, in this state');
+  assert.equal(whereWords(trap, /** @type {any} */ (decides(trap, 'approved', 'note', 'write'))), 'its own line, for every state');
+  assert.equal(whereWords(trap, /** @type {any} */ (decides(trap, 'paid', 'total', 'read'))), 'the line for the section Amounts, for every state');
+  assert.equal(whereWords(expense, /** @type {any} */ (decides(expense, 'submitted', 'note', 'write'))), 'its own line, in this state');
 });

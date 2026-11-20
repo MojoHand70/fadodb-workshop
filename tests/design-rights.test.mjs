@@ -310,6 +310,95 @@ test('a formula the server refuses is marked in its own box, and said under it',
   await context.close();
 });
 
+/**
+ * The rows of "Who may set it and see it, state by state" on a
+ * variable's card: the state, then each line as "what: who | where".
+ *
+ * @param {import('playwright').Page} page
+ */
+const who = (page) =>
+  page.locator('#v-who .who-row').evaluateAll((all) =>
+    all.map((row) => [
+      row.getAttribute('data-state'),
+      ...[...row.querySelectorAll('.line')].map((line) => `${line.querySelector('.line-what')?.textContent}: ${[...line.querySelectorAll('.line-answer > *')].map((part) => part.textContent).join(' | ')}`),
+    ]),
+  );
+
+const NO_LINE_TO_SET = 'whoever may change the document: no line names it, its section or every variable';
+const NO_LINE_TO_SEE = 'whoever may see the document: no line says who may see it';
+
+test('the card of a variable says, state by state, who may set it and who may see it, and which line says so', async () => {
+  await aClass('Told');
+  const { context, page, wrong } = await atTheLists('Told', '&variable=note');
+  assert.equal(await page.locator('#v-who h3').innerText(), 'Who may set it and see it, state by state');
+  assert.deepEqual(await who(page), [
+    ['draft', 'may set it: CREATEDBY() = USER() | the line for every variable, in this state', `may see it: ${NO_LINE_TO_SEE}`],
+    ['submitted', 'may set it: INGROUP("expense_approvers") | its own line, in this state', `may see it: ${NO_LINE_TO_SEE}`],
+    ['approved', `may set it: ${NO_LINE_TO_SET}`, `may see it: ${NO_LINE_TO_SEE}`],
+    ['paid', 'may set it: nobody: the state is final, and a document in it changes no more', `may see it: ${NO_LINE_TO_SEE}`],
+  ]);
+  assert.equal(await page.locator('#v-who .who-row[data-state="paid"] .way-head').innerText(), 'Paid paid final');
+
+  // A row leads to its state, where the lines are changed.
+  await page.locator('#v-who .who-row[data-state="approved"] .way-head').click();
+  assert.equal(await page.locator('#about-title').innerText(), 'Approved');
+  assert.equal(new URL(page.url()).searchParams.get('state'), 'approved');
+  await addLine(page, 'approved', 'purchase');
+  await writeFormula(page, '#r-approved-purchase-read', 'INGROUP("accountants")');
+
+  // Back at the variable, the card has followed: the line for its section is asked now, for both.
+  await page.locator('.var[data-variable="note"] .var-pick').click();
+  assert.deepEqual((await who(page))[2], [
+    'approved',
+    'may set it: FALSE | the line for the section The purchase, in this state',
+    'may see it: INGROUP("accountants") | the line for the section The purchase, in this state',
+  ]);
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('a state\'s own line for every variable comes before a line for every state that names the variable, and the card shows it', async () => {
+  // What the engine's chapter "Who may" warns of: under `*` alone, the line for `note` would not hold in a state that has a line of its own for every variable.
+  const definition = { ...structuredClone(expense), name: 'Trap' };
+  definition.rights['*'] = { note: { write: 'FALSE' } };
+  await server.exec('define_class', { definition });
+  const { context, page, wrong } = await atTheLists('Trap', '&variable=note');
+  assert.deepEqual(
+    (await who(page)).map((row) => row.slice(0, 2)),
+    [
+      ['draft', 'may set it: CREATEDBY() = USER() | the line for every variable, in this state'],
+      ['submitted', 'may set it: INGROUP("expense_approvers") | its own line, in this state'],
+      ['approved', 'may set it: FALSE | its own line, for every state'],
+      ['paid', 'may set it: nobody: the state is final, and a document in it changes no more'],
+    ],
+    'in Draft its author sets the note all the same',
+  );
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('a value the class works out is set by nobody; moving a variable to another section brings the lines of that section', async () => {
+  const definition = { ...structuredClone(expense), name: 'Moved' };
+  definition.rights.approved = { amounts: { write: 'INGROUP("accountants")', read: ['accountants', 'expense_approvers'] } };
+  await server.exec('define_class', { definition });
+  const { context, page, wrong } = await atTheLists('Moved', '&variable=total');
+  assert.equal(await page.locator('#v-who .who-computed').innerText(), 'The class works this value out: nobody sets it, in any state.');
+  assert.equal(await page.locator('#v-who [data-right="write"]').count(), 0);
+  assert.deepEqual((await who(page))[2], ['approved', 'may see it: INGROUP("accountants") OR INGROUP("expense_approvers") | the line for the section Amounts, in this state']);
+
+  // The note lies in The purchase: no line for it in Approved. Dan moves it to Amounts.
+  await page.locator('.var[data-variable="note"] .var-pick').click();
+  assert.deepEqual((await who(page))[2], ['approved', `may set it: ${NO_LINE_TO_SET}`, `may see it: ${NO_LINE_TO_SEE}`]);
+  await page.selectOption('#v-section', 'amounts');
+  assert.deepEqual((await who(page))[2], [
+    'approved',
+    'may set it: INGROUP("accountants") | the line for the section Amounts, in this state',
+    'may see it: INGROUP("accountants") OR INGROUP("expense_approvers") | the line for the section Amounts, in this state',
+  ]);
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
 test('Jan, who is no designer, reads the lines as words', async () => {
   await aClass('Read');
   const { context, page, wrong } = await atTheLists('Read', '&state=submitted', jan);
@@ -334,6 +423,13 @@ test('the lines fit a phone and are worked by the keyboard', async () => {
   await page.keyboard.press('Enter');
   assert.equal(await formulaOf(page, '#r-submitted-total-write'), 'FALSE');
   assert.ok(await fits(page), 'nor do the boxes of a line push the page sideways');
+
+  // The card of a variable, with who may set it state by state, fits too, and a row is reached and pressed by the keyboard.
+  await page.locator('.var[data-variable="total"] .var-pick').click();
+  assert.ok(await fits(page));
+  await page.locator('#v-who .who-row[data-state="draft"] .way-head').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#about-title').innerText(), 'Draft');
   assert.deepEqual(wrong, []);
   await context.close();
 });
