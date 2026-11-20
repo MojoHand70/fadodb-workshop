@@ -29,6 +29,7 @@ import { Refused, call } from './fado.js';
 import { control as controlOf } from './fields.js';
 import { show as showValue } from './format.js';
 import { Live } from './live.js';
+import { appSteps } from './apps.js';
 import { crumbHere, crumbs, enter, make, part, ready, show } from './shell.js';
 
 const person = { locale: navigator.language || 'en', yes: 'Yes', no: 'No' };
@@ -555,7 +556,7 @@ if (user) {
     live = new Live(bundle, user);
     definition = live.definition;
     const list = `list.html?class=${encodeURIComponent(className)}`;
-    crumbs([{ words: String(definition.plural || definition.label || className), href: list, id: 'to-list' }, { words: '' }]);
+    crumbs([...(await appSteps(definition.app)), { words: String(definition.plural || definition.label || className), href: list, id: 'to-list' }, { words: '' }]);
     part('save').addEventListener('click', save);
     part('discard').addEventListener('click', () => {
       if (making) {

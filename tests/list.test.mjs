@@ -79,7 +79,7 @@ async function annOpensTheList(locale, label = 'Expense') {
   await signIn(page, site, server);
   // Before she signed in the server answered 401 once, as it should.
   seen.answers.length = 0;
-  await page.locator(`.class[data-class="${label}"] .class-way`).click();
+  await page.locator(`[data-class="${label}"] .loose-way`).click();
   await ready(page);
   return { context, page, ...seen };
 }

@@ -122,8 +122,8 @@ const linesOf = (box) => box.locator('.line').evaluateAll((all) => all.map((one)
 
 test('Dan, a designer, is offered Design beside each class and on a list; Jan is not', async () => {
   const first = await at(dan, '');
-  assert.deepEqual(await textsOf(first.page, '.class-design'), ['Design', 'Design', 'Design', 'Design'], 'one for each class: Substitution, Expense, Margin, Trip');
-  const way = first.page.locator('.class', { has: first.page.locator('.class-name', { hasText: /^Expense$/ }) }).locator('.class-design');
+  assert.deepEqual(await textsOf(first.page, '.loose-design'), ['Design', 'Design', 'Design', 'Design'], 'one for each class, none of which is in an app: Substitution, Expense, Margin, Trip');
+  const way = first.page.locator('[data-class="Expense"] .loose-design');
   assert.equal(await way.getAttribute('href'), 'design.html?class=Expense');
   assert.equal(await way.getAttribute('aria-label'), 'Design Expense');
   assert.deepEqual(first.wrong, []);
@@ -135,8 +135,8 @@ test('Dan, a designer, is offered Design beside each class and on a list; Jan is
   await list.context.close();
 
   const plain = await at(jan, '');
-  assert.equal(await plain.page.locator('.class-design').count(), 0);
-  assert.equal(await plain.page.locator('.class-way').count(), 4, 'and the ways to the lists are there as before');
+  assert.equal(await plain.page.locator('.loose-design').count(), 0);
+  assert.equal(await plain.page.locator('.loose-way').count(), 4, 'and the ways to the lists are there');
   await plain.context.close();
   const janList = await at(jan, 'list.html?class=Expense');
   assert.ok(await janList.page.locator('#design').isHidden());
@@ -147,7 +147,7 @@ test('Dan, a designer, is offered Design beside each class and on a list; Jan is
 test('Dan opens the design of Expense from the first page: its name, its version and who defined it', async () => {
   const { context, page, wrong, answers, commands } = await at(dan, '');
   commands.length = 0;
-  await page.locator('.class', { has: page.locator('.class-name', { hasText: /^Expense$/ }) }).locator('.class-design').click();
+  await page.locator('[data-class="Expense"] .loose-design').click();
   await page.waitForURL((address) => address.pathname === '/design.html');
   await ready(page);
 

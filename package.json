@@ -9,7 +9,7 @@
     "node": ">=22"
   },
   "config": {
-    "engine": "1ff999153c1b4da8b4ea564803a300579e359e31"
+    "engine": "b929db1d9ecb0a28567eabbba61db99b7bf539ea"
   },
   "scripts": {
     "vendor": "node tools/vendor.mjs",

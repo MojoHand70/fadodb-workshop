@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>An app · FadoDB Workshop</title>
+<link rel="stylesheet" href="workshop.css">
+<!-- Workshop has no icon yet. An empty one is named, so that no browser asks the server for /favicon.ico. -->
+<link rel="icon" href="data:,">
+<script type="module" src="app.js"></script>
+</head>
+<body class="framed">
+
+<header class="top">
+  <a class="brand" href="./">
+    <img class="brand-mark" src="mark.png" width="32" height="32" alt="">
+    <span class="brand-name">FadoDB</span>
+    <span class="brand-tag">workshop</span>
+  </a>
+  <div class="who" id="who" hidden>
+    <a class="who-name" id="who-name" href="/auth/account"></a>
+    <button class="button button-plain" id="sign-out" type="button">Sign out</button>
+  </div>
+</header>
+
+<div class="frame">
+  <nav class="rail" id="rail" aria-label="Workshop" hidden></nav>
+
+  <main class="page page-frame">
+    <nav class="crumbs" id="crumbs" aria-label="Where you are" hidden></nav>
+
+    <section data-view="app" id="app" hidden>
+      <div class="home-head">
+        <div class="home-title">
+          <h1 id="app-title"></h1>
+          <p class="home-about" id="app-about"></p>
+        </div>
+        <div class="doc-do">
+          <code class="class-name" id="app-name" hidden></code>
+          <a class="button button-plain" id="new-class" href="./" hidden>New class</a>
+        </div>
+      </div>
+
+      <ul class="tiles" id="lists"></ul>
+
+      <div class="first" id="no-lists" hidden>
+        <h2 id="no-lists-title"></h2>
+        <p id="no-lists-about"></p>
+        <a class="button" id="first-class" href="./" hidden>New class</a>
+      </div>
+    </section>
+
+    <section data-view="begin" id="begin" hidden>
+      <h1 class="begin-title">A new app</h1>
+      <form class="card begin" id="begin-form" novalidate>
+        <div class="field">
+          <p class="field-label"><label for="new-label">Name</label></p>
+          <input class="input" id="new-label" name="label" autocomplete="off" placeholder="Help desk">
+        </div>
+        <div class="field">
+          <p class="field-label"><label for="new-name">Name in formulas and commands</label></p>
+          <input class="input" id="new-name" name="name" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="HelpDesk" aria-describedby="begin-why">
+        </div>
+        <div class="field">
+          <p class="field-label"><label for="new-about">What it is for</label></p>
+          <input class="input" id="new-about" name="description" autocomplete="off" placeholder="Requests to IT, from the first message to the fix.">
+        </div>
+        <p class="field-why" id="begin-why" role="alert"></p>
+        <p class="field-about" id="begin-existing-box" hidden><a id="begin-existing" href="./">Open it</a></p>
+        <button class="button" id="begin-go" type="submit">Make the app</button>
+      </form>
+    </section>
+
+    <section data-view="trouble" id="trouble" hidden>
+      <h1>This app cannot be shown</h1>
+      <div class="card">
+        <h2>What the server said</h2>
+        <p id="trouble-why"></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+</body>
+</html>

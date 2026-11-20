@@ -4,12 +4,24 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- The first page shows the apps of the server. An app is a tile with
+  its name, what it is for and the lists a person opens in it, each
+  with how many documents the person may see; a rail at the side
+  names the apps on every such page. A server with no app yet says
+  "Create your first FadoDB application" to a designer. A designer
+  makes an app with the name people read, the name formulas write,
+  which follows the first, and a sentence on what it is for; and
+  makes a class from the page of its app, so that the class belongs
+  to it. A list that belongs to no app stands after the apps. It
+  needs a FadoDB server that knows apps (the engine's ADR-0077).
 - The first page no longer carries a line on how far Workshop is; the
-  README says it. A box at its top finds a list by a part of its name
-  or of what it is for, typed without capitals or the marks over
+  README says it. A box finds an app by a part of its name, of what it
+  is for or of a list in it, typed without capitals or the marks over
   letters, and Enter opens the first that is left.
-- Every page says where the person is: Home, the list, the document,
-  each step before the last leading back.
+- The pages carry their typefaces, Inter and JetBrains Mono, those of
+  fadodb.org, and look the same on every machine.
+- Every page says where the person is: Home, the app, the list, the
+  document, each step before the last leading back.
 - "Class" is a designer's word. A person who is no designer reads a
   list by the word for many of its documents, "Expenses", and no page
   says "class" to them. A designer sees the name of each class, the

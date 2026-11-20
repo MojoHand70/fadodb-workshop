@@ -13,6 +13,7 @@
 import { Refused, call } from './fado.js';
 import { kindOf, show as showValue } from './format.js';
 import { Live } from './live.js';
+import { appSteps } from './apps.js';
 import { crumbs, enter, make, part, ready, show } from './shell.js';
 
 /** How many documents are asked for at a time. */
@@ -207,7 +208,7 @@ if (user) {
     // A list goes by the word for many of its documents, where the class has one.
     const label = String(definition.plural || definition.label || className);
     document.title = `${label} · FadoDB Workshop`;
-    crumbs([{ words: label }]);
+    crumbs([...(await appSteps(definition.app)), { words: label }]);
     part('list-title').textContent = label;
     part('list-about').textContent = String(definition.description || '');
     drawStates();
