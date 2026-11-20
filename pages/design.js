@@ -89,6 +89,7 @@ import {
 import { enter, make, part, ready, show } from './shell.js';
 import { callAt, fromBytes, helpFor, pieceAt } from './formula.js';
 import { codeView, formulaBox } from './text.js';
+import { tryView } from './try.js';
 
 const person = { locale: navigator.language || 'en', yes: 'Yes', no: 'No' };
 const asked = new URLSearchParams(location.search);
@@ -183,7 +184,10 @@ function flush() {
   bar();
 }
 /** 'lists' or 'text'. */
-let shownAs = asked.get('as') === 'text' ? 'text' : 'lists';
+let shownAs = asked.get('as') === 'text' ? 'text' : asked.get('as') === 'try' ? 'try' : 'lists';
+/** The class tried on a new document: made once the page knows who the person is. */
+/** @type {ReturnType<typeof tryView> | undefined} */
+let trying;
 /** The text box. */
 /** @type {import('./text.js').CodeView} */
 let editor;
@@ -238,7 +242,7 @@ function remember() {
   else address.searchParams.delete('move');
   if (shownRule >= 0) address.searchParams.set('rule', String(shownRule));
   else address.searchParams.delete('rule');
-  if (shownAs === 'text') address.searchParams.set('as', 'text');
+  if (shownAs !== 'lists') address.searchParams.set('as', shownAs);
   else address.searchParams.delete('as');
   history.replaceState(null, '', address);
 }
@@ -2346,12 +2350,19 @@ function drawLists() {
 
 function drawShownAs() {
   flush();
+  // Trying a class is a designer's: for anybody else the view is the lists.
+  if (shownAs === 'try' && !trying) shownAs = 'lists';
   part('as-lists').setAttribute('aria-pressed', String(shownAs === 'lists'));
   part('as-text').setAttribute('aria-pressed', String(shownAs === 'text'));
+  part('as-try').setAttribute('aria-pressed', String(shownAs === 'try'));
   if (shownAs === 'lists') drawLists();
   part('lists').hidden = shownAs !== 'lists';
   part('text').hidden = shownAs !== 'text';
+  part('try').hidden = shownAs !== 'try';
+  // The view that tries the class says for itself when the text cannot be read.
+  if (shownAs === 'try') part('lists-stale').hidden = true;
   if (shownAs === 'text') editor.shown();
+  if (shownAs === 'try') trying?.draw();
 }
 
 /**
@@ -2383,6 +2394,8 @@ function bar() {
 function follow() {
   bar();
   if (found) part('findings-hint').textContent = 'The text has changed since. Check again.';
+  // The class is tried as the text stands: when it changes under the view, by Undo or Discard, the view begins again.
+  if (shownAs === 'try' && !part('try').hidden) trying?.draw();
 }
 
 /**
@@ -2636,6 +2649,11 @@ function trouble(/** @type {unknown} */ refusal) {
  */
 async function open(mayChange) {
   designer = mayChange;
+  if (designer && !trying) {
+    // Trying a class on a document is a designer's: the server lets nobody else.
+    trying = tryView({ root: part('try'), form: part('try-form'), result: part('try-result'), said: part('try-said'), draft: read, person });
+    part('as-try').hidden = false;
+  }
   definition = saved;
   if (designer) {
     // What a formula can call, for the formula editor. A server that
@@ -2697,6 +2715,11 @@ async function open(mayChange) {
   });
   part('as-text').addEventListener('click', () => {
     shownAs = 'text';
+    remember();
+    drawShownAs();
+  });
+  part('as-try').addEventListener('click', () => {
+    shownAs = 'try';
     remember();
     drawShownAs();
   });
