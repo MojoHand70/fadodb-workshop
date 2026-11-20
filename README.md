@@ -211,3 +211,7 @@ link has no such clock, and is checked in all three.
 ## Licence
 
 Apache 2.0, as FadoDB itself. See [LICENSE](LICENSE).
+
+The mark of FadoDB, `pages/mark.png`, is not licensed with the code.
+It is its owner's, who keeps every right in it. A copy of Workshop
+shows it to say that it is Workshop; it is not for another product.

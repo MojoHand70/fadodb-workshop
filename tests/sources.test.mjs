@@ -42,6 +42,21 @@ test('every page names its icon, so that no browser asks the server for one it d
   assert.deepEqual(without, []);
 });
 
+test('every page carries FadoDB\'s mark in its top corner, and none a mark of its own making', async () => {
+  const at = new URL('../pages/', import.meta.url);
+  const pages = (await readdir(at)).filter((name) => name.endsWith('.html'));
+  assert.ok(pages.length >= 4);
+  for (const name of pages) {
+    const text = await readFile(new URL(name, at), 'utf8');
+    const top = text.slice(text.indexOf('<header class="top">'), text.indexOf('</header>'));
+    assert.equal(top.split('<img class="brand-mark" src="mark.png"').length - 1, 1, `${name} shows the mark once`);
+    assert.ok(!top.includes('<svg'), `${name} draws no mark of its own`);
+  }
+  // The mark is a picture: a PNG, and it is there.
+  const mark = await readFile(new URL('mark.png', at));
+  assert.deepEqual([...mark.subarray(1, 4)], [0x50, 0x4e, 0x47]);
+});
+
 test('every dependency has its row in docs/dependencies.md, at the version package.json fixes', async () => {
   const about = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   const page = await readFile(new URL('../docs/dependencies.md', import.meta.url), 'utf8');

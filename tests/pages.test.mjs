@@ -34,7 +34,7 @@ test('a FadoDB server hands out Workshop\'s pages at its own address', async () 
   assert.match(first.headers.get('content-type') ?? '', /^text\/html/);
   assert.match(await first.text(), /<title>FadoDB Workshop<\/title>/);
 
-  for (const [file, type] of [['workshop.css', 'text/css'], ['workshop.js', 'text/javascript'], ['vendor/fadodb-vm.js', 'text/javascript'], ['vendor/fadodb-vm.LICENSE.txt', 'text/plain']]) {
+  for (const [file, type] of [['workshop.css', 'text/css'], ['workshop.js', 'text/javascript'], ['vendor/fadodb-vm.js', 'text/javascript'], ['vendor/fadodb-vm.LICENSE.txt', 'text/plain'], ['mark.png', 'image/png']]) {
     const answer = await fetch(server.site.url + file);
     assert.equal(answer.status, 200, file);
     assert.ok((answer.headers.get('content-type') ?? '').startsWith(type), `${file} is sent as ${answer.headers.get('content-type')}`);
@@ -63,6 +63,11 @@ test('the first page loads from the server with nothing refused, and fits a phon
   assert.ok(await page.locator('#signed-out').isVisible());
   const colour = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   assert.equal(colour, 'rgb(247, 245, 240)', 'the style sheet is applied');
+  // FadoDB's own mark stands beside the name: a picture of the folder, which the header lets through.
+  const mark = page.locator('header.top a.brand img.brand-mark');
+  assert.equal(await mark.evaluate((img) => /** @type {HTMLImageElement} */ (img).naturalWidth), 96);
+  assert.equal(await mark.getAttribute('alt'), '', 'the words beside it say what it is');
+  assert.equal(await page.locator('header.top a.brand').innerText(), 'FadoDB\nworkshop');
 
   await page.keyboard.press('Tab');
   const reached = await page.evaluate(() => document.activeElement?.className);
