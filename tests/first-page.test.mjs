@@ -253,6 +253,8 @@ test('no page says the word class to Ann: it is a designer\'s word', async () =>
     values: { what: 'Taxi to the station', bought_on: '2026-11-15', cost_centre: 'Sales', net: '86.50 PLN', vat_rate: '0.08' },
   }, 'jan');
   await server.exec('transition', { class: 'Expense', id: made.id, transition: 'submit' }, 'jan');
+  // A list that belongs to no app is read too: it stands after the apps.
+  await server.exec('define_class', { definition: { name: 'Memo', label: 'Memo', plural: 'Memos', description: 'A note to a colleague.', variables: { subject: { type: 'text' } }, states: { initial: 'draft', list: ['draft'] } } });
 
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
@@ -288,6 +290,9 @@ test('no page says the word class to Ann: it is a designer\'s word', async () =>
     assert.doesNotMatch(words, /\bclass(es)?\b/i, `${path || 'the first page'} says: ${/.{0,60}\bclass(es)?\b.{0,60}/is.exec(words)?.[0]}`);
   }
   assert.equal(await page.locator('.class-name').count(), 0);
+  await page.goto(site.url);
+  await ready(page);
+  assert.deepEqual(await page.locator('#loose-lists .loose-name').allInnerTexts(), ['Substitutions', 'Memos'], 'what was read on the first page had a list of no app on it');
   assert.deepEqual(wrong, []);
   await context.close();
 });
