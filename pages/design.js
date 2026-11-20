@@ -600,6 +600,8 @@ function drawState(state) {
         (on) => {
           change((draft) => setFinal(draft, state.name, on));
           redrawPick(state.name);
+          // What the card says of the ways out depends on it.
+          drawAbout();
         },
         'A document that reaches a final state is finished: its values change no more.',
       ),
@@ -609,7 +611,7 @@ function drawState(state) {
 
   const ways = waysOut(definition, state.name);
   const places = placesOut(definition, state.name);
-  const out = block('Ways out of this state', changing ? 'Each is a transition. Choose one to change it.' : '');
+  const out = block('Ways out of this state', changing && ways.length > 0 ? 'Each is a transition. Choose one to change it.' : '');
   out.id = 'ways-out';
   if (ways.length === 0) {
     out.append(make('p', 'card-about', state.final ? 'None. This state is final: a document that reaches it is finished and changes no more.' : 'None: a document that reaches this state stays in it.'));
@@ -625,6 +627,7 @@ function drawState(state) {
         move = places[n];
         remember();
         drawAbout();
+        showSide();
       });
     }
     head.append(make('span', 'way-label', way.label), ' ');
@@ -796,6 +799,7 @@ function drawMove(at) {
     remember();
     drawStates();
     drawAbout();
+    showSide();
   });
 
   /**

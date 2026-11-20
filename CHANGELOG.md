@@ -4,6 +4,21 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: a designer changes the states of a class, the
+  transitions between them and the class's own lines through the
+  lists. A state has fields for its label and for what a document
+  waits for there, "Start new documents here", and Final. A way out of
+  a state is chosen as a variable is, and the card shows the
+  transition: its label, the state it leaves and the one it leads to,
+  what taking it means, who may take it, on what condition, and
+  whether the engine takes it by itself after a time or at a date.
+  "Add a state" and "Add a way out" ask a name, which the server is
+  asked about. Removing a transition takes the line that says who may
+  take it with it; removing a state takes its label, its description
+  and its rights, and the check names the transitions that still lead
+  to it. "The whole class" has fields for the label, the label for
+  many, what the class is for, the title of a document, and who may
+  see, make, change and delete one.
 - Design mode: a designer changes the variables of a class through the
   list. Choosing a variable shows its properties as fields in the card
   at the side: label, what it is for, whether people give it or the
