@@ -268,6 +268,50 @@ test('a field typed in and not left is taken when Dan presses something else', a
   await context.close();
 });
 
+test('what is typed is work from the first letter: Save and Discard are there before the field is left', async () => {
+  await aClass('First');
+  const { context, page, wrong } = await atTheLists('First');
+  await choose(page, 'note');
+  assert.ok(await page.locator('#save').isDisabled(), 'nothing is changed yet');
+  assert.ok(await page.locator('#discard').isDisabled());
+
+  // The first thing Dan does to the class: he types, and the cursor is still in the field.
+  await page.fill('#v-label', 'A note for the approver');
+  assert.ok(await page.locator('#save').isEnabled(), 'or his press on Save would land on a button that is not there');
+  assert.equal(await page.locator('#save').innerText(), 'Save as version 2');
+  assert.ok(await page.locator('#class-changed').isVisible());
+
+  // Discard puts the field back, and there is nothing to save again.
+  assert.equal(await press(page, 'discard'), 'Put back as the server holds it.');
+  assert.equal(await page.inputValue('#v-label'), 'Note');
+  assert.ok(await page.locator('#save').isDisabled());
+  assert.ok(await page.locator('#class-changed').isHidden());
+
+  // Typed again, and Save pressed at once.
+  await page.fill('#v-label', 'A note for the approver');
+  assert.equal(await press(page, 'save'), 'Saved as version 2.');
+  assert.equal((await held('First')).definition.variables.note.label, 'A note for the approver');
+  assert.ok(await page.locator('#save').isDisabled());
+
+  // Typed over with the same words: Save is there while he types, and says there was nothing to save.
+  await page.fill('#v-label', 'A note for the approver');
+  assert.equal(await press(page, 'save'), 'Nothing to save: the server holds this class already.');
+  assert.equal((await held('First')).version, 2);
+  assert.ok(await page.locator('#save').isDisabled());
+
+  // Typed over with the same words and left, by Tab or by a press on another variable: nothing is changed, and Save is out of reach again.
+  await page.fill('#v-label', 'A note for the approver');
+  assert.ok(await page.locator('#save').isEnabled());
+  await page.press('#v-label', 'Tab');
+  assert.ok(await page.locator('#save').isDisabled());
+  await page.fill('#v-label', 'A note for the approver');
+  await choose(page, 'total');
+  assert.ok(await page.locator('#save').isDisabled());
+  assert.ok(await page.locator('#class-changed').isHidden());
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
 test('what is typed in one field is kept when another is changed without the cursor leaving the first', async () => {
   // A program or a tool that helps a person may set a field without
   // moving the cursor. The side is then drawn again; what was typed

@@ -4,6 +4,20 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: a designer says who may set and who may see single
+  variables, state by state, through the lists. Under a state, and for
+  every state under "The whole class", each line is about a variable,
+  a section or every variable, and each half of it is a formula in a
+  formula box. A line the class writes the short way, as a list of
+  groups, is shown as the formula it means and stays as written until
+  that half is changed. "Add a line" offers what the class has and the
+  state has no line for; the new line lets nobody set it, until the
+  designer says who may. "Remove this line" takes a line out, and so
+  does emptying both its boxes.
+- Fixed: on a class nobody had changed yet, Save and Discard stayed
+  out of reach while something was typed in a field, until the cursor
+  left it, so the first press on Save did nothing. What is typed is
+  work from the first letter.
 - Design mode: the formula editor. Wherever the lists have a formula,
   it is written in a box that helps: what the class works out, a first
   value, the title of a document, the four lines that say who may, who

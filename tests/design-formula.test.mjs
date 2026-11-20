@@ -297,8 +297,9 @@ test('a moment after the typing stops the server is asked, and what it finds is 
   assert.deepEqual(await page.locator('#v-formula .cm-lintRange-error').evaluateAll((all) => all.map((mark) => mark.textContent)), ['vat_rat']);
 
   // The class is not changed by a check: the formula goes into it when Dan is done with the box.
-  assert.ok(await page.locator('#class-changed').isHidden());
+  // What he typed is work all the same, and the page says so.
   assert.equal(await page.locator('.var[data-variable="vat"] .var-kind').innerText(), 'fx ROUND(net * vat_rate, 2)');
+  assert.ok(await page.locator('#class-changed').isVisible());
 
   // He puts it right; the mark and the words go.
   await page.keyboard.press('ArrowLeft');
@@ -361,9 +362,9 @@ test('Enter, or leaving the box, puts the formula into the class as one step', a
   const { context, page, wrong } = await atTheLists('Entered', '&variable=vat');
   await into(page, '#v-formula');
   await page.keyboard.insertText('ROUND(net * vat_rate, 4)');
-  assert.ok(await page.locator('#class-changed').isHidden(), 'not yet');
+  assert.equal(await page.locator('.var[data-variable="vat"] .var-kind').innerText(), 'fx ROUND(net * vat_rate, 2)', 'not in the class yet');
+  assert.ok(await page.locator('#class-changed').isVisible(), 'and work already: Save is there for it');
   await page.keyboard.press('Enter');
-  assert.ok(await page.locator('#class-changed').isVisible());
   assert.equal(await page.locator('.var[data-variable="vat"] .var-kind').innerText(), 'fx ROUND(net * vat_rate, 4)');
   assert.equal(await formulaOf(page, '#v-formula'), 'ROUND(net * vat_rate, 4)', 'Enter writes no new line: a formula is one line');
 
