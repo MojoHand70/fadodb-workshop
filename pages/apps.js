@@ -110,6 +110,16 @@ export const listAddress = (name) => `list.html?class=${encodeURIComponent(name)
 /** @param {string} name the name of a class */
 export const designAddress = (name) => `design.html?class=${encodeURIComponent(name)}`;
 
+/**
+ * What the lists that belong to no app go by. To a person they stand
+ * together as one more app, last in the rail; the server has no app of
+ * this name.
+ */
+export const UNASSIGNED = 'Unassigned';
+
+/** The page of the lists that belong to no app. */
+export const unassignedAddress = 'app.html?unassigned';
+
 /** The picture beside "Apps" in the rail: four squares. */
 function appsPicture() {
   const space = 'http://www.w3.org/2000/svg';
@@ -130,23 +140,32 @@ function appsPicture() {
 }
 
 /**
- * Draws the rail at the side: Apps, and under it each app by its name.
+ * Draws the rail at the side: Apps, under it each app by its name, and
+ * last Unassigned, where a list belongs to no app.
  *
  * @param {HTMLElement} rail
  * @param {App[]} apps
- * @param {string} here the name of the app the page is about, '' on the first page
+ * @param {boolean} unassigned whether Unassigned is named: a list belongs to no app, or the page is about them
+ * @param {string} here the address of the page the person is on: './' for the first page, that of an app, or that of Unassigned
  */
-export function drawRail(rail, apps, here) {
+export function drawRail(rail, apps, unassigned, here) {
   const home = make('a', 'rail-way rail-home');
   home.setAttribute('href', './');
   home.append(appsPicture(), make('span', '', 'Apps'));
-  if (!here) home.setAttribute('aria-current', 'page');
   rail.replaceChildren(home);
   for (const app of apps) {
     const way = make('a', 'rail-way rail-app', app.label);
     way.setAttribute('href', appAddress(app.name));
-    if (app.name === here) way.setAttribute('aria-current', 'page');
     rail.append(way);
+  }
+  if (unassigned) {
+    const way = make('a', 'rail-way rail-app', UNASSIGNED);
+    way.id = 'rail-unassigned';
+    way.setAttribute('href', unassignedAddress);
+    rail.append(way);
+  }
+  for (const way of rail.querySelectorAll('.rail-way')) {
+    if (way.getAttribute('href') === here) way.setAttribute('aria-current', 'page');
   }
   rail.hidden = false;
 }
@@ -210,14 +229,14 @@ export function nameFrom(words) {
 
 /**
  * The step of an app on the way from the first page, for a page about
- * one of its classes: the app's own words and the way to its page. A
- * class that belongs to no app has no such step.
+ * one of its classes: the app's own words and the way to its page. For
+ * a class that belongs to no app the step is Unassigned.
  *
  * @param {unknown} name the app a class names, as its definition says it
  * @returns {Promise<{ words: string, href: string, id: string }[]>}
  */
 export async function appSteps(name) {
-  if (typeof name !== 'string' || name === '') return [];
+  if (typeof name !== 'string' || name === '') return [{ words: UNASSIGNED, href: unassignedAddress, id: 'to-app' }];
   const definition = await call('get_app', { name }).then(
     (answer) => answer?.app?.definition ?? {},
     () => ({}),

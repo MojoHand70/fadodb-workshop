@@ -1075,27 +1075,6 @@ h1 {
 .first h2 { margin: 0 0 8px; font-size: 22px; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
 .first p { margin: 0 0 20px; color: var(--ink-2); }
 
-/* The lists that belong to no app. */
-
-.loose { margin-top: 36px; }
-.loose h2 { margin: 0 0 10px; color: var(--ink-2); font-size: 13px; font-weight: 600; }
-
-.loose-lists {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-
-.loose-list { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 16px; }
-.loose-list + .loose-list { border-top: 1px solid var(--line-2); }
-.loose-way { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; min-height: 44px; color: var(--ink); font-weight: 500; text-decoration: none; }
-.loose-way:hover { color: var(--blue-strong); }
-.loose-name { overflow-wrap: anywhere; }
-.loose-design { font-size: 14px; font-weight: 500; text-decoration: none; }
-
 /* The lists of an app, on its own page: for a designer each says the
    name of its class and leads to its design. */
 

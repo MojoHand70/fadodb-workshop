@@ -67,7 +67,7 @@ after(async () => {
 });
 
 /**
- * Ann signs in and opens the list of a class from the first page.
+ * Ann signs in and opens the list of a class: from the first page to Unassigned, where the classes of this test are, and on.
  *
  * @param {string} locale the language of her browser
  * @param {string} [label] the class she chooses
@@ -79,7 +79,13 @@ async function annOpensTheList(locale, label = 'Expense') {
   await signIn(page, site, server);
   // Before she signed in the server answered 401 once, as it should.
   seen.answers.length = 0;
-  await page.locator(`[data-class="${label}"] .loose-way`).click();
+  await page.locator('#rail-unassigned').click();
+  await page.waitForURL((address) => address.pathname === '/app.html');
+  await ready(page);
+  // What the page of Unassigned asked the server is not what the tests count.
+  seen.answers.length = 0;
+  await page.locator(`.tile[data-class="${label}"] .tile-name`).click();
+  await page.waitForURL((address) => address.pathname === '/list.html');
   await ready(page);
   return { context, page, ...seen };
 }
@@ -95,14 +101,14 @@ async function rowOf(page, title) {
   return (await row.locator('td').allInnerTexts()).map((text) => text.replaceAll('\u00a0', ' '));
 }
 
-test('Ann opens the list of expenses from the first page', async () => {
+test('Ann opens the list of expenses from the first page, by way of Unassigned', async () => {
   const { context, page, wrong, answers } = await annOpensTheList('en-GB');
 
   assert.equal(new URL(page.url()).pathname + new URL(page.url()).search, '/list.html?class=Expense');
   assert.equal(await page.locator('#list-title').innerText(), 'Expense');
   // Where she is: the way from the first page, the list itself last.
-  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Expense']);
-  assert.equal(await page.locator('#crumbs a').getAttribute('href'), './');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Unassigned', 'Expense']);
+  assert.deepEqual(await page.locator('#crumbs a').evaluateAll((all) => all.map((one) => one.getAttribute('href'))), ['./', 'app.html?unassigned']);
   assert.equal(await page.locator('#crumbs [aria-current="page"]').innerText(), 'Expense');
   assert.equal(await page.title(), 'Expense · FadoDB Workshop');
   assert.deepEqual(await page.locator('#heads th').allInnerTexts(), ['What was bought', 'Bought on', 'Cost centre', 'Total', 'State', 'By', 'Changed']);

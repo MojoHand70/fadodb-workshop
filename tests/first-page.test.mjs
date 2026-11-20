@@ -73,12 +73,12 @@ test('Ann signs in on the server\'s page and sees her name and the apps, each wi
   assert.equal(await page.locator('.tile[data-app="Helpdesk"] .tile-list').count(), 0);
 
   // The rail at the side names the apps too.
-  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Expenses', 'Help desk']);
+  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Expenses', 'Help desk', 'Unassigned']);
   assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Apps');
 
-  // What belongs to no app comes after the apps: here the engine's own Substitution.
-  assert.equal(await page.locator('#loose-title').innerText(), 'Other lists');
-  assert.deepEqual(await page.locator('#loose-lists .loose-name').allInnerTexts(), ['Substitutions']);
+  // What belongs to no app is not on this page: it stands under Unassigned, last in the rail.
+  assert.equal(await page.locator('#rail-unassigned').getAttribute('href'), 'app.html?unassigned');
+  assert.equal(await page.locator('[data-class]').count(), 0);
 
   // Making an app or a class is a designer's: nothing offers it to her.
   assert.equal(await page.locator('#add-app, #new-app').count(), 0);
@@ -171,7 +171,7 @@ test('a list goes by the word for many of its documents, and the way back names 
   const trips = page.locator('.tile[data-class="Trip"]');
   assert.equal(await trips.locator('.tile-name').innerText(), 'Business trips');
   assert.equal(await trips.locator('.tile-about').innerText(), 'A journey for the company.');
-  assert.equal(await page.locator('#new-class, #first-class, #app-name, .tile-design').locator('visible=true').count(), 0, 'nothing of the designer\'s is shown to her');
+  assert.equal(await page.locator('#add-class, #new-class, #first-class, #app-name, .tile-design').locator('visible=true').count(), 0, 'nothing of the designer\'s is shown to her');
 
   await trips.locator('.tile-name').click();
   await page.waitForURL((address) => address.pathname === '/list.html');
@@ -189,6 +189,39 @@ test('a list goes by the word for many of its documents, and the way back names 
   await context.close();
 });
 
+test('the lists of no app stand under Unassigned in the rail, as one more app', async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  const { wrong } = watch(page);
+  await annSignsIn(page);
+
+  await page.locator('#rail-unassigned').click();
+  await page.waitForURL((address) => address.pathname === '/app.html');
+  await ready(page);
+  assert.equal(new URL(page.url()).search, '?unassigned');
+  assert.equal(await page.locator('#app-title').innerText(), 'Unassigned');
+  assert.equal(await page.title(), 'Unassigned · FadoDB Workshop');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Unassigned']);
+  assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Unassigned');
+  // Here the engine's own Substitution: a tile, as a list of an app is.
+  assert.deepEqual(await page.locator('#lists .tile-name').allInnerTexts(), ['Substitutions']);
+  assert.equal(await page.locator('#add-class, #new-class, #first-class, #app-name, .tile-design').locator('visible=true').count(), 0, 'nothing of the designer\'s is shown to her');
+
+  // The list names Unassigned on the way back, where another names its app.
+  await page.locator('.tile[data-class="Substitution"] .tile-name').click();
+  await page.waitForURL((address) => address.pathname === '/list.html');
+  await ready(page);
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Unassigned', 'Substitutions']);
+  assert.equal(await page.locator('#to-app').getAttribute('href'), 'app.html?unassigned');
+  assert.deepEqual(wrong, []);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${site.url}app.html?unassigned`);
+  await ready(page);
+  assert.ok(await fits(page), 'the page fits a phone');
+  await context.close();
+});
+
 test('Ann finds an app by a part of its name or of a list\'s, and Enter opens the first that is left', async () => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
@@ -196,28 +229,23 @@ test('Ann finds an app by a part of its name or of a list\'s, and Enter opens th
   await annSignsIn(page);
   /** The apps that are shown, by name. */
   const apps = () => page.locator('.tile[data-app]:visible').evaluateAll((all) => all.map((one) => one.getAttribute('data-app')));
-  /** The lists of no app that are shown, by the name of the class behind each. */
-  const others = () => page.locator('.loose-list:visible').evaluateAll((all) => all.map((one) => one.getAttribute('data-class')));
   const all = await apps();
   assert.deepEqual(all, ['Expenses', 'Helpdesk', 'Trap', 'Travel']);
-  assert.deepEqual(await others(), ['Substitution']);
   const find = page.getByRole('searchbox', { name: 'Find an app' });
   assert.ok(await find.isVisible());
 
   // Without capitals, by a word of what the app is for, and by a list in it.
   await find.fill('EXPEN');
   assert.deepEqual(await apps(), ['Expenses']);
-  assert.deepEqual(await others(), []);
   assert.ok(await page.locator('#none-found').isHidden());
   await find.fill('paid back');
   assert.deepEqual(await apps(), ['Expenses']);
   await find.fill('business trip');
   assert.deepEqual(await apps(), ['Travel'], 'by the name of a list of the app');
-  // A list that belongs to no app is found too.
+  // The box finds what the page shows, the apps. A list that belongs to no app is under Unassigned.
   await find.fill('substit');
   assert.deepEqual(await apps(), []);
-  assert.deepEqual(await others(), ['Substitution']);
-  assert.ok(await page.locator('#none-found').isHidden());
+  assert.equal(await page.locator('#none-found').innerText(), 'Nothing here goes by "substit".');
 
   // Nothing found is said, in the words that were typed, as text.
   await find.fill('<b>zebra</b>');
@@ -253,7 +281,7 @@ test('no page says the word class to Ann: it is a designer\'s word', async () =>
     values: { what: 'Taxi to the station', bought_on: '2026-11-15', cost_centre: 'Sales', net: '86.50 PLN', vat_rate: '0.08' },
   }, 'jan');
   await server.exec('transition', { class: 'Expense', id: made.id, transition: 'submit' }, 'jan');
-  // A list that belongs to no app is read too: it stands after the apps.
+  // A list that belongs to no app is read too: it stands under Unassigned.
   await server.exec('define_class', { definition: { name: 'Memo', label: 'Memo', plural: 'Memos', description: 'A note to a colleague.', variables: { subject: { type: 'text' } }, states: { initial: 'draft', list: ['draft'] } } });
 
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
@@ -281,7 +309,7 @@ test('no page says the word class to Ann: it is a designer\'s word', async () =>
       if (engines) engines.hidden = false;
       return words;
     });
-  const pages = ['', 'app.html?app=Expenses', 'app.html?app=Helpdesk', 'app.html?app=Nope', 'app.html', 'app.html?new', 'list.html?class=Expense', 'list.html?class=Trip', `document.html?class=Expense&id=${encodeURIComponent(made.id)}`, 'document.html?class=Expense&new', 'list.html', 'document.html'];
+  const pages = ['', 'app.html?app=Expenses', 'app.html?app=Helpdesk', 'app.html?app=Nope', 'app.html', 'app.html?new', 'app.html?unassigned', 'list.html?class=Memo', 'list.html?class=Expense', 'list.html?class=Trip', `document.html?class=Expense&id=${encodeURIComponent(made.id)}`, 'document.html?class=Expense&new', 'list.html', 'document.html'];
   for (const path of pages) {
     await page.goto(site.url + path);
     await ready(page);
@@ -290,9 +318,9 @@ test('no page says the word class to Ann: it is a designer\'s word', async () =>
     assert.doesNotMatch(words, /\bclass(es)?\b/i, `${path || 'the first page'} says: ${/.{0,60}\bclass(es)?\b.{0,60}/is.exec(words)?.[0]}`);
   }
   assert.equal(await page.locator('.class-name').count(), 0);
-  await page.goto(site.url);
+  await page.goto(`${site.url}app.html?unassigned`);
   await ready(page);
-  assert.deepEqual(await page.locator('#loose-lists .loose-name').allInnerTexts(), ['Substitutions', 'Memos'], 'what was read on the first page had a list of no app on it');
+  assert.deepEqual(await page.locator('#lists .tile-name').allInnerTexts(), ['Substitutions', 'Memos'], 'what was read under Unassigned had a list of no app on it');
   assert.deepEqual(wrong, []);
   await context.close();
 });

@@ -73,10 +73,9 @@ test('a server with no app asks a designer to create the first one, and tells an
   assert.ok(await first.page.locator('#first-go').isVisible());
   assert.equal(await first.page.locator('#first-go').getAttribute('href'), 'app.html?new');
   assert.ok(await first.page.locator('#apps').isHidden(), 'there is no tile, and none that adds one beside nothing');
-  assert.deepEqual(await first.page.locator('#rail .rail-way').allInnerTexts(), ['Apps']);
-  // The engine's own class is there from the first day, in no app; a designer reads its name.
-  assert.equal(await first.page.locator('#loose-title').innerText(), 'Not in an app yet');
-  assert.equal(await first.page.locator('[data-class="Substitution"] .class-name').innerText(), 'Substitution');
+  // The engine's own class is there from the first day, in no app: it stands under Unassigned.
+  assert.deepEqual(await first.page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Unassigned']);
+  assert.equal(await first.page.locator('#rail-unassigned').getAttribute('href'), 'app.html?unassigned');
   assert.deepEqual(first.wrong, []);
   await first.page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await fits(first.page));
@@ -87,6 +86,17 @@ test('a server with no app asks a designer to create the first one, and tells an
   assert.ok(await plain.page.locator('#first-go').isHidden());
   assert.equal(await plain.page.locator('.class-name').count(), 0);
   await plain.context.close();
+
+  // Under Unassigned a designer reads the name of each class and the way to its design. A class is made in an app: nothing here adds one.
+  const loose = await at(dan, 'app.html?unassigned');
+  assert.equal(await loose.page.locator('#app-title').innerText(), 'Unassigned');
+  assert.equal(await loose.page.locator('#rail [aria-current="page"]').innerText(), 'Unassigned');
+  const engines = loose.page.locator('.tile[data-class="Substitution"]');
+  assert.equal(await engines.locator('.class-name').innerText(), 'Substitution');
+  assert.equal(await engines.locator('.tile-design-way').getAttribute('href'), 'design.html?class=Substitution');
+  assert.equal(await loose.page.locator('#add-class, #new-class, #first-class, #app-name').locator('visible=true').count(), 0);
+  assert.deepEqual(loose.wrong, []);
+  await loose.context.close();
 
   // By its address, Jan is told whose it is, and the server is asked nothing more.
   const tried = await at(jan, 'app.html?new');
@@ -128,7 +138,7 @@ test('Dan makes the first app, and its first class inside it', async () => {
   assert.equal(await page.locator('#app-about').innerText(), 'Requests to IT, from the first message to the fix.');
   assert.equal(await page.locator('#app-name').innerText(), 'Helpdesk');
   assert.equal(await page.locator('#no-lists-title').innerText(), 'Make its first class');
-  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'The help desk']);
+  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'The help desk', 'Unassigned']);
   assert.equal(await page.locator('#first-class').getAttribute('href'), 'design.html?new&app=Helpdesk');
 
   await page.click('#first-class');
@@ -154,7 +164,12 @@ test('Dan makes the first app, and its first class inside it', async () => {
   assert.equal(await ticket.locator('.tile-name').innerText(), 'Ticket');
   assert.equal(await ticket.locator('.class-name').innerText(), 'Ticket');
   assert.equal(await ticket.locator('.tile-design-way').getAttribute('href'), 'design.html?class=Ticket');
-  assert.ok(await page.locator('#new-class').isVisible(), 'and another class is made from here');
+  // Another class is made from here as an app is on the first page: by the last tile, and by no button beside the name.
+  assert.equal(await page.locator('#lists > li').last().getAttribute('id'), 'add-class');
+  assert.equal(await page.locator('#add-class .tile-add-title').innerText(), 'Add a class');
+  assert.equal(await page.locator('#add-class #new-class').innerText(), 'New class');
+  assert.equal(await page.locator('#new-class').getAttribute('href'), 'design.html?new&app=Helpdesk');
+  assert.equal(await page.locator('.home-head #new-class').count(), 0);
   assert.ok(await page.locator('#no-lists').isHidden());
 
   await page.locator('#to-home').click();

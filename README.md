@@ -15,12 +15,11 @@ the app, the list. That a list has a class behind it is a designer's
 to know: the pages say the word to a designer alone. A server with no
 app yet asks a designer to create the first one. A designer makes an
 app with a name and a sentence on what it is for, and makes a class
-from the page of its app, so that the class belongs to it. A list
-that belongs to no app stands after the apps. There a person reads a
-document by the
-sections of its class, change the values the class lets them change,
-with what the class calculates following as they type, save, and move
-the document along its flow. The buttons that move it follow the
+from the page of its app, so that the class belongs to it. The lists
+that belong to no app stand together under "Unassigned", last in the
+rail. A person reads a document by the sections of its class, changes
+the values the class lets them change, with what the class calculates
+following as they type, saves, and moves the document along its flow. The buttons that move it follow the
 typing too, and a move takes what was typed with it, in one step.
 
 **The design mode has begun: a designer reads a class as lists and
