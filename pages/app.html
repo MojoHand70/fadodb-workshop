@@ -18,8 +18,15 @@
     <span class="brand-tag">workshop</span>
   </a>
   <div class="who" id="who" hidden>
-    <a class="who-name" id="who-name" href="/auth/account"></a>
-    <button class="button button-plain" id="sign-out" type="button">Sign out</button>
+    <button class="who-open" id="who-open" type="button" popovertarget="who-menu">
+      <span class="who-mark" id="who-mark" aria-hidden="true"></span>
+      <span class="who-name" id="who-name"></span>
+    </button>
+    <div class="who-menu" id="who-menu" popover>
+      <p class="who-is"><span class="who-full" id="who-full"></span><code class="who-id" id="who-id"></code></p>
+      <a class="who-way" id="who-account" href="/auth/account">Account</a>
+      <button class="who-way" id="sign-out" type="button">Sign out</button>
+    </div>
   </div>
 </header>
 

@@ -17,6 +17,9 @@ What a user of Workshop would see, newest first.
   "Unassigned", last in the rail, and a page about one of them names
   Unassigned on the way back. It needs a FadoDB server that knows
   apps (the engine's ADR-0077).
+- The person stands at the end of the top bar as a round mark with
+  their letters and their name. A press opens their account and
+  "Sign out", which is no longer a button of the bar.
 - No sentence explains the first page, an empty server or an empty app
   to a designer: the heading and the button say it.
 - The first page no longer carries a line on how far Workshop is; the
