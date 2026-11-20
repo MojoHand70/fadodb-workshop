@@ -4,6 +4,9 @@ What a user of Workshop would see, newest first.
 
 ## Unreleased
 
+- Design mode: the actions of a rule run in their order, and the card
+  of a rule changes it: each action says its place, "Action 2 of 3",
+  and "Earlier" and "Later" move it a step, with all it sets.
 - Design mode: a designer changes what a class does by itself, its
   rules, through the lists. A rule stands under "By itself" in the
   card of the state it belongs to, or under "The whole class", and is

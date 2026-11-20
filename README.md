@@ -62,8 +62,9 @@ earlier or later within its section, a section among those beside it.
 in the card of the state it belongs to, and under "The whole class"
 for a rule about no state. A rule is chosen there, and its card says
 when it runs, the event that sets it off; only when, a condition; and
-what it does, one action after another. "Add a rule" asks the event
-and the value the rule sets, for a rule does at least one thing.
+what it does, one action after another, in an order that "Earlier"
+and "Later" change. "Add a rule" asks the event and the value the
+rule sets, for a rule does at least one thing.
 
 **A formula is written in the formula editor**, wherever the lists
 have one: what the class works out, a first value, the title of a

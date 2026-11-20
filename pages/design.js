@@ -76,6 +76,7 @@ import {
   setSetFormula,
   setStateWord,
   setWord,
+  shiftAction,
   shiftSection,
   shiftVariable,
   starter,
@@ -1235,7 +1236,7 @@ function drawRule(at) {
   props.append(formulaField('u-if', 'Only when', it.condition, `/rules/${at}/if`, (draft, formula) => setRuleIf(draft, at, formula.trim()), 'A condition about the document: total > 1000. Empty: every time.'));
   box.append(props);
 
-  const does = block('It does', 'One action after another, in this order.');
+  const does = block('It does', 'One action after another, in this order. Earlier and Later change it.');
   does.id = 'u-does';
   const actions = actionsOf(definition, at);
   // A rule does at least one thing: the last thing it does is not taken away, the rule is.
@@ -1258,6 +1259,41 @@ function drawRule(at) {
     });
     return remove;
   };
+  /**
+   * The place of an action among what the rule does, with two buttons
+   * that move it a step. After a move the button that was pressed has
+   * the cursor again, on the action that moved, for the next press.
+   *
+   * @param {number} place
+   */
+  const orderOf = (place) => {
+    const row = make('div', 'place-row action-place');
+    row.append(make('span', 'place-says', `Action ${place + 1} of ${actions.length}`));
+    for (const [words, by] of /** @type {[string, -1 | 1][]} */ ([['Earlier', -1], ['Later', 1]])) {
+      const button = make('button', 'button button-plain button-small', words);
+      const which = by < 0 ? 'earlier' : 'later';
+      button.id = `u-${which}-${place}`;
+      button.setAttribute('type', 'button');
+      button.setAttribute('aria-label', `${words}: action ${place + 1}`);
+      button.setAttribute('aria-disabled', String(by < 0 ? place === 0 : place === actions.length - 1));
+      button.addEventListener('click', () => {
+        if (button.getAttribute('aria-disabled') === 'true') {
+          part('said').textContent = by < 0 ? 'It is the first already.' : 'It is the last already.';
+          return;
+        }
+        flush();
+        let to = place;
+        change((draft) => {
+          to = shiftAction(draft, at, place, by);
+        });
+        drawAbout();
+        document.getElementById(`u-${which}-${to}`)?.focus();
+        part('said').textContent = '';
+      });
+      row.append(button);
+    }
+    return row;
+  };
   for (const action of actions) {
     if (action.kind === 'set') {
       for (const value of action.values) {
@@ -1269,6 +1305,7 @@ function drawRule(at) {
             setSetFormula(draft, at, action.at, value.variable, formula.trim()), ''),
         );
         if (things > 1) one.append(remover(`u-remove-${action.at}-${value.variable}`, `set ${value.label}`, (draft) => removeSetValue(draft, at, action.at, value.variable)));
+        if (actions.length > 1 && value === action.values.at(-1)) one.append(orderOf(action.at));
         does.append(one);
       }
     } else if (action.kind === 'reset') {
@@ -1283,6 +1320,7 @@ function drawRule(at) {
         ),
       );
       if (things > 1) one.append(remover(`u-remove-${action.at}`, 'put back to its first value', (draft) => removeAction(draft, at, action.at)));
+      if (actions.length > 1) one.append(orderOf(action.at));
       does.append(one);
     } else {
       const one = make('div', 'props rule-action');
@@ -1291,6 +1329,7 @@ function drawRule(at) {
       words.append(formulaOf(action.words), ' ', make('span', 'tag', 'changed in the text'));
       one.append(words);
       if (things > 1) one.append(remover(`u-remove-${action.at}`, action.words, (draft) => removeAction(draft, at, action.at)));
+      if (actions.length > 1) one.append(orderOf(action.at));
       does.append(one);
     }
   }

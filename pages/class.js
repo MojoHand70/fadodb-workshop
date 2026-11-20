@@ -1490,6 +1490,24 @@ export function removeAction(definition, at, place) {
 }
 
 /**
+ * Moves an action of a rule a step earlier or later in what the rule
+ * does, and answers its new place: the actions run in their order.
+ *
+ * @param {Definition} definition
+ * @param {number} at
+ * @param {number} place
+ * @param {-1 | 1} by
+ * @returns {number}
+ */
+export function shiftAction(definition, at, place, by) {
+  const steps = stepsOf(definition, at);
+  const to = place + by;
+  if (!steps || steps[place] === undefined || steps[to] === undefined) return place;
+  [steps[place], steps[to]] = [steps[to], steps[place]];
+  return to;
+}
+
+/**
  * The state a rule belongs to in the lists: the one it enters or
  * leaves, or one its transition leaves, the given one when it is among
  * them. '' for a rule that is about no state, and so stands under the
