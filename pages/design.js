@@ -34,6 +34,8 @@ import {
   moveVariable,
   outline,
   pathOfSection,
+  placeOfSection,
+  placeOfVariable,
   placesFor,
   placesOut,
   removeMove,
@@ -57,6 +59,8 @@ import {
   setSectionWord,
   setStateWord,
   setWord,
+  shiftSection,
+  shiftVariable,
   starter,
   statesOf,
   waysIn,
@@ -301,6 +305,54 @@ function sectionOf(section, level, sectioned) {
 const editable = () => Boolean(editor) && read() !== null;
 
 /**
+ * A place among neighbours, with two buttons that move it a step
+ * earlier or later. A button that has nowhere to move to stays where
+ * the keyboard left it, and says so when pressed.
+ *
+ * @param {string} id 'v' for a variable, 'p' for a section
+ * @param {() => { at: number, of: number }} place where it is now
+ * @param {() => string} among the words for its neighbours: 'in The purchase', 'at the top'
+ * @param {(by: -1 | 1) => void} shift moves it
+ * @param {string} help
+ */
+function placeField(id, place, among, shift, help) {
+  const box = make('div', 'field');
+  box.id = `${id}-place-field`;
+  box.append(make('p', 'field-label', 'Its place'));
+  const says = make('p', 'field-value');
+  says.id = `${id}-place`;
+  says.setAttribute('aria-live', 'polite');
+  const row = make('div', 'place-row');
+  const earlier = make('button', 'button button-plain button-small', 'Earlier');
+  earlier.id = `${id}-earlier`;
+  const later = make('button', 'button button-plain button-small', 'Later');
+  later.id = `${id}-later`;
+  const tell = () => {
+    const { at, of } = place();
+    says.textContent = `${at} of ${of} ${among()}`;
+    earlier.setAttribute('aria-disabled', String(at <= 1));
+    later.setAttribute('aria-disabled', String(at >= of));
+  };
+  for (const [button, by] of /** @type {[HTMLElement, -1 | 1][]} */ ([[earlier, -1], [later, 1]])) {
+    button.setAttribute('type', 'button');
+    button.addEventListener('click', () => {
+      if (button.getAttribute('aria-disabled') === 'true') {
+        part('said').textContent = by < 0 ? 'It is the first already.' : 'It is the last already.';
+        return;
+      }
+      flush();
+      shift(by);
+      tell();
+      part('said').textContent = '';
+    });
+  }
+  tell();
+  row.append(earlier, later);
+  box.append(says, row, make('p', 'field-about', help));
+  return box;
+}
+
+/**
  * Chooses a section: the side of the page shows its card.
  *
  * @param {string} name
@@ -486,8 +538,25 @@ function drawSection(name) {
     }
     change((to) => moveSection(to, name, places.value));
     drawVariables();
+    document.getElementById('p-place-field')?.replaceWith(sectionPlace());
   });
   props.append(lies);
+  /** The place of this section among the sections beside it. */
+  const sectionPlace = () =>
+    placeField(
+      'p',
+      () => placeOfSection(definition, name),
+      () => {
+        const inside = sectionWords(definition, name)?.inside ?? '';
+        return inside ? `inside ${sectionWords(definition, inside)?.label || inside}` : 'at the top';
+      },
+      (by) => {
+        change((draft) => shiftSection(draft, name, by));
+        drawVariables();
+      },
+      'The order a document shows its parts in.',
+    );
+  props.append(sectionPlace());
 
   const holds = make('div', 'field');
   holds.id = 'p-holds';
@@ -1767,9 +1836,26 @@ function drawVariable(name) {
       drawVariables();
       // The lines for a section are asked for what lies in it: another section, other lines.
       document.getElementById('v-who')?.replaceWith(whoBlock(name));
+      document.getElementById('v-place-field')?.replaceWith(variablePlace());
     });
     props.append(field('v-section', 'Section', select, 'Which part of the document it belongs to. It goes to the end of that part.'));
   }
+  /** The place of this variable among the variables beside it. */
+  const variablePlace = () =>
+    placeField(
+      'v',
+      () => placeOfVariable(definition, name),
+      () => {
+        const inside = sectionOfVariable(definition, name);
+        return inside ? `in ${sectionWords(definition, inside)?.label || inside}` : sectionsOf(definition).length > 0 ? 'in no section' : 'in the class';
+      },
+      (by) => {
+        change((draft) => shiftVariable(draft, name, by));
+        drawVariables();
+      },
+      'The order a document shows its values in.',
+    );
+  props.append(variablePlace());
 
   const remove = make('button', 'button button-plain', 'Remove this variable');
   remove.id = 'v-remove';

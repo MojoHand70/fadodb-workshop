@@ -1072,3 +1072,95 @@ export function pathOfSection(definition, name) {
   return at ? [...at.around].reverse().concat(name).map((one) => `/sections/${one}`).join('') : '';
 }
 
+/**
+ * Puts one name of a list a step earlier or later, among the names of
+ * that list that are given as its neighbours, and answers the list in
+ * its new order. The other names keep their places.
+ *
+ * @param {string[]} all every name, in order
+ * @param {string[]} beside the names it moves among, in order; `name` is one of them
+ * @param {string} name
+ * @param {-1 | 1} by
+ */
+function shifted(all, beside, name, by) {
+  const other = beside[beside.indexOf(name) + by];
+  if (other === undefined || !beside.includes(name)) return all;
+  return all.map((one) => (one === name ? other : one === other ? name : one));
+}
+
+/**
+ * The place of a variable among the variables beside it: those of its
+ * section, or those in no section. Counted from 1; `of` is how many
+ * they are.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @returns {{ at: number, of: number }}
+ */
+export function placeOfVariable(definition, name) {
+  /** @param {Part[]} parts @returns {Part | undefined} */
+  const find = (parts) => {
+    for (const part of parts) {
+      const found = part.variables.includes(name) ? part : find(part.parts);
+      if (found) return found;
+    }
+    return undefined;
+  };
+  const part = find(outline(definition));
+  return part ? { at: part.variables.indexOf(name) + 1, of: part.variables.length } : { at: 0, of: 0 };
+}
+
+/**
+ * Moves a variable a step earlier or later among the variables beside
+ * it: the order a document shows its values in. In a section that is
+ * the order its list is written in; in no section it is the order the
+ * class writes its variables in.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @param {-1 | 1} by
+ */
+export function shiftVariable(definition, name, by) {
+  const section = sectionOfVariable(definition, name);
+  if (section) {
+    eachSection(definition.sections, (at, it) => {
+      if (at === section) it.variables = shifted(texts(it.variables), texts(it.variables), name, by);
+    });
+    return;
+  }
+  const loose = outline(definition).find((part) => part.name === '')?.variables ?? [];
+  const variables = definition.variables ?? {};
+  definition.variables = Object.fromEntries(shifted(Object.keys(variables), loose, name, by).map((one) => [one, variables[one]]));
+}
+
+/**
+ * The place of a section among the sections beside it, at the top or
+ * inside the same section. Counted from 1; `of` is how many they are.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @returns {{ at: number, of: number }}
+ */
+export function placeOfSection(definition, name) {
+  const at = whereSection(definition, name);
+  if (!at) return { at: 0, of: 0 };
+  const beside = Object.keys(at.holder.sections);
+  return { at: beside.indexOf(name) + 1, of: beside.length };
+}
+
+/**
+ * Moves a section a step earlier or later among the sections beside
+ * it, with all it holds.
+ *
+ * @param {Definition} definition
+ * @param {string} name
+ * @param {-1 | 1} by
+ */
+export function shiftSection(definition, name, by) {
+  const at = whereSection(definition, name);
+  if (!at) return;
+  const sections = at.holder.sections;
+  const beside = Object.keys(sections);
+  at.holder.sections = Object.fromEntries(shifted(beside, beside, name, by).map((one) => [one, sections[one]]));
+}
+

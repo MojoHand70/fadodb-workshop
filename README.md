@@ -54,7 +54,9 @@ changed there as well. A section is chosen by its title: its label,
 what it is for, and where it lies, at the top or inside another
 section. "Add a section" asks its name and the variable it begins
 with, for the server takes no section with nothing in it. A section
-removed leaves its variables in the class, in no section.
+removed leaves its variables in the class, in no section. The order a
+document shows its values in is changed a step at a time: a variable
+earlier or later within its section, a section among those beside it.
 
 **A formula is written in the formula editor**, wherever the lists
 have one: what the class works out, a first value, the title of a
@@ -68,9 +70,9 @@ and what it finds is marked at its place.
 
 What is not there yet: a value that is a list, rows or an object is
 shown and cannot be set; in the design mode what a class does by
-itself, and the order of its variables and sections, are changed in
-the text only, and a formula cannot be tried on a document yet; and
-Workshop has no packaged release, so it is run from this
+itself is changed in the text only, and a formula cannot be tried on
+a document yet; and Workshop has no packaged release, so it is run
+from this
 repository, with a FadoDB server built from the engine's source, newer
 than its release 0.6.0. This page will say so until that changes.
 
