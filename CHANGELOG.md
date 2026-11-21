@@ -29,9 +29,19 @@ What a user of Workshop would see, newest first.
 - Settings stand in the rail under the apps, as Apps stands over
   them, for a database administrator alone. Under them: Server (its
   address and the version of its program), Admin (the administrators
-  and the content administrators), Users and Groups. They are read
-  there; nothing is changed from them yet. What is a person's own,
-  their name and their account, is behind their mark in the top bar.
+  and the content administrators), Users and Groups. What is a
+  person's own, their name and their account, is behind their mark in
+  the top bar.
+- An administrator makes a user under Settings, Users: a person, an
+  agent or a service, with the name they sign in by, which follows
+  their name until the administrator writes one. A user's page changes
+  their name, e-mail, system groups and groups, and whether they may
+  sign in; for a person it makes the link by which they set their
+  password, shown once. What the server refuses is said in its words.
+- An administrator makes a group under Settings, Groups, by ticking
+  who is in it, and changes who is in it on the group's page. A group
+  nobody is in is gone: the server keeps a group as a word on its
+  members.
 - In the rail an app is set in under Apps, and a part of the settings
   under Settings, so that each reads as theirs.
 - On a wide screen the top bar and the rail stay in place while the

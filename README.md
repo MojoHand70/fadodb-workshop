@@ -13,8 +13,11 @@ top bar of every page finds an app by a part of its name or of a
 list's. The person stands at the end of that bar; a press there opens
 their account and signing out. A database administrator has Settings
 in the rail under the apps: the server's address and version, who
-administers it, its users and their groups. They are read there;
-nothing is changed from them yet. From an app a person opens a list, makes a
+administers it, its users and their groups. There an administrator
+makes a user and changes one (their name, e-mail, groups and system
+groups, and whether they may sign in), makes the link by which a
+person sets their password, and makes a group and changes who is in
+it. From an app a person opens a list, makes a
 new document, and opens one. Every page says where the person is: Home,
 the app, the list. That a list has a class behind it is a designer's
 to know: the pages say the word to a designer alone. A server with no

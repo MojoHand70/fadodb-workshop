@@ -1168,6 +1168,32 @@ h1 {
 .person-id { color: var(--ink-2); font: 500 13.5px/1.5 var(--mono); overflow-wrap: anywhere; }
 .person-none { color: var(--ink-2); }
 .list-code { font: 500 13.5px/1.5 var(--mono); overflow-wrap: anywhere; }
+.person-name a { color: var(--ink); }
+.person-name a:hover { color: var(--accent-strong); }
+
+/* What an administrator does on a part of the settings stands over it, at the right. */
+.settings-do { display: flex; justify-content: flex-end; margin: 0 0 12px; }
+.settings-do .button { min-height: 40px; padding: 0 16px; font-size: 14px; }
+
+/* A choice of several: a tick for each, under one heading. */
+.choices { min-width: 0; margin: 0; padding: 0; border: 0; }
+.choices legend { padding: 0; margin: 0 0 6px; }
+.choices .tick { min-height: 36px; }
+.choices .tick-label { overflow-wrap: anywhere; }
+.choices .tick-id { margin-left: 4px; color: var(--ink-2); font: 500 13px/1.5 var(--mono); }
+.choices-add { margin-top: 6px; }
+.choices-none { margin: 0; color: var(--ink-2); }
+.card.begin + .settings-card { margin-top: 16px; }
+
+/* What was said once and is not changed here is shown, and reads as such. */
+.begin .input[readonly],
+.begin select.input:disabled { background: var(--bg-2); color: var(--ink-2); opacity: 1; }
+
+/* A link made for somebody, to be copied and sent to them. */
+.link-box { display: flex; gap: 8px; margin: 12px 0 0; }
+.link-box .input { flex: 1 1 auto; min-width: 0; min-height: 36px; }
+.settings-card .field-about { margin-top: 8px; }
+.settings-card .field-why:empty { display: none; }
 
 .tiles {
   display: grid;

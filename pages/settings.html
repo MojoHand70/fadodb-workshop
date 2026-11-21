@@ -68,6 +68,7 @@
 
     <section class="settings-part" data-view="users" id="users" hidden>
       <h1 class="unseen">Users</h1>
+      <div class="settings-do"><a class="button" id="new-user" href="settings.html?part=users&amp;new">New user</a></div>
       <div class="table-box">
         <table class="list" id="users-table">
           <thead><tr><th>Name</th><th>Signs in as</th><th>Kind</th><th>System groups</th><th>Groups</th></tr></thead>
@@ -78,6 +79,7 @@
 
     <section class="settings-part" data-view="groups" id="groups" hidden>
       <h1 class="unseen">Groups</h1>
+      <div class="settings-do"><a class="button" id="new-group" href="settings.html?part=groups&amp;new">New group</a></div>
       <div class="table-box" id="groups-box">
         <table class="list" id="groups-table">
           <thead><tr><th>Group</th><th>Members</th></tr></thead>
@@ -85,6 +87,79 @@
         </table>
       </div>
       <p class="lead" id="no-groups" hidden>No groups yet.</p>
+    </section>
+
+    <!-- One user: a new one, or one the server has. -->
+    <section class="settings-part" data-view="user" id="user" hidden>
+      <h1 class="unseen" id="user-title">A user</h1>
+      <form class="card begin" id="user-form" novalidate>
+        <div class="field">
+          <p class="field-label"><label for="user-name">Name</label></p>
+          <input class="input" id="user-name" name="name" autocomplete="off" placeholder="Eve Lis">
+        </div>
+        <div class="field">
+          <p class="field-label"><label for="user-id">Signs in as</label></p>
+          <input class="input input-mono" id="user-id" name="id" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="eve.lis">
+        </div>
+        <div class="field">
+          <p class="field-label"><label for="user-kind">Kind</label></p>
+          <select class="input" id="user-kind" name="kind">
+            <option value="person">person</option>
+            <option value="agent">agent</option>
+            <option value="service">service</option>
+          </select>
+        </div>
+        <div class="field" id="user-email-field">
+          <p class="field-label"><label for="user-email">E-mail</label></p>
+          <input class="input" id="user-email" name="email" type="email" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="eve.lis@acme.example">
+        </div>
+        <fieldset class="field choices">
+          <legend class="field-label">System groups</legend>
+          <div id="user-system"></div>
+        </fieldset>
+        <fieldset class="field choices">
+          <legend class="field-label">Groups</legend>
+          <div id="user-groups"></div>
+          <div class="adder-form choices-add">
+            <input class="input input-mono" id="user-group-new" aria-label="Another group" placeholder="Another group" autocomplete="off" autocapitalize="off" spellcheck="false">
+            <button class="button button-plain button-small" id="user-group-add" type="button">Add</button>
+          </div>
+        </fieldset>
+        <div class="tick" id="user-disabled-field" hidden>
+          <input class="check" id="user-disabled" name="disabled" type="checkbox">
+          <label class="tick-label" for="user-disabled">Disabled</label>
+        </div>
+        <p class="field-why" id="user-why" role="alert"></p>
+        <button class="button" id="user-go" type="submit">Save</button>
+      </form>
+      <div class="card settings-card" id="user-password" hidden>
+        <h2>Password</h2>
+        <button class="button button-plain" id="user-link-go" type="button">Make a link to set a password</button>
+        <div class="link-box" id="user-link-box" hidden>
+          <input class="input input-mono" id="user-link" aria-label="The link" readonly>
+          <button class="button button-plain button-small" id="user-link-copy" type="button">Copy</button>
+        </div>
+        <p class="field-about" id="user-link-ends" hidden></p>
+        <p class="field-why" id="user-link-why" role="alert"></p>
+      </div>
+    </section>
+
+    <!-- One group: a new one, or one some user is in. -->
+    <section class="settings-part" data-view="group" id="group" hidden>
+      <h1 class="unseen" id="group-title">A group</h1>
+      <form class="card begin" id="group-form" novalidate>
+        <div class="field" id="group-name-field">
+          <p class="field-label"><label for="group-name">Name</label></p>
+          <input class="input input-mono" id="group-name" name="name" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="finance">
+        </div>
+        <fieldset class="field choices">
+          <legend class="field-label">Members</legend>
+          <div id="group-members"></div>
+        </fieldset>
+        <p class="field-why" id="group-why" role="alert"></p>
+        <p class="field-about" id="group-existing-box" hidden><a id="group-existing" href="./">Open it</a></p>
+        <button class="button" id="group-go" type="submit">Save</button>
+      </form>
     </section>
 
     <section data-view="trouble" id="trouble" hidden>
