@@ -95,6 +95,24 @@ export function initials(name) {
   return (first + last).toUpperCase();
 }
 
+/**
+ * The name a person signs in by, made from the name people read:
+ * "Eve Lis" gives eve.lis. Whether it may be one is the server's to say.
+ *
+ * @param {string} name
+ */
+export function idFrom(name) {
+  return name
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/ł/g, 'l')
+    .replace(/Ł/g, 'L')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .join('.');
+}
+
 /** Says that the page has drawn what it had to. The checks wait for it. */
 export function ready() {
   document.documentElement.dataset.ready = 'yes';

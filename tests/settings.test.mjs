@@ -1,7 +1,8 @@
 // The settings in front of a real FadoDB server: Olga, a database
 // administrator, finds them in the rail under the apps, as Apps stands
 // over the apps, and reads the server, who administers it, its users
-// and their groups. Nothing is changed from these pages yet.
+// and their groups. She makes a user and changes one, and makes a group
+// and changes who is in it.
 
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -189,4 +190,264 @@ test('Groups are read off the users, each with its members; a server with none s
     for (const [id, groups] of Object.entries(had)) await server.exec('set_user', { id, groups });
   }
   await context.close();
+});
+
+// From here on Olga changes what the server holds.
+
+/**
+ * Sends a form and waits for where it leads.
+ *
+ * @param {import('playwright').Page} page
+ * @param {string} button
+ * @param {(address: URL) => boolean} where
+ */
+async function send(page, button, where) {
+  await page.locator(button).click();
+  await page.waitForURL(where);
+  await ready(page);
+}
+
+test('Olga makes a user: the name they sign in by follows their name, and a link lets them set a password', async () => {
+  const { context, page, wrong } = await at('settings.html?part=users');
+  await page.locator('#new-user').click();
+  await page.waitForURL((address) => address.searchParams.has('new'));
+  await ready(page);
+  assert.equal(await page.title(), 'A new user · FadoDB Workshop');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Settings', 'Users', 'A new user']);
+  assert.equal(await page.locator('#to-users').getAttribute('href'), 'settings.html?part=users');
+  assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Users');
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'user-name', 'the cursor is in the name');
+  assert.equal(await page.locator('#user-go').innerText(), 'Make the user');
+  assert.ok(await page.locator('#user-disabled-field').isHidden());
+  assert.ok(await page.locator('#user-password').isHidden());
+
+  // The name they sign in by follows the name, without the marks over letters, until Olga writes one.
+  await page.fill('#user-name', 'Żaneta Łoś');
+  assert.equal(await page.inputValue('#user-id'), 'zaneta.los');
+  await page.fill('#user-id', 'zaneta');
+  await page.fill('#user-name', 'Żaneta Łoś-Kowal');
+  assert.equal(await page.inputValue('#user-id'), 'zaneta');
+
+  // An e-mail is a person's.
+  await page.selectOption('#user-kind', 'agent');
+  assert.ok(await page.locator('#user-email-field').isHidden());
+  await page.selectOption('#user-kind', 'person');
+  await page.fill('#user-email', 'zaneta@acme.example');
+
+  assert.deepEqual(await page.locator('#user-system .tick-label').allInnerTexts(), ['Administrators', 'Designers', 'Content administrators', 'Analysts']);
+  await page.locator('#user-system [data-system="designers"]').check();
+  assert.deepEqual(await page.locator('#user-groups .tick-label').allInnerTexts(), ['expense_approvers', 'finance']);
+  await page.locator('#user-groups [data-group="finance"]').check();
+  // Another group is added with Enter, which does not send the form.
+  await page.fill('#user-group-new', 'night shift');
+  await page.press('#user-group-new', 'Enter');
+  assert.deepEqual(await page.locator('#user-groups .tick-label').allInnerTexts(), ['expense_approvers', 'finance', 'night shift']);
+  assert.ok(await page.locator('#user-groups [data-group="night shift"]').isChecked());
+  assert.equal(await page.inputValue('#user-group-new'), '');
+  assert.ok(new URL(page.url()).searchParams.has('new'), 'the form was not sent');
+
+  // Enter in the name sends it; the page of the new user follows.
+  await page.press('#user-name', 'Enter');
+  await page.waitForURL((address) => address.searchParams.get('user') === 'zaneta');
+  await ready(page);
+  const { user } = await server.exec('get_user', { id: 'zaneta' });
+  assert.deepEqual({ ...user, groups: [...user.groups].sort() }, { id: 'zaneta', kind: 'person', name: 'Żaneta Łoś-Kowal', email: 'zaneta@acme.example', groups: ['finance', 'night shift'], system_groups: ['designers'], disabled: false });
+  assert.equal(await page.title(), 'Żaneta Łoś-Kowal · FadoDB Workshop');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Settings', 'Users', 'Żaneta Łoś-Kowal']);
+  assert.equal(await page.locator('#user-go').innerText(), 'Save');
+  // Who a user is and of what kind is said once.
+  assert.ok(await page.locator('#user-id').evaluate((one) => /** @type {HTMLInputElement} */ (one).readOnly));
+  assert.ok(await page.locator('#user-kind').isDisabled());
+
+  // A link for her to set her password: shown once, marked to be copied, and the server's page takes it.
+  assert.ok(await page.locator('#user-link-box').isHidden());
+  await page.locator('#user-link-go').click();
+  await page.locator('#user-link-box').waitFor();
+  const link = await page.inputValue('#user-link');
+  assert.match(link, new RegExp(`^${new URL(site.url).origin}/auth/password\\?link=[A-Za-z0-9_%-]+$`));
+  assert.match(await page.locator('#user-link-ends').innerText(), /^Good once, until .+\. It is shown this once\.$/);
+  const marked = () => page.locator('#user-link').evaluate((one) => [/** @type {HTMLInputElement} */ (one).selectionStart, /** @type {HTMLInputElement} */ (one).selectionEnd]);
+  assert.deepEqual(await marked(), [0, link.length]);
+  await page.locator('#user-name').focus();
+  await page.locator('#user-link-copy').click();
+  assert.deepEqual(await marked(), [0, link.length], 'Copy marks the link, for a browser that keeps its clipboard to itself');
+  assert.deepEqual(wrong, []);
+  const hers = await browser.newContext();
+  const there = await hers.newPage();
+  await there.goto(link);
+  assert.ok(await there.locator('#password').isVisible(), 'the server\'s page asks her for a password');
+  await hers.close();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await fits(page), 'the page of a user fits a phone');
+  await context.close();
+});
+
+test('what the server refuses is said in its words: a name that is taken, and the last administrator', async () => {
+  const { context, page, wrong } = await at('settings.html?part=users&new');
+  await page.locator('#user-go').click();
+  assert.equal(await page.locator('#user-why').innerText(), 'Give the name the user signs in by.');
+  await page.fill('#user-name', 'Olga the second');
+  await page.fill('#user-id', 'olga');
+  await page.locator('#user-go').click();
+  await page.locator('#user-why:not(:empty)').waitFor();
+  assert.match(await page.locator('#user-why').innerText(), /^The server said: a user "olga" exists\./);
+  assert.ok(new URL(page.url()).searchParams.has('new'), 'she is still at the form');
+  assert.equal((await server.exec('get_user', { id: 'olga' })).user.name, 'Olga Nowak');
+
+  // Olga may not take the last administrator away, herself.
+  await page.goto(`${site.url}settings.html?part=users&user=olga`);
+  await ready(page);
+  assert.ok(await page.locator('#user-system [data-system="administrators"]').isChecked());
+  await page.locator('#user-system [data-system="administrators"]').uncheck();
+  await page.locator('#user-go').click();
+  await page.locator('#user-why:not(:empty)').waitFor();
+  assert.match(await page.locator('#user-why').innerText(), /^The server said: the change would leave the database without an administrator\. .*make another user an administrator first\.$/);
+  assert.deepEqual((await server.exec('get_user', { id: 'olga' })).user.system_groups, ['administrators', 'designers']);
+
+  // A user the server does not have.
+  await page.goto(`${site.url}settings.html?part=users&user=nobody`);
+  await ready(page);
+  assert.ok(await page.locator('#trouble').isVisible());
+  assert.match(await page.locator('#trouble-why').innerText(), /no user "nobody"/);
+  // The refusals are the server's answers, which the browser notes as failed requests: nothing else went wrong.
+  assert.deepEqual(wrong.filter((one) => !/create_user|set_user|get_user/.test(one)), []);
+  await context.close();
+});
+
+test('Olga changes a user: their name, their groups, and whether they may sign in', async () => {
+  const { context, page, wrong } = await at('settings.html?part=users');
+  await page.locator('#users-rows tr[data-user="jan"] .title a').click();
+  await page.waitForURL((address) => address.searchParams.get('user') === 'jan');
+  await ready(page);
+  assert.equal(await page.inputValue('#user-name'), 'Jan Kowalski');
+  assert.equal(await page.inputValue('#user-id'), 'jan');
+  assert.ok(await page.locator('#user-disabled-field').isVisible());
+  assert.ok(await page.locator('#user-password').isVisible());
+
+  await page.fill('#user-name', 'Jan Kowalski-Lis');
+  await page.fill('#user-email', 'Jan@Acme.example');
+  await page.locator('#user-system [data-system="analysts"]').check();
+  await page.locator('#user-groups [data-group="expense_approvers"]').check();
+  // A group typed and not added is meant too.
+  await page.fill('#user-group-new', 'travel');
+  await page.locator('#user-disabled').check();
+  await send(page, '#user-go', (address) => address.search === '?part=users');
+  const { user } = await server.exec('get_user', { id: 'jan' });
+  assert.deepEqual({ ...user, groups: [...user.groups].sort() }, { id: 'jan', kind: 'person', name: 'Jan Kowalski-Lis', email: 'jan@acme.example', groups: ['expense_approvers', 'travel'], system_groups: ['analysts'], disabled: true });
+  const row = page.locator('#users-rows tr[data-user="jan"]');
+  assert.equal(await row.locator('.title a').innerText(), 'Jan Kowalski-Lis');
+  assert.equal(await row.locator('.state').innerText(), 'Disabled');
+
+  // A user who may not sign in is given no link; let in again, he is.
+  await row.locator('.title a').click();
+  await page.waitForURL((address) => address.searchParams.get('user') === 'jan');
+  await ready(page);
+  assert.ok(await page.locator('#user-password').isHidden());
+  assert.ok(await page.locator('#user-disabled').isChecked());
+  await page.locator('#user-disabled').uncheck();
+  await page.locator('#user-system [data-system="analysts"]').uncheck();
+  await page.locator('#user-groups [data-group="travel"]').uncheck();
+  await page.locator('#user-groups [data-group="expense_approvers"]').uncheck();
+  await page.fill('#user-name', 'Jan Kowalski');
+  await page.fill('#user-email', '');
+  await send(page, '#user-go', (address) => address.search === '?part=users');
+  assert.deepEqual((await server.exec('get_user', { id: 'jan' })).user, { id: 'jan', kind: 'person', name: 'Jan Kowalski', groups: [], system_groups: [], disabled: false });
+  assert.equal(await page.locator('#users-rows tr[data-user="jan"] .state').count(), 0);
+
+  // What a name says is text in a form too; an agent has no e-mail and no password.
+  await page.goto(`${site.url}settings.html?part=users&user=reader`);
+  await ready(page);
+  assert.equal(await page.inputValue('#user-name'), MARKUP);
+  assert.equal(await page.locator('#crumbs [aria-current]').innerText(), MARKUP);
+  assert.equal(await page.locator('#user img, #crumbs img').count(), 0);
+  assert.ok(await page.locator('#user-email-field').isHidden());
+  assert.ok(await page.locator('#user-password').isHidden());
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('Olga makes a group by ticking who is in it, changes who is in it, and a group nobody is in is gone', async () => {
+  const { context, page, wrong } = await at('settings.html?part=groups');
+  await page.locator('#new-group').click();
+  await page.waitForURL((address) => address.searchParams.has('new'));
+  await ready(page);
+  assert.equal(await page.title(), 'A new group · FadoDB Workshop');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Settings', 'Groups', 'A new group']);
+  assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Groups');
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'group-name', 'the cursor is in the name');
+  assert.equal(await page.locator('#group-go').innerText(), 'Make the group');
+  assert.equal(await page.locator('#group-members img').count(), 0, 'a name is text');
+
+  // A group is its members: it needs a name, and somebody in it; a name that is taken is said, with the way to it.
+  await page.locator('#group-go').click();
+  assert.equal(await page.locator('#group-why').innerText(), 'Give the group a name.');
+  await page.fill('#group-name', 'auditors');
+  await page.locator('#group-go').click();
+  assert.equal(await page.locator('#group-why').innerText(), 'Tick who is in it: a group is the people in it.');
+  await page.locator('#group-members [data-user="dan"]').check();
+  await page.fill('#group-name', 'finance');
+  await page.locator('#group-go').click();
+  await page.locator('#group-existing-box').waitFor();
+  assert.equal(await page.locator('#group-why').innerText(), 'finance is a group on this server already.');
+  assert.equal(await page.locator('#group-existing').getAttribute('href'), 'settings.html?part=groups&group=finance');
+  assert.deepEqual((await server.exec('get_user', { id: 'dan' })).user.groups, [], 'nothing was changed');
+
+  await page.fill('#group-name', 'auditors');
+  await page.locator('#group-members [data-user="jan"]').check();
+  await page.press('#group-name', 'Enter');
+  await page.waitForURL((address) => address.search === '?part=groups');
+  await ready(page);
+  assert.deepEqual(await page.locator('#groups-rows tr[data-group="auditors"] td').allInnerTexts(), ['auditors', 'Dan Mazur, Jan Kowalski']);
+
+  // Its page: who is in it is ticked, and its name is in the way above.
+  await page.locator('#groups-rows tr[data-group="auditors"] .title a').click();
+  await page.waitForURL((address) => address.searchParams.get('group') === 'auditors');
+  await ready(page);
+  assert.equal(await page.title(), 'auditors · FadoDB Workshop');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Settings', 'Groups', 'auditors']);
+  assert.ok(await page.locator('#group-name-field').isHidden());
+  assert.equal(await page.locator('#group-go').innerText(), 'Save');
+  assert.deepEqual(await page.locator('#group-members .check:checked').evaluateAll((all) => all.map((one) => one.getAttribute('data-user'))), ['dan', 'jan']);
+  assert.equal(await page.locator('#group-members .tick-label').first().innerText(), 'Ann Kowalska ann', 'a member is named, with the name they sign in by');
+
+  // Ann comes in and Dan goes out. What somebody else gave Ann while the page was open is kept.
+  await server.exec('set_user', { id: 'ann', groups: ['expense_approvers', 'night watch'] });
+  await page.locator('#group-members [data-user="ann"]').check();
+  await page.locator('#group-members [data-user="dan"]').uncheck();
+  await send(page, '#group-go', (address) => address.search === '?part=groups');
+  const groups = async (/** @type {string} */ id) => [...(await server.exec('get_user', { id })).user.groups].sort();
+  assert.deepEqual(await groups('ann'), ['auditors', 'expense_approvers', 'night watch']);
+  assert.deepEqual(await groups('dan'), []);
+  assert.deepEqual(await groups('jan'), ['auditors']);
+  assert.deepEqual(await page.locator('#groups-rows tr[data-group="auditors"] td').allInnerTexts(), ['auditors', 'Ann Kowalska, Jan Kowalski']);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${site.url}settings.html?part=groups&group=auditors`);
+  await ready(page);
+  assert.ok(await fits(page), 'the page of a group fits a phone');
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  // Nobody in it: the group is gone.
+  for (const id of ['ann', 'jan']) await page.locator(`#group-members [data-user="${id}"]`).uncheck();
+  await send(page, '#group-go', (address) => address.search === '?part=groups');
+  assert.equal(await page.locator('#groups-rows tr[data-group="auditors"]').count(), 0);
+  assert.deepEqual(await groups('ann'), ['expense_approvers', 'night watch']);
+  assert.deepEqual(await groups('jan'), []);
+  await server.exec('set_user', { id: 'ann', groups: ['expense_approvers'] });
+
+  // A group nobody is in has no page.
+  await page.goto(`${site.url}settings.html?part=groups&group=zebra`);
+  await ready(page);
+  assert.equal(await page.locator('#trouble-why').innerText(), 'Nobody on the server is in a group zebra.');
+  assert.deepEqual(wrong, []);
+  await context.close();
+});
+
+test('the name a person signs in by is made from their name', async () => {
+  const { idFrom } = await import('../pages/shell.js');
+  assert.equal(idFrom('Eve Lis'), 'eve.lis');
+  assert.equal(idFrom('  Żaneta   Łoś-Kowal '), 'zaneta.los.kowal');
+  assert.equal(idFrom('Invoice reader 2'), 'invoice.reader.2');
+  assert.equal(idFrom(''), '');
 });
