@@ -14,7 +14,8 @@ list's. The person stands at the end of that bar; a press there opens
 their account and signing out, and how Workshop looks to them: one of
 six schemes of colours, Fado Standard among them, in a light or a dark
 shade or the shade of their machine. The choice is kept in their
-browser; a default an administrator sets is planned. A database administrator has Settings
+browser, and stands under Settings, Themes, too; a default an
+administrator sets is planned. A database administrator has Settings
 in the rail under the apps: the server's address and version, who
 administers it, its users and their groups. There an administrator
 makes a user and changes one (their name, e-mail, groups and system

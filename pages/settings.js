@@ -10,7 +10,7 @@ import { SETTINGS, drawRail, readApps, settingsPart } from './apps.js';
 import { Refused, call, health } from './fado.js';
 import { found } from './find.js';
 import { finder } from './finder.js';
-import { crumbs, enter, idFrom, make, part, ready, show } from './shell.js';
+import { crumbs, enter, idFrom, lookChoice, make, part, ready, show } from './shell.js';
 
 /**
  * A user, as the server lists one.
@@ -510,6 +510,11 @@ if (user && !(user.system_groups ?? []).includes('administrators')) {
     if (here.part === 'server') {
       await showServer();
       show('server');
+    } else if (here.part === 'themes') {
+      // The same choice as in the person's menu, with each scheme by its name.
+      const choice = lookChoice('themes', true);
+      if (choice) part('themes-choice').replaceChildren(choice);
+      show('themes');
     } else {
       /** @type {{ users?: User[] }} */
       const { users = [] } = await call('list_users');

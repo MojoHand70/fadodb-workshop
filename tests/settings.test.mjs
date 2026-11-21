@@ -72,10 +72,10 @@ const begins = (page, way) =>
 
 test('Olga, an administrator, has Settings in the rail under the apps, and its parts set in under it', async () => {
   const { context, page, wrong } = await at('');
-  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Help desk', 'Unassigned', 'Settings', 'Server', 'Admin', 'Users', 'Groups']);
+  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Help desk', 'Unassigned', 'Settings', 'Server', 'Admin', 'Users', 'Groups', 'Themes']);
   assert.deepEqual(
     await page.locator('#rail .rail-sub').evaluateAll((all) => all.map((one) => one.getAttribute('href'))),
-    ['settings.html?part=server', 'settings.html?part=admin', 'settings.html?part=users', 'settings.html?part=groups'],
+    ['settings.html?part=server', 'settings.html?part=admin', 'settings.html?part=users', 'settings.html?part=groups', 'settings.html?part=themes'],
   );
 
   // Settings stands as Apps does, and a part of it as an app does under Apps.
@@ -300,6 +300,58 @@ test('the groups of a user stand in a container of their own at the right: all, 
   const [above, below] = [await page.locator('#user-card').boundingBox(), await page.locator('#user-groups-card').boundingBox()];
   assert.ok(above && below && below.y >= above.y + above.height && Math.abs(below.x - above.x) < 2);
   assert.ok(await fits(page), 'the page of a user fits a phone');
+  await context.close();
+});
+
+test('Themes stand under Settings: each scheme by its name, and what Olga chooses there her menu says too', async () => {
+  const { context, page, wrong } = await at('settings.html?part=themes');
+  assert.equal(await page.title(), 'Themes · FadoDB Workshop');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Settings', 'Themes']);
+  assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Themes');
+  assert.equal(await page.locator('#themes h2').innerText(), 'Your theme');
+  const themes = page.locator('#themes');
+  assert.deepEqual(await themes.locator('.look-scheme-words').allInnerTexts(), ['Fado Standard', 'Ocean', 'Meadow', 'Sunset', 'Rose', 'Graphite']);
+  assert.deepEqual(await themes.locator('.look-mode').allInnerTexts(), ['Light', 'Dark', 'System']);
+  assert.ok(await themes.getByRole('radio', { name: 'Fado Standard' }).isChecked());
+  assert.ok(await themes.getByRole('radio', { name: 'Light', exact: true }).isChecked());
+  /** What the root of the page says of the look. */
+  const said = () => page.evaluate(() => [document.documentElement.dataset.scheme, document.documentElement.dataset.shade]);
+  assert.deepEqual(await said(), ['standard', 'light']);
+
+  // A tile pressed: the page is in that scheme at once, and her menu says the same.
+  await themes.locator('.look-scheme', { hasText: 'Ocean' }).click();
+  assert.deepEqual(await said(), ['ocean', 'light']);
+  await themes.getByRole('radio', { name: 'Dark', exact: true }).check();
+  assert.deepEqual(await said(), ['ocean', 'dark']);
+  await page.locator('#who-open').click();
+  const menu = page.locator('#look');
+  await menu.waitFor();
+  assert.equal(await page.locator('#look-name').innerText(), 'Ocean');
+  assert.ok(await menu.getByRole('radio', { name: 'Ocean' }).isChecked());
+  assert.ok(await menu.getByRole('radio', { name: 'Dark', exact: true }).isChecked());
+
+  // And what she chooses in her menu the page says.
+  await menu.getByRole('radio', { name: 'Rose' }).check();
+  assert.deepEqual(await said(), ['rose', 'dark']);
+  assert.ok(await themes.getByRole('radio', { name: 'Rose' }).isChecked());
+  assert.ok(!(await themes.getByRole('radio', { name: 'Ocean' }).isChecked()));
+  await page.keyboard.press('Escape');
+  await menu.waitFor({ state: 'hidden' });
+
+  // By the keyboard: the arrows go from tile to tile.
+  await themes.getByRole('radio', { name: 'Rose' }).focus();
+  await page.keyboard.press('ArrowRight');
+  assert.deepEqual(await said(), ['graphite', 'dark']);
+
+  // It holds when the page is read again.
+  await page.reload();
+  await ready(page);
+  assert.deepEqual(await said(), ['graphite', 'dark']);
+  assert.ok(await page.locator('#themes').getByRole('radio', { name: 'Graphite' }).isChecked());
+  assert.deepEqual(wrong, []);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await fits(page), 'the page fits a phone');
   await context.close();
 });
 
