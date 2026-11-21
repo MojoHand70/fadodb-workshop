@@ -192,6 +192,117 @@ test('Groups are read off the users, each with its members; a server with none s
   await context.close();
 });
 
+test('Olga finds a user by a part of anything their row says', async () => {
+  const { context, page, wrong } = await at('settings.html?part=users');
+  const find = page.getByRole('searchbox', { name: 'Find a user' });
+  assert.ok(await find.isVisible());
+  /** The users whose rows are shown. */
+  const left = () => page.locator('#users-rows tr').evaluateAll((all) => all.filter((one) => !(/** @type {HTMLElement} */ (one).hidden)).map((one) => one.getAttribute('data-user')));
+  assert.deepEqual(await left(), ['ann', 'dan', 'eve', 'jan', 'olga', 'reader']);
+
+  // Without capitals, by a name, a group, a kind, a system group, and by two words in any order.
+  await find.fill('KOWAL');
+  assert.deepEqual(await left(), ['ann', 'jan']);
+  await find.fill('finance');
+  assert.deepEqual(await left(), ['eve', 'reader']);
+  await find.fill('agent');
+  assert.deepEqual(await left(), ['reader']);
+  await find.fill('designers olga');
+  assert.deepEqual(await left(), ['olga']);
+  await find.fill('disabled');
+  assert.deepEqual(await left(), ['eve']);
+  assert.ok(await page.locator('#no-users-found').isHidden());
+
+  // Nothing found is said, in the words that were typed, as text.
+  await find.fill('<b>zebra</b>');
+  assert.deepEqual(await left(), []);
+  assert.ok(await page.locator('#users-box').isHidden());
+  assert.equal(await page.locator('#no-users-found').innerText(), 'Nothing here goes by "<b>zebra</b>".');
+  assert.equal(await page.locator('#no-users-found b').count(), 0);
+
+  // Emptied, all are back.
+  await find.fill('');
+  assert.deepEqual(await left(), ['ann', 'dan', 'eve', 'jan', 'olga', 'reader']);
+  assert.ok(await page.locator('#no-users-found').isHidden());
+  assert.deepEqual(wrong, []);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await fits(page), 'the box fits a phone');
+  await context.close();
+});
+
+test('the groups of a user stand in a container of their own at the right: all, those they belong to or do not, and found by a part of a name', async () => {
+  const { context, page, wrong } = await at('settings.html?part=users&user=ann');
+  const [user, groups] = [await page.locator('#user-card').boundingBox(), await page.locator('#user-groups-card').boundingBox()];
+  assert.ok(user && groups && groups.x >= user.x + user.width && Math.abs(groups.y - user.y) < 2, 'the groups are beside the user, at the right, from the same height');
+  assert.equal(await page.locator('#user-groups-card h2').innerText(), 'Groups');
+
+  const ways = page.getByRole('radiogroup', { name: 'Which groups are shown' }).getByRole('radio');
+  assert.deepEqual(await ways.evaluateAll((all) => all.map((one) => one.getAttribute('aria-label'))), ['Belongs to', "Doesn't belong to", 'All groups']);
+  assert.deepEqual(await page.locator('.groups-show-one').evaluateAll((all) => all.map((one) => one.getAttribute('title'))), ['Belongs to', "Doesn't belong to", 'All groups'], 'each picture says what it is under the pointer');
+  assert.ok(await page.getByRole('radio', { name: 'All groups' }).isChecked());
+  /** The groups that are shown, and which of them are ticked. */
+  const shown = () => page.locator('#user-groups .tick').evaluateAll((all) => all.filter((one) => !(/** @type {HTMLElement} */ (one).hidden)).map((one) => `${one.querySelector('input')?.getAttribute('data-group')}${/** @type {HTMLInputElement} */ (one.querySelector('input')).checked ? ' *' : ''}`));
+  assert.deepEqual(await shown(), ['expense_approvers *', 'finance']);
+  assert.equal(await page.locator('#user-groups-shown').innerText(), 'All groups');
+
+  await page.getByRole('radio', { name: 'Belongs to', exact: true }).check();
+  assert.deepEqual(await shown(), ['expense_approvers *']);
+  assert.equal(await page.locator('#user-groups-shown').innerText(), 'Belongs to');
+  await page.getByRole('radio', { name: "Doesn't belong to" }).check();
+  assert.deepEqual(await shown(), ['finance']);
+  assert.equal(await page.locator('#user-groups-shown').innerText(), "Doesn't belong to");
+
+  // A group just ticked stays under her hand; it goes where it belongs when she asks again.
+  await page.locator('#user-groups [data-group="finance"]').check();
+  assert.deepEqual(await shown(), ['finance *']);
+  // By the keyboard: the arrows go from one way of showing to the next.
+  await page.getByRole('radio', { name: "Doesn't belong to" }).focus();
+  await page.keyboard.press('ArrowRight');
+  assert.ok(await page.getByRole('radio', { name: 'All groups' }).isChecked());
+  assert.deepEqual(await shown(), ['expense_approvers *', 'finance *']);
+  await page.getByRole('radio', { name: "Doesn't belong to" }).check();
+  assert.deepEqual(await shown(), []);
+  assert.equal(await page.locator('#user-groups-none').innerText(), 'In every group.');
+  await page.getByRole('radio', { name: 'All groups' }).check();
+  await page.locator('#user-groups [data-group="finance"]').uncheck();
+  await page.locator('#user-groups [data-group="expense_approvers"]').uncheck();
+  await page.getByRole('radio', { name: 'Belongs to', exact: true }).check();
+  assert.deepEqual(await shown(), []);
+  assert.equal(await page.locator('#user-groups-none').innerText(), 'In no group.');
+  await page.getByRole('radio', { name: 'All groups' }).check();
+  await page.locator('#user-groups [data-group="expense_approvers"]').check();
+
+  // The box finds a group by a part of its name; Enter in it does not send the form.
+  const find = page.getByRole('searchbox', { name: 'Find a group' });
+  await find.fill('FIN');
+  assert.deepEqual(await shown(), ['finance']);
+  await find.press('Enter');
+  assert.equal(new URL(page.url()).search, '?part=users&user=ann', 'she is still at the form');
+  await find.fill('<i>zebra</i>');
+  assert.deepEqual(await shown(), []);
+  assert.equal(await page.locator('#user-groups-none').innerText(), 'Nothing here goes by "<i>zebra</i>".');
+  assert.equal(await page.locator('#user-groups-none i').count(), 0);
+  // A group added is shown, whatever is asked for.
+  await page.fill('#user-group-new', 'night shift');
+  await page.locator('#user-group-add').click();
+  assert.deepEqual(await shown(), ['night shift *']);
+  assert.ok(await page.locator('#user-groups-none').isHidden());
+  await find.fill('');
+  assert.deepEqual(await shown(), ['expense_approvers *', 'finance', 'night shift *']);
+
+  // Nothing was sent: Ann is as she was.
+  assert.deepEqual((await server.exec('get_user', { id: 'ann' })).user.groups, ['expense_approvers']);
+  assert.deepEqual(wrong, []);
+
+  // On a phone the groups come under the user.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const [above, below] = [await page.locator('#user-card').boundingBox(), await page.locator('#user-groups-card').boundingBox()];
+  assert.ok(above && below && below.y >= above.y + above.height && Math.abs(below.x - above.x) < 2);
+  assert.ok(await fits(page), 'the page of a user fits a phone');
+  await context.close();
+});
+
 // From here on Olga changes what the server holds.
 
 /**
@@ -217,7 +328,7 @@ test('Olga makes a user: the name they sign in by follows their name, and a link
   assert.equal(await page.locator('#to-users').getAttribute('href'), 'settings.html?part=users');
   assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Users');
   assert.equal(await page.evaluate(() => document.activeElement?.id), 'user-name', 'the cursor is in the name');
-  assert.equal(await page.locator('#user-go').innerText(), 'Make the user');
+  assert.equal(await page.locator('#user-go').innerText(), 'Create user');
   assert.ok(await page.locator('#user-disabled-field').isHidden());
   assert.ok(await page.locator('#user-password').isHidden());
 
@@ -376,7 +487,7 @@ test('Olga makes a group by ticking who is in it, changes who is in it, and a gr
   assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Settings', 'Groups', 'A new group']);
   assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Groups');
   assert.equal(await page.evaluate(() => document.activeElement?.id), 'group-name', 'the cursor is in the name');
-  assert.equal(await page.locator('#group-go').innerText(), 'Make the group');
+  assert.equal(await page.locator('#group-go').innerText(), 'Create group');
   assert.equal(await page.locator('#group-members img').count(), 0, 'a name is text');
 
   // A group is its members: it needs a name, and somebody in it; a name that is taken is said, with the way to it.

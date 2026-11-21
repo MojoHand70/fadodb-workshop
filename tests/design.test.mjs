@@ -317,7 +317,7 @@ test('a class with no states and no sections is shown as what it is', async () =
   const reader = await at(jan, 'design.html?class=Margin');
   assert.deepEqual(await linesOf(reader.page.locator('#about .inner').first()), [
     ['See a document', 'nobody: the class leaves this line out'],
-    ['Make a new one', 'nobody: the class leaves this line out'],
+    ['Create a new one', 'nobody: the class leaves this line out'],
     ['Change its values', 'nobody: the class leaves this line out'],
     ['Delete it', 'nobody: the class leaves this line out'],
   ]);
@@ -436,7 +436,7 @@ test('Jan, who is no designer, may read a design he opens by its address, and ca
   await page.click('.pick[data-state=""]');
   assert.deepEqual(await linesOf(page.locator('#about .inner').first()), [
     ['See a document', expense.access.read],
-    ['Make a new one', 'INGROUP("everyone")'],
+    ['Create a new one', 'INGROUP("everyone")'],
     ['Change its values', expense.access.update],
     ['Delete it', 'FALSE'],
   ]);

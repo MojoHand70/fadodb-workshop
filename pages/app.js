@@ -92,7 +92,7 @@ async function showApp(designer) {
 
   const none = part('no-lists');
   none.hidden = app.lists.length > 0;
-  part('no-lists-title').textContent = designer ? 'Make its first class' : 'There is nothing here yet';
+  part('no-lists-title').textContent = designer ? 'Create its first class' : 'There is nothing here yet';
   // A designer has the button. Anybody else is told why the app is empty.
   part('no-lists-about').textContent = designer ? '' : 'A designer is still building this app.';
   part('no-lists-about').hidden = designer;

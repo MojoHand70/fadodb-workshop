@@ -114,7 +114,7 @@ test('Dan is offered a new class on the page of an app; Jan is not', async () =>
   // A class is made inside an app: the app is there first.
   await server.exec('define_app', { definition: { name: 'Travel', label: 'Travel' } });
   const first = await at(dan, 'app.html?app=Travel');
-  assert.equal(await first.page.locator('#no-lists-title').innerText(), 'Make its first class');
+  assert.equal(await first.page.locator('#no-lists-title').innerText(), 'Create its first class');
   assert.ok(await first.page.locator('#first-class').isVisible());
   assert.equal(await first.page.locator('#first-class').getAttribute('href'), 'design.html?new&app=Travel');
   assert.deepEqual(first.wrong, []);
@@ -155,7 +155,7 @@ test('Dan names a class, changes what it begins as, and makes it', async () => {
   assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Travel', 'A new class'], 'the class is made inside the app');
   assert.equal(await page.locator('#to-app').getAttribute('href'), 'app.html?app=Travel');
   assert.ok(await page.locator('#text').isVisible(), 'the page opens on the text');
-  assert.equal(await page.locator('#save').innerText(), 'Make the class');
+  assert.equal(await page.locator('#save').innerText(), 'Create class');
   assert.ok(await page.locator('#save').isEnabled(), 'it may be made as it begins');
   assert.ok(await page.locator('#discard').isDisabled());
   assert.ok(!(await classes()).includes('Trip'), 'nothing is the server\'s yet');
