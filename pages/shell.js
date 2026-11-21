@@ -100,6 +100,17 @@ export function ready() {
   document.documentElement.dataset.ready = 'yes';
 }
 
+/** @type {{ id: string, name?: string, groups?: string[], system_groups?: string[] } | null} */
+let looking = null;
+
+/**
+ * Who is looking, as the server answered when the page asked; nobody
+ * before that. The rail reads it: the settings are an administrator's.
+ */
+export function who() {
+  return looking;
+}
+
 /** Puts the three shared views at the top of the page. */
 function shared() {
   const main = document.querySelector('main');
@@ -170,6 +181,7 @@ export async function enter() {
       await signOut();
       location.reload();
     });
+    looking = user;
     return user;
   } catch (refusal) {
     if (refusal instanceof Refused && refusal.code === 'unauthenticated') {

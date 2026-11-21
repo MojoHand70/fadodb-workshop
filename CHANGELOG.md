@@ -26,9 +26,14 @@ What a user of Workshop would see, newest first.
   them and Enter opens the one that is marked.
 - The first page has no large heading "Apps": the rail says it, and
   the page says "Home" where another page says how it was reached.
-- Settings stand at the foot of the rail, with a cog. Today they show
-  the person what is theirs: their name, the name they sign in by,
-  their groups and the way to their account.
+- Settings stand in the rail under the apps, as Apps stands over
+  them, for a database administrator alone. Under them: Server (its
+  address and the version of its program), Admin (the administrators
+  and the content administrators), Users and Groups. They are read
+  there; nothing is changed from them yet. What is a person's own,
+  their name and their account, is behind their mark in the top bar.
+- In the rail an app is set in under Apps, and a part of the settings
+  under Settings, so that each reads as theirs.
 - On a wide screen the top bar and the rail stay in place while the
   page moves under them.
 - The person stands at the end of the top bar as a round mark with

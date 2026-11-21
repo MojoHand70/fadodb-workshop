@@ -1037,8 +1037,13 @@ h1 {
 
 .rail-way:hover { background: var(--accent-tint); color: var(--ink); }
 .rail-way[aria-current] { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
-.rail-home { font-weight: 600; }
-.rail-app { padding-left: 16px; }
+.rail-head { font-weight: 600; }
+
+/* What stands under Apps and under Settings is set in from them, so
+   that it reads as theirs: an app's square begins past the picture of
+   Apps, and a part of the settings begins where an app's name does. */
+.rail-app { padding-left: 28px; }
+.rail-sub { padding-left: 52px; }
 
 /* An app goes by its colour, here a small square before its name.
    Unassigned, which is no app, has a grey one. */
@@ -1055,10 +1060,8 @@ h1 {
 
 .rail-picture { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--accent-strong); stroke-width: 1.6; stroke-linejoin: round; }
 
-/* Settings stand at the foot of the rail. */
-.rail-settings { margin-top: auto; }
-.rail-settings .rail-picture { stroke: var(--ink-2); }
-.rail-settings[aria-current] .rail-picture { stroke: var(--accent-strong); }
+/* Settings stand under the apps, as Apps stands over them. */
+.rail-settings { margin-top: 12px; }
 
 /* Each app has a colour of its own, by its place among the apps. */
 
@@ -1094,7 +1097,7 @@ h1 {
 .home-none { margin: 0; color: var(--ink-2); }
 
 .framed #home,
-.framed #settings { padding-top: 14px; }
+.framed .settings-part { padding-top: 14px; }
 
 /* What only a person who hears the page needs: there, and not seen. */
 
@@ -1153,6 +1156,18 @@ h1 {
 .facts .mono { font: 500 13.5px/1.5 var(--mono); }
 .card.settings-card { max-width: 560px; }
 .card.settings-card h2 { margin-bottom: 12px; }
+.card.settings-card + .settings-card { margin-top: 16px; }
+.settings-card .facts:last-child { margin-bottom: 0; }
+
+/* The people of a group: a name, and beside it the name they sign in by. */
+.card .people { margin: 0; padding: 0; list-style: none; }
+.card .person { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0; padding: 8px 0; border-top: 1px solid var(--line-2); }
+.card .person:first-child { border-top: 0; padding-top: 0; }
+.card .person:last-child { padding-bottom: 0; }
+.person-name { font-weight: 500; overflow-wrap: anywhere; }
+.person-id { color: var(--ink-2); font: 500 13.5px/1.5 var(--mono); overflow-wrap: anywhere; }
+.person-none { color: var(--ink-2); }
+.list-code { font: 500 13.5px/1.5 var(--mono); overflow-wrap: anywhere; }
 
 .tiles {
   display: grid;
@@ -1311,8 +1326,9 @@ h1 {
     border-bottom: 1px solid var(--line-2);
   }
   .rail-way { flex: none; overflow-wrap: normal; white-space: nowrap; }
-  .rail-app { padding-left: 12px; }
-  .rail .rail-settings { margin-top: 0; margin-left: auto; }
+  .rail-app,
+  .rail-sub { padding-left: 12px; }
+  .rail .rail-settings { margin-top: 0; }
 }
 
 @media (max-width: 640px) {
@@ -1322,8 +1338,8 @@ h1 {
 }
 
 /* On a wide screen the top bar and the rail stay where they are while
-   the page moves under them, so that the box at the top and Settings
-   at the foot of the rail are always at hand. */
+   the page moves under them, so that the box at the top and the ways
+   of the rail are always at hand. */
 
 @media (min-width: 801px) {
   .framed .top { position: sticky; top: 0; }
