@@ -85,7 +85,7 @@ test('Ann signs in on the server\'s page and sees her name and the apps, each wi
   assert.equal(await page.locator('.tile[data-app="Helpdesk"] .tile-list').count(), 0);
 
   // The rail at the side names the apps too.
-  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Expenses', 'Help desk', 'Unassigned', 'Settings']);
+  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Expenses', 'Help desk', 'Unassigned']);
   assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Apps');
 
   // What belongs to no app is not on this page: it stands under Unassigned, last in the rail.
@@ -354,33 +354,32 @@ test('on a page other than the first, the box in the top bar lists the apps that
   await context.close();
 });
 
-test('Settings stand at the foot of the rail and show the person what is theirs', async () => {
+test('what stands under Apps is set in from it, and Ann, who administers nothing, has no Settings', async () => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
   const { wrong } = watch(page);
   await annSignsIn(page);
 
-  const way = page.locator('#rail-settings');
-  assert.equal(await way.innerText(), 'Settings');
-  assert.equal(await page.locator('#rail .rail-way').last().getAttribute('id'), 'rail-settings');
-  // At the foot: under every app, at the bottom of the window.
-  const [rail, box] = [await page.locator('#rail').boundingBox(), await way.boundingBox()];
-  assert.ok(rail && box && box.y + box.height > rail.y + rail.height - 40 && box.y + box.height <= 800, 'the way to the settings is at the foot of the rail, in sight');
+  /** Where the words of a way of the rail begin, from the left of the window. */
+  const begins = (/** @type {string} */ way) =>
+    page.locator(way).first().evaluate((one) => {
+      const walker = document.createTreeWalker(one, NodeFilter.SHOW_TEXT);
+      const words = document.createRange();
+      words.selectNodeContents(/** @type {Node} */ (walker.nextNode()));
+      return Math.round(words.getBoundingClientRect().left);
+    });
+  const [apps, app, unassigned] = [await begins('#rail .rail-home'), await begins('#rail .rail-app'), await begins('#rail-unassigned')];
+  assert.ok(app >= apps + 8, `the name of an app begins to the right of the word Apps: ${app} against ${apps}`);
+  assert.equal(unassigned, app, 'Unassigned stands as an app does');
 
-  await way.click();
-  await page.waitForURL((address) => address.pathname === '/settings.html');
+  // The settings are a database administrator's: no way to them, and their address leads Home.
+  assert.equal(await page.locator('#rail-settings, #rail .rail-sub').count(), 0);
+  await page.goto(`${site.url}settings.html?part=users`);
+  await page.waitForURL(site.url);
   await ready(page);
-  assert.equal(await page.title(), 'Settings · FadoDB Workshop');
-  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Settings']);
-  assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Settings');
-  assert.equal(await page.locator('#you-name').innerText(), 'Ann Kowalska');
-  assert.equal(await page.locator('#you-id').innerText(), 'ann');
-  assert.match(await page.locator('#you-groups').innerText(), /\bexpense_approvers\b/);
-  assert.equal(await page.locator('#you-account').getAttribute('href'), '/auth/account');
+  assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Apps');
+  assert.equal(await page.locator('#users-rows tr').count(), 0);
   assert.deepEqual(wrong, []);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  assert.ok(await fits(page), 'the settings fit a phone');
   await context.close();
 });
 

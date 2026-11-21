@@ -75,7 +75,7 @@ test('a server with no app asks a designer to create the first one, and tells an
   assert.equal(await first.page.locator('#first-go').getAttribute('href'), 'app.html?new');
   assert.ok(await first.page.locator('#apps').isHidden(), 'there is no tile, and none that adds one beside nothing');
   // The engine's own class is there from the first day, in no app: it stands under Unassigned.
-  assert.deepEqual(await first.page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Unassigned', 'Settings']);
+  assert.deepEqual(await first.page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Unassigned']);
   assert.equal(await first.page.locator('#rail-unassigned').getAttribute('href'), 'app.html?unassigned');
   assert.deepEqual(first.wrong, []);
   await first.page.setViewportSize({ width: 390, height: 844 });
@@ -140,7 +140,7 @@ test('Dan makes the first app, and its first class inside it', async () => {
   assert.equal(await page.locator('#app-name').innerText(), 'Helpdesk');
   assert.equal(await page.locator('#no-lists-title').innerText(), 'Make its first class');
   assert.ok(await page.locator('#no-lists-about').isHidden(), 'and no sentence explains what a class is');
-  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'The help desk', 'Unassigned', 'Settings']);
+  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'The help desk', 'Unassigned']);
   assert.equal(await page.locator('#first-class').getAttribute('href'), 'design.html?new&app=Helpdesk');
 
   await page.click('#first-class');

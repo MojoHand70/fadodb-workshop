@@ -82,6 +82,22 @@ export async function call(command, object = {}) {
 }
 
 /**
+ * What the server says of itself at its own address for that: whether
+ * it answers, and the version of its program.
+ *
+ * @returns {Promise<{ ok: boolean, version: string }>}
+ * @throws {Refused}
+ */
+export async function health() {
+  try {
+    const body = await (await fetch('/v1/health')).json();
+    return { ok: body?.ok === true, version: String(body?.version ?? '') };
+  } catch {
+    throw new Refused('unreachable', 'The server does not answer.', 0);
+  }
+}
+
+/**
  * Ends the session of this browser, on the server. The server answers by
  * sending the browser to its sign-in page; the answer is read and left,
  * and the person stays where they are.

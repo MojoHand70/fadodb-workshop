@@ -11,8 +11,10 @@ what it is for, and the lists a person opens in it, with the apps
 again in a rail at the side, each in a colour of its own. A box in the
 top bar of every page finds an app by a part of its name or of a
 list's. The person stands at the end of that bar; a press there opens
-their account and signing out. Settings, at the foot of the rail, show
-the person what is theirs. From an app a person opens a list, makes a
+their account and signing out. A database administrator has Settings
+in the rail under the apps: the server's address and version, who
+administers it, its users and their groups. They are read there;
+nothing is changed from them yet. From an app a person opens a list, makes a
 new document, and opens one. Every page says where the person is: Home,
 the app, the list. That a list has a class behind it is a designer's
 to know: the pages say the word to a designer alone. A server with no

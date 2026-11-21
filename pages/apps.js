@@ -7,7 +7,7 @@
 // said by the class. This module asks once and puts the two together.
 
 import { call } from './fado.js';
-import { make } from './shell.js';
+import { make, who } from './shell.js';
 
 /**
  * A list a person may open: the documents of one class.
@@ -120,8 +120,22 @@ export const UNASSIGNED = 'Unassigned';
 /** The page of the lists that belong to no app. */
 export const unassignedAddress = 'app.html?unassigned';
 
-/** The page of the settings. */
+/** The page of the settings: it opens their first part. */
 export const settingsAddress = 'settings.html';
+
+/**
+ * The parts of the settings, in the order the rail names them. They are
+ * a database administrator's.
+ */
+export const SETTINGS = [
+  { part: 'server', words: 'Server' },
+  { part: 'admin', words: 'Admin' },
+  { part: 'users', words: 'Users' },
+  { part: 'groups', words: 'Groups' },
+];
+
+/** @param {string} part the name of a part of the settings */
+export const settingsPart = (part) => `settings.html?part=${encodeURIComponent(part)}`;
 
 /**
  * What an app says of itself, for the box that finds one: its own
@@ -176,16 +190,17 @@ function cogPicture() {
 }
 
 /**
- * Draws the rail at the side: Apps, under it each app by its name, then
- * Unassigned, where a list belongs to no app, and at its foot Settings.
+ * Draws the rail at the side: Apps, and under it each app by its name
+ * and Unassigned, where a list belongs to no app; then, for a database
+ * administrator, Settings, and under it each of their parts.
  *
  * @param {HTMLElement} rail
  * @param {App[]} apps
  * @param {boolean} unassigned whether Unassigned is named: a list belongs to no app, or the page is about them
- * @param {string} here the address of the page the person is on: './' for the first page, that of an app, of Unassigned or of the settings
+ * @param {string} here the address of the page the person is on: './' for the first page, that of an app, of Unassigned or of a part of the settings
  */
 export function drawRail(rail, apps, unassigned, here) {
-  const home = make('a', 'rail-way rail-home');
+  const home = make('a', 'rail-way rail-head rail-home');
   home.setAttribute('href', './');
   home.append(appsPicture(), make('span', '', 'Apps'));
   rail.replaceChildren(home);
@@ -201,11 +216,19 @@ export function drawRail(rail, apps, unassigned, here) {
     way.setAttribute('href', unassignedAddress);
     rail.append(way);
   }
-  const settings = make('a', 'rail-way rail-settings');
-  settings.id = 'rail-settings';
-  settings.setAttribute('href', settingsAddress);
-  settings.append(cogPicture(), make('span', '', 'Settings'));
-  rail.append(settings);
+  if ((who()?.system_groups ?? []).includes('administrators')) {
+    const settings = make('a', 'rail-way rail-head rail-settings');
+    settings.id = 'rail-settings';
+    settings.setAttribute('href', settingsAddress);
+    settings.append(cogPicture(), make('span', '', 'Settings'));
+    rail.append(settings);
+    for (const { part, words } of SETTINGS) {
+      const way = make('a', 'rail-way rail-sub', words);
+      way.id = `rail-settings-${part}`;
+      way.setAttribute('href', settingsPart(part));
+      rail.append(way);
+    }
+  }
   for (const way of rail.querySelectorAll('.rail-way')) {
     if (way.getAttribute('href') === here) way.setAttribute('aria-current', 'page');
   }
