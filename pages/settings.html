@@ -70,13 +70,17 @@
 
     <section class="settings-part" data-view="users" id="users" hidden>
       <h1 class="unseen">Users</h1>
-      <div class="settings-do"><a class="button" id="new-user" href="settings.html?part=users&amp;new">New user</a></div>
-      <div class="table-box">
+      <div class="settings-do">
+        <input class="input settings-find" id="users-find" type="search" aria-label="Find a user" placeholder="Find a user" autocomplete="off" spellcheck="false">
+        <a class="button" id="new-user" href="settings.html?part=users&amp;new">New user</a>
+      </div>
+      <div class="table-box" id="users-box">
         <table class="list" id="users-table">
           <thead><tr><th>Name</th><th>Signs in as</th><th>Kind</th><th>System groups</th><th>Groups</th></tr></thead>
           <tbody id="users-rows"></tbody>
         </table>
       </div>
+      <p class="home-none" id="no-users-found" role="status" aria-live="polite" hidden></p>
     </section>
 
     <section class="settings-part" data-view="groups" id="groups" hidden>
@@ -94,7 +98,8 @@
     <!-- One user: a new one, or one the server has. -->
     <section class="settings-part" data-view="user" id="user" hidden>
       <h1 class="unseen" id="user-title">A user</h1>
-      <form class="card begin" id="user-form" novalidate>
+      <form class="user-form" id="user-form" novalidate>
+       <div class="card begin" id="user-card">
         <div class="field">
           <p class="field-label"><label for="user-name">Name</label></p>
           <input class="input" id="user-name" name="name" autocomplete="off" placeholder="Eve Lis">
@@ -119,24 +124,32 @@
           <legend class="field-label">System groups</legend>
           <div id="user-system"></div>
         </fieldset>
-        <fieldset class="field choices">
-          <legend class="field-label">Groups</legend>
-          <div id="user-groups"></div>
-          <div class="adder-form choices-add">
-            <input class="input input-mono" id="user-group-new" aria-label="Another group" placeholder="Another group" autocomplete="off" autocapitalize="off" spellcheck="false">
-            <button class="button button-plain button-small" id="user-group-add" type="button">Add</button>
-          </div>
-        </fieldset>
         <div class="tick" id="user-disabled-field" hidden>
           <input class="check" id="user-disabled" name="disabled" type="checkbox">
           <label class="tick-label" for="user-disabled">Disabled</label>
         </div>
         <p class="field-why" id="user-why" role="alert"></p>
         <button class="button" id="user-go" type="submit">Save</button>
+       </div>
+       <fieldset class="card user-groups-card" id="user-groups-card">
+        <legend class="unseen">Groups</legend>
+        <h2 aria-hidden="true">Groups</h2>
+        <div class="groups-tools">
+          <input class="input" id="user-groups-find" type="search" aria-label="Find a group" placeholder="Find a group" autocomplete="off" spellcheck="false">
+          <div class="groups-show" id="user-groups-show" role="radiogroup" aria-label="Which groups are shown"></div>
+        </div>
+        <p class="groups-shown" id="user-groups-shown"></p>
+        <div class="choices" id="user-groups"></div>
+        <p class="choices-none" id="user-groups-none" role="status" aria-live="polite" hidden></p>
+        <div class="adder-form choices-add">
+          <input class="input input-mono" id="user-group-new" aria-label="Another group" placeholder="Another group" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button class="button button-plain button-small" id="user-group-add" type="button">Add</button>
+        </div>
+       </fieldset>
       </form>
       <div class="card settings-card" id="user-password" hidden>
         <h2>Password</h2>
-        <button class="button button-plain" id="user-link-go" type="button">Make a link to set a password</button>
+        <button class="button button-plain" id="user-link-go" type="button">Create a link to set a password</button>
         <div class="link-box" id="user-link-box" hidden>
           <input class="input input-mono" id="user-link" aria-label="The link" readonly>
           <button class="button button-plain button-small" id="user-link-copy" type="button">Copy</button>

@@ -248,7 +248,7 @@ export function linesOf(definition) {
   const access = definition.access ?? {};
   return [
     { line: 'read', what: 'See a document' },
-    { line: 'create', what: 'Make a new one' },
+    { line: 'create', what: 'Create a new one' },
     { line: 'update', what: 'Change its values' },
     { line: 'delete', what: 'Delete it' },
   ].map(({ line, what }) => ({ line, what, formula: access[line] !== undefined ? text(access[line]) : null }));

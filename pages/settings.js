@@ -8,6 +8,7 @@
 
 import { SETTINGS, drawRail, readApps, settingsPart } from './apps.js';
 import { Refused, call, health } from './fado.js';
+import { found } from './find.js';
 import { finder } from './finder.js';
 import { crumbs, enter, idFrom, make, part, ready, show } from './shell.js';
 
@@ -24,6 +25,40 @@ const SYSTEM = [
   { name: 'content-administrators', words: 'Content administrators' },
   { name: 'analysts', words: 'Analysts' },
 ];
+
+/** Which groups the page of a user shows, by the words a person reads. */
+const SHOWN = /** @type {[string, string][]} */ ([
+  ['in', 'Belongs to'],
+  ['out', "Doesn't belong to"],
+  ['all', 'All groups'],
+]);
+
+/**
+ * The picture of one way the groups are shown: a ring with a tick in
+ * it, a ring with a stroke in it, and three lines.
+ *
+ * @param {string} shown
+ */
+function shownPicture(shown) {
+  const space = 'http://www.w3.org/2000/svg';
+  const picture = document.createElementNS(space, 'svg');
+  picture.setAttribute('class', 'groups-show-picture');
+  picture.setAttribute('viewBox', '0 0 18 18');
+  picture.setAttribute('aria-hidden', 'true');
+  const draw = (/** @type {string} */ tag, /** @type {Record<string, string>} */ says) => {
+    const one = document.createElementNS(space, tag);
+    for (const [name, value] of Object.entries(says)) one.setAttribute(name, value);
+    picture.append(one);
+  };
+  if (shown === 'all') {
+    for (const y of ['5', '9', '13']) draw('line', { x1: '3.5', y1: y, x2: '14.5', y2: y });
+  } else {
+    draw('circle', { cx: '9', cy: '9', r: '6.6' });
+    if (shown === 'in') draw('polyline', { points: '5.9,9.3 8.1,11.4 12.2,6.9' });
+    else draw('line', { x1: '6', y1: '9', x2: '12', y2: '9' });
+  }
+  return picture;
+}
 
 const usersAddress = settingsPart('users');
 const newUserAddress = `${usersAddress}&new`;
@@ -143,6 +178,24 @@ function showUsers(users) {
     row.append(name, id, cell('Kind', 'short', String(user.kind ?? '')), cell('System groups', '', (user.system_groups ?? []).join(', ')), cell('Groups', '', (user.groups ?? []).join(', ')));
     rows.append(row);
   }
+
+  // A user is found by a part of anything their row says: a name, the name they sign in by, a kind, a group.
+  const find = /** @type {HTMLInputElement} */ (part('users-find'));
+  const none = part('no-users-found');
+  const narrow = () => {
+    let left = 0;
+    users.forEach((user, at) => {
+      const is = found([nameOf(user), String(user.id), String(user.kind ?? ''), ...(user.system_groups ?? []), ...(user.groups ?? []), user.disabled ? 'disabled' : ''], find.value);
+      /** @type {HTMLElement} */ (rows.children[at]).hidden = !is;
+      if (is) left++;
+    });
+    part('users-box').hidden = left === 0;
+    none.hidden = left > 0;
+    none.textContent = left > 0 ? '' : `Nothing here goes by "${find.value.trim()}".`;
+  };
+  find.addEventListener('input', narrow);
+  // A browser that brings the person back may bring what they had typed too.
+  narrow();
 }
 
 /**
@@ -189,11 +242,11 @@ function showGroups(users) {
 async function showUser(users, id) {
   const fresh = id === '';
   /** @type {User | undefined} */
-  let found = fresh ? { id: '', kind: 'person', groups: [], system_groups: [] } : users.find((one) => one.id === id);
+  let held = fresh ? { id: '', kind: 'person', groups: [], system_groups: [] } : users.find((one) => one.id === id);
   // A user the list does not have: the server says so in its own words.
-  if (!found) found = (await call('get_user', { id })).user;
-  if (!found) throw new Refused('unknown_user', `The server has no user ${id}.`, 0);
-  const user = found;
+  if (!held) held = (await call('get_user', { id })).user;
+  if (!held) throw new Refused('unknown_user', `The server has no user ${id}.`, 0);
+  const user = held;
   const words = fresh ? 'A new user' : nameOf(user);
   crumbs([{ words: 'Settings' }, { words: 'Users', href: usersAddress, id: 'to-users' }, { words }]);
   document.title = `${words} · FadoDB Workshop`;
@@ -214,7 +267,7 @@ async function showUser(users, id) {
   signs.readOnly = !fresh;
   kind.disabled = !fresh;
   part('user-disabled-field').hidden = fresh;
-  part('user-go').textContent = fresh ? 'Make the user' : 'Save';
+  part('user-go').textContent = fresh ? 'Create user' : 'Save';
   const person = () => kind.value === 'person';
   const mail = () => {
     part('user-email-field').hidden = !person();
@@ -226,17 +279,66 @@ async function showUser(users, id) {
   for (const one of system) one.input.setAttribute('data-system', one.name);
   part('user-system').replaceChildren(...system.map((one) => one.box));
 
-  /** @type {{ name: string, input: HTMLInputElement }[]} */
+  // The groups, in a container of their own beside the user: all the
+  // server has, those the user belongs to or those it does not, and
+  // among them the ones that go by what was typed.
+  /** @type {{ name: string, input: HTMLInputElement, box: HTMLElement }[]} */
   const groups = [];
   const box = part('user-groups');
   box.replaceChildren();
   const add = (/** @type {string} */ group, /** @type {boolean} */ ticked) => {
     const made = tick(`user-group-${groups.length}`, group, ticked);
     made.input.setAttribute('data-group', group);
-    groups.push({ name: group, input: made.input });
+    groups.push({ name: group, input: made.input, box: made.box });
     box.append(made.box);
   };
   for (const group of new Set([...groupsOf(users).keys(), ...(user.groups ?? [])])) add(group, (user.groups ?? []).includes(group));
+
+  const findGroup = /** @type {HTMLInputElement} */ (part('user-groups-find'));
+  let showing = 'all';
+  /**
+   * Shows the groups that are asked for. It is called when what is asked
+   * changes, and not at a tick: a group just ticked or unticked stays
+   * where it is, under the person's hand.
+   */
+  const showGroupsAsked = () => {
+    let left = 0;
+    for (const one of groups) {
+      const is = (showing === 'all' || (showing === 'in') === one.input.checked) && found([one.name], findGroup.value);
+      one.box.hidden = !is;
+      if (is) left++;
+    }
+    const typed = findGroup.value.trim();
+    const none = part('user-groups-none');
+    none.hidden = left > 0;
+    none.textContent = left > 0 ? '' : typed ? `Nothing here goes by "${typed}".` : groups.length === 0 ? 'No groups yet.' : showing === 'in' ? 'In no group.' : 'In every group.';
+    part('user-groups-shown').textContent = SHOWN.find(([name]) => name === showing)?.[1] ?? '';
+  };
+  const ways = part('user-groups-show');
+  ways.replaceChildren();
+  for (const [name, words] of SHOWN) {
+    const one = make('label', 'groups-show-one');
+    one.setAttribute('title', words);
+    const input = /** @type {HTMLInputElement} */ (make('input', 'look-input'));
+    input.type = 'radio';
+    input.name = 'user-groups-show';
+    input.value = name;
+    input.checked = name === showing;
+    input.setAttribute('aria-label', words);
+    input.addEventListener('change', () => {
+      showing = name;
+      showGroupsAsked();
+    });
+    one.append(input, shownPicture(name));
+    ways.append(one);
+  }
+  findGroup.addEventListener('input', showGroupsAsked);
+  // Enter in the box that finds a group does not send the form.
+  findGroup.addEventListener('keydown', (pressed) => {
+    if (pressed.key === 'Enter') pressed.preventDefault();
+  });
+  showGroupsAsked();
+
   const another = /** @type {HTMLInputElement} */ (part('user-group-new'));
   const addAnother = () => {
     const group = another.value.trim();
@@ -245,6 +347,10 @@ async function showUser(users, id) {
     if (has) has.input.checked = true;
     else add(group, true);
     another.value = '';
+    // What was just added is shown, whatever is asked for.
+    const added = groups.find((one) => one.name === group);
+    if (added) added.box.hidden = false;
+    part('user-groups-none').hidden = true;
   };
   part('user-group-add').addEventListener('click', addAnother);
   // Enter in the box adds the group; it does not send the form.
@@ -343,7 +449,7 @@ function showGroup(users, group) {
   // A group is the word its members carry: there is nothing of its own
   // to rename, and the way above says which group this is.
   part('group-name-field').hidden = !fresh;
-  part('group-go').textContent = fresh ? 'Make the group' : 'Save';
+  part('group-go').textContent = fresh ? 'Create group' : 'Save';
 
   const members = users.map((user, at) => {
     const made = tick(`group-member-${at}`, nameOf(user), !fresh && (user.groups ?? []).includes(group), String(user.id));

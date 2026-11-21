@@ -138,7 +138,7 @@ test('Dan makes the first app, and its first class inside it', async () => {
   assert.equal(await page.locator('#app-title').innerText(), 'The help desk');
   assert.equal(await page.locator('#app-about').innerText(), 'Requests to IT, from the first message to the fix.');
   assert.equal(await page.locator('#app-name').innerText(), 'Helpdesk');
-  assert.equal(await page.locator('#no-lists-title').innerText(), 'Make its first class');
+  assert.equal(await page.locator('#no-lists-title').innerText(), 'Create its first class');
   assert.ok(await page.locator('#no-lists-about').isHidden(), 'and no sentence explains what a class is');
   assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'The help desk', 'Unassigned']);
   assert.equal(await page.locator('#first-class').getAttribute('href'), 'design.html?new&app=Helpdesk');

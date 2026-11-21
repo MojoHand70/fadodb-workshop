@@ -1326,8 +1326,31 @@ h1 {
 .person-name a:hover { color: var(--accent-strong); }
 
 /* What an administrator does on a part of the settings stands over it, at the right. */
-.settings-do { display: flex; justify-content: flex-end; margin: 0 0 12px; }
+.settings-do { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; margin: 0 0 12px; }
 .settings-do .button { min-height: 40px; padding: 0 16px; font-size: 14px; }
+/* The box that finds one of the list stands at the left, what is done at the right. */
+.settings-find { flex: 0 1 320px; min-width: 160px; min-height: 40px; margin-right: auto; }
+
+/* A user: what they are at the left, their groups in a container of their own at the right. */
+.user-form { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 400px); align-items: start; gap: 16px; }
+.user-form .begin { max-width: none; }
+.user-form + .settings-card { margin-top: 16px; }
+.user-groups-card { display: grid; gap: 10px; align-content: start; min-width: 0; margin: 0; }
+.user-groups-card h2 { margin: 0; }
+.groups-tools { display: flex; align-items: center; gap: 8px; }
+.groups-tools .input { flex: 1 1 auto; min-width: 0; min-height: 36px; }
+/* Which groups are shown: three pictures in a row, the chosen one raised. */
+.groups-show { display: flex; flex: none; padding: 3px; border-radius: 10px; background: var(--bg-2); }
+.groups-show-one { position: relative; cursor: pointer; }
+.groups-show-picture { display: block; width: 34px; height: 30px; padding: 6px 8px; border-radius: 8px; fill: none; stroke: var(--ink-2); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.look-input:checked + .groups-show-picture { background: var(--surface); stroke: var(--accent-strong); box-shadow: 0 1px 2px rgba(var(--shade), .12); }
+.look-input:focus-visible + .groups-show-picture { outline: 2px solid var(--accent); outline-offset: 1px; }
+.groups-shown { margin: 0; color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.user-groups-card .choices-add { margin-top: 2px; }
+
+@media (max-width: 1080px) {
+  .user-form { grid-template-columns: minmax(0, 560px); }
+}
 
 /* A choice of several: a tick for each, under one heading. */
 .choices { min-width: 0; margin: 0; padding: 0; border: 0; }

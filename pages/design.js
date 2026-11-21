@@ -2386,7 +2386,7 @@ function bar() {
   part('class-changed').hidden = making || !changed;
   /** @type {HTMLButtonElement} */ (part('discard')).disabled = !changed;
   /** @type {HTMLButtonElement} */ (part('save')).disabled = !making && !changed;
-  say(part('save'), making ? 'Make the class' : changed ? `Save as version ${held.version + 1}` : 'Save');
+  say(part('save'), making ? 'Create class' : changed ? `Save as version ${held.version + 1}` : 'Save');
 }
 
 /** Follows the text when it changed: the bar, and what was found in the text as it was. */

@@ -44,6 +44,13 @@ What a user of Workshop would see, newest first.
   their name, e-mail, system groups and groups, and whether they may
   sign in; for a person it makes the link by which they set their
   password, shown once. What the server refuses is said in its words.
+- The list of users has a box that finds a user by a part of anything
+  their row says: a name, the name they sign in by, a kind, a group.
+- On a user's page the groups stand in a container of their own beside
+  the user, with a box that finds a group and three ways to show them:
+  those the user belongs to, those they do not, and all.
+- A button that begins something says "Create": "Create user", "Create
+  group", "Create app", "Create class".
 - An administrator makes a group under Settings, Groups, by ticking
   who is in it, and changes who is in it on the group's page. A group
   nobody is in is gone: the server keeps a group as a word on its
