@@ -26,6 +26,12 @@ What a user of Workshop would see, newest first.
   them and Enter opens the one that is marked.
 - The first page has no large heading "Apps": the rail says it, and
   the page says "Home" where another page says how it was reached.
+- A person chooses how Workshop looks to them, in their menu at the end
+  of the top bar: one of six schemes of colours (Fado Standard, Ocean,
+  Meadow, Sunset, Rose, Graphite), and Light, Dark or System, the shade
+  of their machine. The choice shows at once and is kept in their
+  browser (ADR-0008, Proposed). Nothing changes for a person who
+  chooses nothing.
 - Settings stand in the rail under the apps, as Apps stands over
   them, for a database administrator alone. Under them: Server (its
   address and the version of its program), Admin (the administrators

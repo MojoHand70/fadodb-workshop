@@ -17,6 +17,7 @@ npx playwright install chromium firefox webkit   # the browsers the pages are ch
 npm run vendor                           # what comes from outside, into pages/vendor/: the engine's file, and CodeMirror built into one
 fadodb serve acme.db --pages pages       # Workshop, handed out by a FadoDB server
 npm run serve                            # pages/ alone at http://127.0.0.1:8717/, no server behind
+node tools/schemes.mjs                   # the colours of the schemes (ADR-0008), worked out and written into pages/workshop.css
 FADODB_BIN=/path/to/fadodb npm run check # the types, then the pages in the browser
 SLOW=6 npm test                          # the same tests with the page six times slower (Chromium)
 TEST_BROWSER=firefox npm test            # the same tests in Firefox; webkit is the engine of Safari

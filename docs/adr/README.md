@@ -18,3 +18,4 @@ Where a record says "the engine's ADR", it means a record of FadoDB.
 | [0005](0005-a-page-works-a-document-out.md) | A page works a document out with the engine's own file for the browser | Accepted |
 | [0006](0006-the-pages-carry-their-typefaces.md) | The pages carry their typefaces | Accepted |
 | [0007](0007-colours-of-its-own.md) | Workshop has colours of its own: light pastel, and a colour for each app | Proposed |
+| [0008](0008-a-person-chooses-their-look.md) | A person chooses how Workshop looks to them: six schemes, each light and dark | Proposed |
