@@ -1,5 +1,6 @@
 /* The look of Workshop. The colours are its own: light and pastel,
-   with a colour for each app (ADR-0007). The typefaces are those of
+   with a colour for each app (ADR-0007), in the scheme and the shade
+   a person chose (ADR-0008). The typefaces are those of
    fadodb.org: Inter for words, JetBrains Mono for names and numbers
    written as a program reads them (ADR-0006). Each comes in two files,
    the letters of western Europe and the rest of the Latin alphabet; a
@@ -55,8 +56,21 @@
   --accent-strong: #5546C9;
   --accent-soft: #E3DEFF;
   --accent-tint: #F3F0FF;
+  /* What is written on something pressed. */
+  --on-accent: #FFFFFF;
   --wip: #7A5410;
   --wip-bg: #F6EBD3;
+  /* What is wrong: its words, its ground, the line round it, the edge of a field. */
+  --bad: #7A2318;
+  --bad-bg: #FBEFEC;
+  --bad-line: #E5BDB5;
+  --bad-edge: #B4442F;
+  /* Inside a formula and a class as text: a text and a number. */
+  --code-text: #1F6B4F;
+  --code-number: #8A4B00;
+  /* The square of what is no app, and what lies over a colour to quiet it. */
+  --mute: #B9B6C6;
+  --glass: rgba(255, 255, 255, .8);
   /* The colour of a shadow, as three numbers for rgba(). */
   --shade: 38, 35, 56;
   --radius: 18px;
@@ -69,7 +83,121 @@
   --h5-bg: #FFDCE7; --h5-fg: #B02A59;
   --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  color-scheme: light;
 }
+
+/* The colours above are Fado Standard in the light shade, as the owner
+   chose them by eye. A person may choose another scheme, and the dark
+   shade of any (ADR-0008): pages/look-early.js says which on the root
+   of the page, before the page is drawn. The colours of the others are
+   worked out from one ladder of lightness, so that what is read keeps
+   its contrast in every one of them. */
+
+:root[data-shade="dark"] {
+  --shade: 0, 0, 0;
+  --glass: rgba(0, 0, 0, .28);
+  color-scheme: dark;
+}
+
+/* schemes: begin (written by tools/schemes.mjs, not by hand) */
+
+:root[data-shade="dark"] {
+  --bg: #0F0E17; --bg-2: #16141F; --surface: #1E1C29; --ink: #EBEAF3;
+  --ink-2: #B1AEC2; --line: #373445; --line-2: #2B2937; --edge: #817AA2;
+  --accent: #A6A6FF; --accent-strong: #BFC1FF; --accent-soft: #372C5B; --accent-tint: #27223B;
+  --on-accent: #141423; --wip: #ECC980; --wip-bg: #392C0C; --bad: #FEAC9E;
+  --bad-bg: #3B1C17; --bad-line: #723B32; --bad-edge: #ED7665; --code-text: #82D9B4;
+  --code-number: #F5BF81; --mute: #71707D; --h0-bg: #083C2D; --h0-fg: #8CE6C4;
+  --h1-bg: #4C2817; --h1-fg: #FFC1A5; --h2-bg: #1A3450; --h2-fg: #B0D5FF;
+  --h3-bg: #332C54; --h3-fg: #D0C9FF; --h4-bg: #403106; --h4-fg: #F3D489;
+  --h5-bg: #4C252F; --h5-fg: #FFBCCA;
+}
+
+:root[data-scheme="ocean"] {
+  --bg: #F5FBFF; --bg-2: #E7F4FD; --surface: #FFFFFF; --ink: #132938;
+  --ink-2: #496375; --line: #CDE4F5; --line-2: #DDEDFA; --edge: #5C99C4;
+  --accent: #0074D1; --accent-strong: #0061B0; --accent-soft: #C9E8FE; --accent-tint: #E7F5FF;
+  --on-accent: #FFFFFF;
+}
+
+:root[data-scheme="ocean"][data-shade="dark"] {
+  --bg: #081016; --bg-2: #0D171F; --surface: #132028; --ink: #E4ECF3;
+  --ink-2: #A2B4C1; --line: #283945; --line-2: #1F2D37; --edge: #5F85A1;
+  --accent: #73B5FF; --accent-strong: #9ECCFF; --accent-soft: #003958; --accent-tint: #0F293A;
+  --on-accent: #0C1723;
+}
+
+:root[data-scheme="meadow"] {
+  --bg: #F6FCF8; --bg-2: #E8F6EC; --surface: #FFFFFF; --ink: #162C1E;
+  --ink-2: #4C6654; --line: #CFE7D6; --line-2: #DFF0E4; --edge: #61A178;
+  --accent: #00864B; --accent-strong: #007440; --accent-soft: #CCECD6; --accent-tint: #E9F7ED;
+  --on-accent: #FFFFFF;
+}
+
+:root[data-scheme="meadow"][data-shade="dark"] {
+  --bg: #09120C; --bg-2: #0E1912; --surface: #152219; --ink: #E5EEE8;
+  --ink-2: #A4B7A9; --line: #2A3B30; --line-2: #212F26; --edge: #638B71;
+  --accent: #65C98C; --accent-strong: #91DBAB; --accent-soft: #024122; --accent-tint: #122D1D;
+  --on-accent: #0A1A10;
+}
+
+:root[data-scheme="sunset"] {
+  --bg: #FEF9F5; --bg-2: #FBEFE5; --surface: #FFFFFF; --ink: #342211;
+  --ink-2: #705A45; --line: #F0DCC9; --line-2: #F7E8DB; --edge: #BB8957;
+  --accent: #C04700; --accent-strong: #A23A00; --accent-soft: #F9DEC4; --accent-tint: #FCF0E5;
+  --on-accent: #FFFFFF;
+}
+
+:root[data-scheme="sunset"][data-shade="dark"] {
+  --bg: #150E07; --bg-2: #1D140B; --surface: #261C12; --ink: #F1EAE3;
+  --ink-2: #BEAE9F; --line: #423426; --line-2: #35291E; --edge: #9A795A;
+  --accent: #F6946D; --accent-strong: #FFB294; --accent-soft: #4F2C00; --accent-tint: #35210D;
+  --on-accent: #22110B;
+}
+
+:root[data-scheme="rose"] {
+  --bg: #FFF8FB; --bg-2: #FCEDF3; --surface: #FFFFFF; --ink: #351E29;
+  --ink-2: #725562; --line: #F3D7E3; --line-2: #F8E5ED; --edge: #C07E9D;
+  --accent: #C82B6B; --accent-strong: #AF0858; --accent-soft: #FCD7E7; --accent-tint: #FEEDF4;
+  --on-accent: #FFFFFF;
+}
+
+:root[data-scheme="rose"][data-shade="dark"] {
+  --bg: #160C10; --bg-2: #1E1217; --surface: #271920; --ink: #F2E8EC;
+  --ink-2: #C0AAB3; --line: #433039; --line-2: #36262D; --edge: #9C7285;
+  --accent: #F48CAB; --accent-strong: #FEACC2; --accent-soft: #53223B; --accent-tint: #371D29;
+  --on-accent: #211015;
+}
+
+:root[data-scheme="graphite"] {
+  --bg: #F9FAFC; --bg-2: #EFF2F5; --surface: #FFFFFF; --ink: #23272C;
+  --ink-2: #5B5F67; --line: #DCE0E7; --line-2: #E8EBF0; --edge: #8A94A4;
+  --accent: #65748D; --accent-strong: #526179; --accent-soft: #DEE3EC; --accent-tint: #F0F3F7;
+  --on-accent: #FFFFFF;
+}
+
+:root[data-scheme="graphite"][data-shade="dark"] {
+  --bg: #0E0F12; --bg-2: #141619; --surface: #1C1E22; --ink: #EAEBEE;
+  --ink-2: #AEB1B6; --line: #34373B; --line-2: #292B2F; --edge: #7A818B;
+  --accent: #A7B2C4; --accent-strong: #BFC8D6; --accent-soft: #2E3642; --accent-tint: #23272D;
+  --on-accent: #141619;
+}
+
+.look-swatch[data-swatch="standard"] { --swatch: #6A5AE0; --swatch-ground: #E3DEFF; }
+.look-swatch[data-swatch="ocean"] { --swatch: #0074D1; --swatch-ground: #C9E8FE; }
+.look-swatch[data-swatch="meadow"] { --swatch: #00864B; --swatch-ground: #CCECD6; }
+.look-swatch[data-swatch="sunset"] { --swatch: #C04700; --swatch-ground: #F9DEC4; }
+.look-swatch[data-swatch="rose"] { --swatch: #C82B6B; --swatch-ground: #FCD7E7; }
+.look-swatch[data-swatch="graphite"] { --swatch: #65748D; --swatch-ground: #DEE3EC; }
+
+:root[data-shade="dark"] .look-swatch[data-swatch="standard"] { --swatch: #A6A6FF; --swatch-ground: #372C5B; }
+:root[data-shade="dark"] .look-swatch[data-swatch="ocean"] { --swatch: #73B5FF; --swatch-ground: #003958; }
+:root[data-shade="dark"] .look-swatch[data-swatch="meadow"] { --swatch: #65C98C; --swatch-ground: #024122; }
+:root[data-shade="dark"] .look-swatch[data-swatch="sunset"] { --swatch: #F6946D; --swatch-ground: #4F2C00; }
+:root[data-shade="dark"] .look-swatch[data-swatch="rose"] { --swatch: #F48CAB; --swatch-ground: #53223B; }
+:root[data-shade="dark"] .look-swatch[data-swatch="graphite"] { --swatch: #A7B2C4; --swatch-ground: #2E3642; }
+
+/* schemes: end */
 
 * { box-sizing: border-box; }
 
@@ -252,6 +380,32 @@ h1 {
   cursor: pointer;
 }
 
+/* How Workshop looks to the person: the scheme by a round swatch each,
+   the shade by three words in a row. */
+.look { display: grid; gap: 10px; margin: 0 0 6px; padding: 4px 12px 12px; border-bottom: 1px solid var(--line-2); }
+.look-name { margin: 0; color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.look-schemes { display: flex; gap: 8px; }
+.look-scheme,
+.look-mode { position: relative; cursor: pointer; }
+/* The choice itself is a radio button, kept for the keyboard and for whoever cannot see the swatch. */
+.look-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.look-swatch {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 5px solid var(--swatch-ground);
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.look-input:checked + .look-swatch { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.look-input:focus-visible + .look-swatch { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+.look-modes { display: flex; padding: 3px; border-radius: 10px; background: var(--bg-2); }
+.look-mode { flex: 1 1 0; }
+.look-mode-words { display: block; padding: 5px 8px; border-radius: 8px; color: var(--ink-2); font-size: 13px; font-weight: 500; text-align: center; }
+.look-input:checked + .look-mode-words { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(var(--shade), .12); }
+.look-input:focus-visible + .look-mode-words { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 .who-way:hover { background: var(--bg-2); color: var(--ink); }
 .who-way:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
 
@@ -273,14 +427,14 @@ h1 {
   border-radius: 12px;
   background: var(--accent);
   box-shadow: 0 1px 2px rgba(var(--shade), .10), 0 6px 14px color-mix(in srgb, var(--accent) 26%, transparent);
-  color: #FFFFFF;
+  color: var(--on-accent);
   font: 600 15px/1 var(--sans);
   text-decoration: none;
   cursor: pointer;
   transition: background-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
 
-.button:hover { background: var(--accent-strong); color: #FFFFFF; transform: translateY(-1px); }
+.button:hover { background: var(--accent-strong); color: var(--on-accent); transform: translateY(-1px); }
 .button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 .button-plain {
@@ -364,7 +518,7 @@ h1 {
 .chip[aria-pressed="true"] {
   border-color: var(--ink);
   background: var(--ink);
-  color: #FFFFFF;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -542,13 +696,13 @@ h1 {
 .alert {
   margin: 0 0 16px;
   padding: 12px 16px;
-  border: 1px solid #E5BDB5;
+  border: 1px solid var(--bad-line);
   border-radius: var(--radius);
-  background: #FBEFEC;
+  background: var(--bad-bg);
 }
 
 .alert-lead { margin: 0 0 4px; font-size: 14px; }
-.alert-what { margin: 0; color: #7A2318; font-weight: 600; }
+.alert-what { margin: 0; color: var(--bad); font-weight: 600; }
 .alert-hint { margin: 4px 0 0; color: var(--ink); font-size: 14px; }
 .alert-hint:empty { display: none; }
 
@@ -617,9 +771,9 @@ h1 {
 
 .check { width: 22px; height: 22px; margin: 11px 0; accent-color: var(--accent); }
 
-.field-wrong .input { border-color: #B4442F; background: #FBEFEC; }
+.field-wrong .input { border-color: var(--bad-edge); background: var(--bad-bg); }
 
-.field-why { margin: 4px 0 0; color: #7A2318; font-size: 13px; font-weight: 600; }
+.field-why { margin: 4px 0 0; color: var(--bad); font-size: 13px; font-weight: 600; }
 
 .field-waiting { color: var(--ink-2); }
 
@@ -643,7 +797,7 @@ h1 {
 }
 
 .changes-what { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
-.changes-wrong { margin: 2px 0 0; color: #7A2318; font-size: 14px; }
+.changes-wrong { margin: 2px 0 0; color: var(--bad); font-size: 14px; }
 .changes-do { display: flex; gap: 10px; }
 
 .doc-head .button { margin-left: auto; }
@@ -862,7 +1016,7 @@ h1 {
   padding: 0;
   border: 0;
   background: none;
-  color: #7A2318;
+  color: var(--bad);
   font: 600 15px/1.5 var(--sans);
   text-align: left;
   text-decoration: underline;
@@ -906,7 +1060,7 @@ h1 {
 .adder-form .input { flex: 1 1 12em; width: auto; min-width: 0; max-width: 100%; min-height: 36px; }
 .adder-form .adder-whole { flex-basis: 100%; }
 .adder[data-adds-section] { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2); }
-.card .adder .field-why { margin: 6px 0 0; color: #7A2318; }
+.card .adder .field-why { margin: 6px 0 0; color: var(--bad); }
 .adder .field-why:empty { display: none; }
 
 .props { display: grid; gap: 16px; }
@@ -968,11 +1122,11 @@ h1 {
 .formula-sig { font: 400 13px/1.5 var(--mono); }
 .formula-arg { color: var(--accent-strong); font-weight: 700; text-decoration: underline; }
 .props .field-why:empty { display: none; }
-.card .props .field-why { color: #7A2318; }
+.card .props .field-why { color: var(--bad); }
 
-.fx-text { color: #1F6B4F; }
-.fx-number { color: #8A4B00; }
-.fx-word { color: #7A2318; font-weight: 600; }
+.fx-text { color: var(--code-text); }
+.fx-number { color: var(--code-number); }
+.fx-word { color: var(--bad); font-weight: 600; }
 .fx-function { color: var(--accent-strong); font-weight: 600; }
 .fx-variable { color: var(--ink); font-weight: 600; }
 .fx-name { color: var(--ink-2); }
@@ -983,7 +1137,7 @@ h1 {
 .begin { display: grid; gap: 16px; max-width: 560px; }
 .begin .button { justify-self: start; }
 .begin .field-why:empty { display: none; }
-.card.begin .field-why { color: #7A2318; }
+.card.begin .field-why { color: var(--bad); }
 
 /* The way to the designer, for a designer. */
 
@@ -1054,7 +1208,7 @@ h1 {
   height: 10px;
   margin-right: 4px;
   border-radius: 4px;
-  background: var(--hue-fg, #B9B6C6);
+  background: var(--hue-fg, var(--mute));
   opacity: .85;
 }
 
@@ -1144,7 +1298,7 @@ h1 {
 .find-app { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 9px; font-weight: 500; cursor: pointer; }
 .find-app:hover,
 .find-app[aria-selected="true"] { background: var(--accent-tint); }
-.find-mark { flex: none; width: 10px; height: 10px; border-radius: 4px; background: var(--hue-fg, #B9B6C6); opacity: .85; }
+.find-mark { flex: none; width: 10px; height: 10px; border-radius: 4px; background: var(--hue-fg, var(--mute)); opacity: .85; }
 .find-name { min-width: 0; overflow-wrap: anywhere; }
 .find-none { padding: 10px 12px; color: var(--ink-2); }
 
@@ -1268,7 +1422,7 @@ h1 {
   min-height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--hue-bg, var(--accent-soft)) 60%, #FFFFFF);
+  background: color-mix(in srgb, var(--hue-bg, var(--accent-soft)) 60%, var(--surface));
   color: var(--ink);
   font-size: 13.5px;
   font-weight: 500;
@@ -1290,7 +1444,7 @@ h1 {
   text-align: center;
 }
 
-.tile-list .tile-count { background: rgba(255, 255, 255, .8); }
+.tile-list .tile-count { background: var(--glass); }
 
 .tile-foot {
   margin: auto 0 0;
@@ -1303,11 +1457,11 @@ h1 {
 .tile-add {
   gap: 10px;
   background: var(--accent-tint);
-  border: 1.5px dashed color-mix(in srgb, var(--accent) 42%, #FFFFFF);
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 42%, var(--surface));
   box-shadow: none;
 }
 
-.tile-add:hover { border-color: color-mix(in srgb, var(--accent) 42%, #FFFFFF); box-shadow: none; transform: none; }
+.tile-add:hover { border-color: color-mix(in srgb, var(--accent) 42%, var(--surface)); box-shadow: none; transform: none; }
 .tile-add-title { color: var(--accent-strong); font-size: 17px; font-weight: 600; }
 .tile-add .button { align-self: flex-start; margin-top: auto; min-height: 44px; padding: 0 18px; font-size: 14px; }
 

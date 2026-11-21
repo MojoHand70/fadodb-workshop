@@ -15,6 +15,7 @@
     "vendor": "node tools/vendor.mjs",
     "preserve": "npm run vendor",
     "serve": "node tools/serve.mjs",
+    "schemes": "node tools/schemes.mjs",
     "pretypecheck": "npm run vendor",
     "typecheck": "tsc -p tsconfig.json",
     "pretest": "npm run vendor",

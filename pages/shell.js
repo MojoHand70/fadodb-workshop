@@ -129,6 +129,68 @@ export function who() {
   return looking;
 }
 
+/**
+ * Puts into the person's menu the choice of how Workshop looks to them:
+ * a scheme of colours and a shade (ADR-0008). A choice shows at once,
+ * on this page and on every other this browser has open. The choices
+ * and what was chosen are those of pages/look-early.js, which a page
+ * runs before it is drawn.
+ *
+ * @param {HTMLElement} menu
+ */
+function lookChoice(menu) {
+  /** @type {{ SCHEMES: [string, string][], MODES: [string, string][], chosen: () => { scheme: string, mode: string }, choose: (look: { scheme?: string, mode?: string }) => void } | undefined} */
+  const look = /** @type {any} */ (globalThis).workshopLook;
+  if (!look || menu.querySelector('#look')) return;
+  const now = look.chosen();
+  const box = make('div', 'look');
+  box.id = 'look';
+
+  const name = make('p', 'look-name', look.SCHEMES.find(([scheme]) => scheme === now.scheme)?.[1] ?? '');
+  name.id = 'look-name';
+  const schemes = make('div', 'look-schemes');
+  schemes.setAttribute('role', 'radiogroup');
+  schemes.setAttribute('aria-label', 'Colours');
+  for (const [scheme, words] of look.SCHEMES) {
+    const one = make('label', 'look-scheme');
+    one.setAttribute('title', words);
+    const input = /** @type {HTMLInputElement} */ (make('input', 'look-input'));
+    input.type = 'radio';
+    input.name = 'look-scheme';
+    input.value = scheme;
+    input.checked = scheme === now.scheme;
+    input.setAttribute('aria-label', words);
+    input.addEventListener('change', () => {
+      look.choose({ scheme });
+      name.textContent = words;
+    });
+    const swatch = make('span', 'look-swatch');
+    swatch.setAttribute('data-swatch', scheme);
+    one.append(input, swatch);
+    schemes.append(one);
+  }
+
+  const modes = make('div', 'look-modes');
+  modes.setAttribute('role', 'radiogroup');
+  modes.setAttribute('aria-label', 'Shade');
+  for (const [mode, words] of look.MODES) {
+    const one = make('label', 'look-mode');
+    const input = /** @type {HTMLInputElement} */ (make('input', 'look-input'));
+    input.type = 'radio';
+    input.name = 'look-mode';
+    input.value = mode;
+    input.checked = mode === now.mode;
+    input.addEventListener('change', () => look.choose({ mode }));
+    one.append(input, make('span', 'look-mode-words', words));
+    modes.append(one);
+  }
+
+  box.append(name, schemes, modes);
+  const first = menu.querySelector('.who-way');
+  if (first) first.before(box);
+  else menu.append(box);
+}
+
 /** Puts the three shared views at the top of the page. */
 function shared() {
   const main = document.querySelector('main');
@@ -190,6 +252,7 @@ export async function enter() {
     part('who').hidden = false;
     // The menu opens under the person, wherever the top bar has put them.
     const menu = part('who-menu');
+    lookChoice(menu);
     menu.addEventListener('toggle', () => {
       const under = part('who-open').getBoundingClientRect();
       menu.style.top = `${Math.round(under.bottom + 6)}px`;
