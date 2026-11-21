@@ -32,6 +32,9 @@ What a user of Workshop would see, newest first.
   of their machine. The choice shows at once and is kept in their
   browser (ADR-0008, Proposed). Nothing changes for a person who
   chooses nothing.
+- Themes stand under Settings too: each scheme by its name, and the
+  three shades. What is chosen there the person's menu says, and the
+  other way round.
 - Settings stand in the rail under the apps, as Apps stands over
   them, for a database administrator alone. Under them: Server (its
   address and the version of its program), Admin (the administrators

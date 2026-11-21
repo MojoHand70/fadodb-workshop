@@ -406,6 +406,21 @@ h1 {
 .look-input:checked + .look-mode-words { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(var(--shade), .12); }
 .look-input:focus-visible + .look-mode-words { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* On the page of the themes each scheme stands with its name, a tile each. */
+.look-named { gap: 18px; margin: 0; padding: 0; border-bottom: 0; }
+.look-named .look-schemes { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+.look-named .look-scheme { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 0 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.look-named .look-scheme:hover { background: var(--accent-tint); }
+.look-named .look-scheme:has(.look-input:checked) { border-color: var(--accent); background: var(--accent-tint); box-shadow: 0 0 0 1px var(--accent); }
+.look-named .look-scheme:has(.look-input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.look-named .look-swatch { flex: none; }
+.look-named .look-input:checked + .look-swatch,
+.look-named .look-input:focus-visible + .look-swatch { box-shadow: 0 0 0 1px var(--line); }
+.look-scheme-words { font-weight: 500; overflow-wrap: anywhere; }
+.look-named .look-modes { max-width: 320px; }
+.card.themes-card { max-width: 620px; }
+.card.themes-card h2 { margin-bottom: 14px; }
+
 .who-way:hover { background: var(--bg-2); color: var(--ink); }
 .who-way:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
 

@@ -132,6 +132,7 @@ export const SETTINGS = [
   { part: 'admin', words: 'Admin' },
   { part: 'users', words: 'Users' },
   { part: 'groups', words: 'Groups' },
+  { part: 'themes', words: 'Themes' },
 ];
 
 /** @param {string} part the name of a part of the settings */

@@ -38,7 +38,9 @@ System?"
 4. **A person chooses in their own menu**, at the end of the top bar:
    a round swatch for each scheme, and the three shades in a row. A
    choice shows at once, on that page and on every other the browser
-   has open.
+   has open. The same choice stands under Settings, Themes, where the
+   owner looked for it: there each scheme has its name beside its
+   swatch.
 5. **The page is never drawn in another look first.** A small script,
    `pages/look-early.js`, says the scheme and the shade on the root of
    the page before the style sheet is read.
@@ -72,7 +74,8 @@ choice stands in the person's menu, as swatches.
 - **The administrator's default, and a choice that follows a person to
   another browser.** Planned next. Both have to be kept by the server,
   which keeps nothing of the kind today: that is a record of the
-  engine's first. Until then Settings has no Themes.
+  engine's first. Until then Themes under Settings hold the choice of
+  the person who looks, as their menu does, and say so: "Your theme".
 - **Themes of shape**, the owner's "maybe even styling themes": other
   corners, a tighter page. His thought, not decided.
 

@@ -47,6 +47,8 @@
     const root = document.documentElement;
     root.dataset.scheme = scheme;
     root.dataset.shade = mode === 'system' ? (dark.matches ? 'dark' : 'light') : mode;
+    // Whatever shows the choice on the page says it again.
+    document.dispatchEvent(new Event('workshop-look'));
   }
 
   /**
