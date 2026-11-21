@@ -120,6 +120,23 @@ export const UNASSIGNED = 'Unassigned';
 /** The page of the lists that belong to no app. */
 export const unassignedAddress = 'app.html?unassigned';
 
+/** The page of the settings. */
+export const settingsAddress = 'settings.html';
+
+/**
+ * What an app says of itself, for the box that finds one: its own
+ * words and those of its lists. A designer knows the names behind them
+ * too, and finds by those.
+ *
+ * @param {App} app
+ * @param {boolean} designer
+ */
+export function appSays(app, designer) {
+  const says = [app.label, app.about, ...app.lists.flatMap((list) => [list.label, list.one])];
+  if (designer) says.push(app.name, ...app.lists.map((list) => list.name));
+  return says;
+}
+
 /** The picture beside "Apps" in the rail: four squares. */
 function appsPicture() {
   const space = 'http://www.w3.org/2000/svg';
@@ -139,22 +156,42 @@ function appsPicture() {
   return picture;
 }
 
+/** The picture beside "Settings" in the rail: a cog. */
+function cogPicture() {
+  const space = 'http://www.w3.org/2000/svg';
+  const picture = document.createElementNS(space, 'svg');
+  picture.setAttribute('class', 'rail-picture');
+  picture.setAttribute('viewBox', '0 0 18 18');
+  picture.setAttribute('aria-hidden', 'true');
+  // The teeth are a ring drawn in eight dashes; inside it the wheel and its hub.
+  for (const [radius, more] of /** @type {[number, Record<string, string>][]} */ ([[7, { 'stroke-width': '2.4', 'stroke-dasharray': '2.3 3.2', 'stroke-dashoffset': '1.15' }], [5.3, {}], [2.1, {}]])) {
+    const ring = document.createElementNS(space, 'circle');
+    ring.setAttribute('cx', '9');
+    ring.setAttribute('cy', '9');
+    ring.setAttribute('r', String(radius));
+    for (const [name, value] of Object.entries(more)) ring.setAttribute(name, value);
+    picture.append(ring);
+  }
+  return picture;
+}
+
 /**
- * Draws the rail at the side: Apps, under it each app by its name, and
- * last Unassigned, where a list belongs to no app.
+ * Draws the rail at the side: Apps, under it each app by its name, then
+ * Unassigned, where a list belongs to no app, and at its foot Settings.
  *
  * @param {HTMLElement} rail
  * @param {App[]} apps
  * @param {boolean} unassigned whether Unassigned is named: a list belongs to no app, or the page is about them
- * @param {string} here the address of the page the person is on: './' for the first page, that of an app, or that of Unassigned
+ * @param {string} here the address of the page the person is on: './' for the first page, that of an app, of Unassigned or of the settings
  */
 export function drawRail(rail, apps, unassigned, here) {
   const home = make('a', 'rail-way rail-home');
   home.setAttribute('href', './');
   home.append(appsPicture(), make('span', '', 'Apps'));
   rail.replaceChildren(home);
-  for (const app of apps) {
-    const way = make('a', 'rail-way rail-app', app.label);
+  for (const [at, app] of apps.entries()) {
+    // An app goes by the colour of its place among the apps.
+    const way = make('a', `rail-way rail-app hue-${at % 6}`, app.label);
     way.setAttribute('href', appAddress(app.name));
     rail.append(way);
   }
@@ -164,6 +201,11 @@ export function drawRail(rail, apps, unassigned, here) {
     way.setAttribute('href', unassignedAddress);
     rail.append(way);
   }
+  const settings = make('a', 'rail-way rail-settings');
+  settings.id = 'rail-settings';
+  settings.setAttribute('href', settingsAddress);
+  settings.append(cogPicture(), make('span', '', 'Settings'));
+  rail.append(settings);
   for (const way of rail.querySelectorAll('.rail-way')) {
     if (way.getAttribute('href') === here) way.setAttribute('aria-current', 'page');
   }

@@ -17,6 +17,20 @@ What a user of Workshop would see, newest first.
   "Unassigned", last in the rail, and a page about one of them names
   Unassigned on the way back. It needs a FadoDB server that knows
   apps (the engine's ADR-0077).
+- Workshop has colours of its own: light and pastel, with a colour for
+  each app on its tile, its lists and in the rail (ADR-0007, Proposed).
+  Corners are rounder and shadows softer.
+- The box that finds an app stands in the middle of the top bar, on
+  every page. On the first page it narrows the apps; on any other it
+  lists the apps that go by what was typed, the arrows move through
+  them and Enter opens the one that is marked.
+- The first page has no large heading "Apps": the rail says it, and
+  the page says "Home" where another page says how it was reached.
+- Settings stand at the foot of the rail, with a cog. Today they show
+  the person what is theirs: their name, the name they sign in by,
+  their groups and the way to their account.
+- On a wide screen the top bar and the rail stay in place while the
+  page moves under them.
 - The person stands at the end of the top bar as a round mark with
   their letters and their name. A press opens their account and
   "Sign out", which is no longer a button of the bar.

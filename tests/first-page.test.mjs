@@ -61,11 +61,21 @@ test('Ann signs in on the server\'s page and sees her name and the apps, each wi
   assert.equal(await page.locator('#who-name').innerText(), 'Ann Kowalska');
   assert.ok(await page.locator('#home').isVisible());
   assert.ok(await page.locator('#signed-out').isHidden());
+  // The rail says "Apps" and the way above says "Home": no large heading says it a third time, and no sentence explains the page.
   assert.equal(await page.locator('#home h1').innerText(), 'Apps');
-  assert.equal(await page.locator('#home .home-head p').count(), 0, 'no sentence explains the page');
+  assert.ok(await page.locator('#home h1').evaluate((one) => one.getBoundingClientRect().width <= 1), 'the heading is for whoever cannot see the page');
+  assert.equal(await page.locator('#home > p:visible').count(), 0, 'what an app says of itself is in its tile; the page says nothing of its own');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home']);
+  assert.equal(await page.locator('#crumbs [aria-current="page"]').innerText(), 'Home');
+  assert.equal(await page.locator('#crumbs a').count(), 0, 'Home is where she is: it leads nowhere');
 
   // An app is a tile: its name, what it is for, and the lists she opens in it.
   assert.deepEqual(await page.locator('.tile .tile-name').allInnerTexts(), ['Expenses', 'Help desk']);
+  // Each app has a colour of its own, by its place among the apps: on its tile and in the rail.
+  assert.deepEqual(await page.locator('.tile[data-app]').evaluateAll((all) => all.map((one) => [...one.classList].find((name) => name.startsWith('hue-')))), ['hue-0', 'hue-1']);
+  assert.deepEqual(await page.locator('#rail .rail-app').evaluateAll((all) => all.map((one) => [...one.classList].find((name) => name.startsWith('hue-')) ?? '')), ['hue-0', 'hue-1', '']);
+  const marks = await page.locator('.tile[data-app] .tile-mark').evaluateAll((all) => all.map((one) => getComputedStyle(one).backgroundColor));
+  assert.notEqual(marks[0], marks[1]);
   const expenses = page.locator('.tile[data-app="Expenses"]');
   assert.equal(await expenses.locator('.tile-name').getAttribute('href'), 'app.html?app=Expenses');
   assert.equal(await expenses.locator('.tile-about').innerText(), 'What employees paid for the company, approved and paid back.');
@@ -75,7 +85,7 @@ test('Ann signs in on the server\'s page and sees her name and the apps, each wi
   assert.equal(await page.locator('.tile[data-app="Helpdesk"] .tile-list').count(), 0);
 
   // The rail at the side names the apps too.
-  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Expenses', 'Help desk', 'Unassigned']);
+  assert.deepEqual(await page.locator('#rail .rail-way').allInnerTexts(), ['Apps', 'Expenses', 'Help desk', 'Unassigned', 'Settings']);
   assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Apps');
 
   // What belongs to no app is not on this page: it stands under Unassigned, last in the rail.
@@ -85,7 +95,8 @@ test('Ann signs in on the server\'s page and sees her name and the apps, each wi
   // Making an app or a class is a designer's: nothing offers it to her.
   assert.equal(await page.locator('#add-app, #new-app').count(), 0);
   assert.equal(await page.locator('.status').count(), 0, 'the page says nothing of how far Workshop is: the README does');
-  assert.equal(await page.locator('#crumbs').count(), 0, 'the first page is where the way begins');
+  // The box that finds an app stands in the top bar.
+  assert.equal(await page.locator('header.top #find').count(), 1);
   assert.deepEqual(wrong, []);
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -276,6 +287,103 @@ test('the lists of no app stand under Unassigned in the rail, as one more app', 
   await context.close();
 });
 
+test('on a page other than the first, the box in the top bar lists the apps that go by what was typed', async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  const { wrong } = watch(page);
+  await annSignsIn(page);
+  await page.goto(`${site.url}list.html?class=Trip`);
+  await ready(page);
+
+  const find = page.getByRole('combobox', { name: 'Find an app' });
+  const list = page.locator('#find-list');
+  assert.ok(await find.isVisible());
+  assert.ok(await list.isHidden());
+  /** The apps the list shows, and which of them is marked. */
+  const shown = () => list.locator('.find-app').evaluateAll((all) => all.map((one) => `${one.textContent}${one.getAttribute('aria-selected') === 'true' ? ' *' : ''}`));
+
+  // By a part of a name, of what an app is for or of a list in it; the first is marked.
+  await find.fill('e');
+  await list.waitFor();
+  assert.deepEqual(await shown(), ['Expenses *', 'Help desk', '<img src=x onerror="document.title=1">', 'Travel']);
+  assert.equal(await list.locator('img, script').count(), 0, 'what an app says is text here too');
+  assert.equal(await find.getAttribute('aria-expanded'), 'true');
+  assert.equal(await find.getAttribute('aria-activedescendant'), 'find-app-0');
+
+  // The arrows move the mark, round and round.
+  await find.press('ArrowDown');
+  assert.deepEqual(await shown(), ['Expenses', 'Help desk *', '<img src=x onerror="document.title=1">', 'Travel']);
+  await find.press('ArrowUp');
+  await find.press('ArrowUp');
+  assert.deepEqual(await shown(), ['Expenses', 'Help desk', '<img src=x onerror="document.title=1">', 'Travel *']);
+
+  // What nothing goes by is said, as text; a designer's name for a class is not hers to find by.
+  await find.fill('<b>zebra</b>');
+  await list.locator('.find-none').waitFor();
+  assert.equal(await list.locator('.find-none').innerText(), 'Nothing here goes by "<b>zebra</b>".');
+  assert.equal(await list.locator('b').count(), 0);
+  await find.fill('snare');
+  await list.locator('.find-none').waitFor();
+  assert.deepEqual(await shown(), []);
+
+  // Escape puts the list away and leaves what was typed.
+  await find.press('Escape');
+  assert.ok(await list.isHidden());
+  assert.equal(await find.inputValue(), 'snare');
+  assert.equal(await find.getAttribute('aria-expanded'), 'false');
+
+  // Enter opens the app that is marked.
+  await find.fill('business trip');
+  await list.locator('.find-app').waitFor();
+  assert.deepEqual(await shown(), ['Travel *']);
+  await find.press('Enter');
+  await page.waitForURL((address) => address.pathname === '/app.html');
+  assert.equal(new URL(page.url()).search, '?app=Travel');
+  await ready(page);
+
+  // A press on an app in the list opens it too.
+  const there = page.getByRole('combobox', { name: 'Find an app' });
+  await there.fill('expen');
+  await page.locator('#find-list .find-app').click();
+  await page.waitForURL((address) => address.search === '?app=Expenses');
+  assert.deepEqual(wrong, []);
+
+  await ready(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await fits(page), 'the box fits a phone, in a row of its own');
+  await context.close();
+});
+
+test('Settings stand at the foot of the rail and show the person what is theirs', async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  const { wrong } = watch(page);
+  await annSignsIn(page);
+
+  const way = page.locator('#rail-settings');
+  assert.equal(await way.innerText(), 'Settings');
+  assert.equal(await page.locator('#rail .rail-way').last().getAttribute('id'), 'rail-settings');
+  // At the foot: under every app, at the bottom of the window.
+  const [rail, box] = [await page.locator('#rail').boundingBox(), await way.boundingBox()];
+  assert.ok(rail && box && box.y + box.height > rail.y + rail.height - 40 && box.y + box.height <= 800, 'the way to the settings is at the foot of the rail, in sight');
+
+  await way.click();
+  await page.waitForURL((address) => address.pathname === '/settings.html');
+  await ready(page);
+  assert.equal(await page.title(), 'Settings · FadoDB Workshop');
+  assert.deepEqual(await page.locator('#crumbs li').allInnerTexts(), ['Home', 'Settings']);
+  assert.equal(await page.locator('#rail [aria-current="page"]').innerText(), 'Settings');
+  assert.equal(await page.locator('#you-name').innerText(), 'Ann Kowalska');
+  assert.equal(await page.locator('#you-id').innerText(), 'ann');
+  assert.match(await page.locator('#you-groups').innerText(), /\bexpense_approvers\b/);
+  assert.equal(await page.locator('#you-account').getAttribute('href'), '/auth/account');
+  assert.deepEqual(wrong, []);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await fits(page), 'the settings fit a phone');
+  await context.close();
+});
+
 test('Ann finds an app by a part of its name or of a list\'s, and Enter opens the first that is left', async () => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
@@ -363,7 +471,7 @@ test('no page says the word class to Ann: it is a designer\'s word', async () =>
       if (engines) engines.hidden = false;
       return words;
     });
-  const pages = ['', 'app.html?app=Expenses', 'app.html?app=Helpdesk', 'app.html?app=Nope', 'app.html', 'app.html?new', 'app.html?unassigned', 'list.html?class=Memo', 'list.html?class=Expense', 'list.html?class=Trip', `document.html?class=Expense&id=${encodeURIComponent(made.id)}`, 'document.html?class=Expense&new', 'list.html', 'document.html'];
+  const pages = ['', 'app.html?app=Expenses', 'app.html?app=Helpdesk', 'app.html?app=Nope', 'app.html', 'app.html?new', 'app.html?unassigned', 'settings.html', 'list.html?class=Memo', 'list.html?class=Expense', 'list.html?class=Trip', `document.html?class=Expense&id=${encodeURIComponent(made.id)}`, 'document.html?class=Expense&new', 'list.html', 'document.html'];
   for (const path of pages) {
     await page.goto(site.url + path);
     await ready(page);

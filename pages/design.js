@@ -87,6 +87,7 @@ import {
   whoDecides,
 } from './class.js';
 import { appSteps } from './apps.js';
+import { finder } from './finder.js';
 import { crumbs, enter, make, part, ready, show } from './shell.js';
 import { callAt, fromBytes, helpFor, pieceAt } from './formula.js';
 import { codeView, formulaBox } from './text.js';
@@ -2780,6 +2781,7 @@ async function begin() {
 
 const user = await enter();
 if (user) {
+  finder({ designer: (user.system_groups ?? []).includes('designers') });
   try {
     const mayChange = (user.system_groups ?? []).includes('designers');
     if (making) {

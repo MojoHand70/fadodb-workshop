@@ -4,6 +4,7 @@
 
 import { UNASSIGNED, appAddress, counted, designAddress, drawRail, listAddress, nameFrom, readApps, unassignedAddress } from './apps.js';
 import { Refused, call } from './fado.js';
+import { finder } from './finder.js';
 import { crumbs, enter, make, part, ready, show } from './shell.js';
 
 const asked = new URLSearchParams(location.search);
@@ -69,6 +70,7 @@ async function showApp(designer) {
     throw new Refused('unknown_app', `The server has no app ${appName}.`, 0);
   }
   drawRail(part('rail'), apps, loose.length > 0, appAddress(app.name));
+  finder({ designer, apps });
   crumbs([{ words: app.label }]);
   document.title = `${app.label} · FadoDB Workshop`;
   part('app-title').textContent = app.label;
@@ -83,6 +85,8 @@ async function showApp(designer) {
   // A designer adds a class as the first page adds an app: by the last tile.
   const lists = part('lists');
   lists.replaceChildren(...app.lists.map((list) => tile(list, designer)));
+  // The lists of an app carry its colour.
+  lists.classList.add(`hue-${apps.indexOf(app) % 6}`);
   if (designer && app.lists.length > 0) lists.append(addTile(fresh));
   lists.hidden = app.lists.length === 0;
 
@@ -106,6 +110,7 @@ async function showApp(designer) {
 async function showUnassigned(designer) {
   const { apps, loose } = await readApps();
   drawRail(part('rail'), apps, true, unassignedAddress);
+  finder({ designer, apps });
   crumbs([{ words: UNASSIGNED }]);
   document.title = `${UNASSIGNED} · FadoDB Workshop`;
   part('app-title').textContent = UNASSIGNED;
@@ -129,6 +134,7 @@ async function showUnassigned(designer) {
 async function begin() {
   const { apps, loose } = await readApps();
   drawRail(part('rail'), apps, loose.length > 0, './');
+  finder({ designer: true, apps });
   crumbs([{ words: 'A new app' }]);
   document.title = 'A new app · FadoDB Workshop';
   const label = /** @type {HTMLInputElement} */ (part('new-label'));

@@ -63,7 +63,7 @@ import {
 
 /** The colours of a class as text, from the palette of the pages. */
 const colours = HighlightStyle.define([
-  { tag: tags.propertyName, color: 'var(--blue-strong)' },
+  { tag: tags.propertyName, color: 'var(--accent-strong)' },
   { tag: tags.string, color: '#1F6B4F' },
   { tag: tags.number, color: '#8A4B00' },
   { tag: [tags.bool, tags.null], color: '#7A2318', fontWeight: '600' },
@@ -74,7 +74,7 @@ const colours = HighlightStyle.define([
 /** The look of the box: the page's own, not CodeMirror's. */
 const look = EditorView.theme({
   '&': { backgroundColor: 'var(--bg)', border: '1px solid var(--line-2)', borderRadius: '8px', fontSize: '13px' },
-  '&.cm-focused': { outline: '2px solid var(--blue)', outlineOffset: '2px' },
+  '&.cm-focused': { outline: '2px solid var(--accent)', outlineOffset: '2px' },
   '.cm-scroller': { fontFamily: 'var(--mono)', lineHeight: '1.6', maxHeight: '70vh', overflow: 'auto' },
   '.cm-content': { padding: '12px 0' },
   '.cm-gutters': { backgroundColor: 'transparent', border: '0', color: 'var(--ink-2)' },
@@ -314,15 +314,15 @@ export function codeView(parent, { text, label, readOnly = false, onChange }) {
 
 /** The look of a formula box: a field of the page, not a text editor. */
 const lookOfFormula = EditorView.theme({
-  '&': { backgroundColor: 'var(--surface)', border: '1px solid var(--taupe, #A89C86)', borderRadius: '10px', fontSize: '14px', minHeight: '44px' },
-  '&.cm-focused': { outline: '2px solid var(--blue)', outlineOffset: '1px' },
+  '&': { backgroundColor: 'var(--surface)', border: '1px solid var(--edge)', borderRadius: '10px', fontSize: '14px', minHeight: '44px' },
+  '&.cm-focused': { outline: '2px solid var(--accent)', outlineOffset: '1px' },
   '.cm-scroller': { fontFamily: 'var(--mono)', lineHeight: '1.6' },
   '.cm-content': { padding: '10px 4px' },
   '.cm-line': { padding: '0 8px' },
-  '.cm-tooltip.cm-tooltip-autocomplete': { border: '1px solid var(--line)', borderRadius: '8px', backgroundColor: 'var(--surface)', boxShadow: '0 6px 20px rgba(36, 38, 43, 0.14)', overflow: 'hidden' },
+  '.cm-tooltip.cm-tooltip-autocomplete': { border: '1px solid var(--line)', borderRadius: '8px', backgroundColor: 'var(--surface)', boxShadow: '0 6px 20px rgba(38, 35, 56, 0.14)', overflow: 'hidden' },
   '.cm-tooltip.cm-tooltip-autocomplete > ul': { fontFamily: 'var(--mono)', fontSize: '13px', maxHeight: '15em' },
   '.cm-tooltip.cm-tooltip-autocomplete > ul > li': { padding: '3px 10px' },
-  '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'var(--blue-strong)', color: '#FFFFFF' },
+  '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'var(--accent-strong)', color: '#FFFFFF' },
   '.cm-completionDetail': { fontStyle: 'normal', opacity: '0.75' },
   '.cm-tooltip.cm-completionInfo': { border: '1px solid var(--line)', borderRadius: '8px', backgroundColor: 'var(--surface)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontSize: '13px', maxWidth: '26em', padding: '8px 10px' },
 });
